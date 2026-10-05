@@ -1,0 +1,5 @@
+# Only the Edge Function lives here. The database schema and migrations stay
+# in tonyye99/slip-share (supabase/migrations), which owns the project.
+
+[functions.parse-receipt]
+verify_jwt = true
