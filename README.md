@@ -6,9 +6,9 @@ Built with Expo (SDK 57, Expo Router) and TypeScript. It uses the same Supabase 
 
 ## How it fits together
 
-- **Auth and data**: the app talks to Supabase directly with `@supabase/supabase-js`. The tables and row-level security come from the web repo's `supabase/migrations`, so nothing changes in the database. Sessions are kept in the device keychain via `expo-secure-store`.
+- **Auth and data**: the app talks to Supabase directly with `@supabase/supabase-js`. The schema and row-level security live in `supabase/migrations`. The first seven files are copied unchanged from the web repo, so they match what is already applied; anything after them is new for the app. Sessions are kept in the device keychain via `expo-secure-store`.
 - **Receipt parsing**: the OpenAI call runs in a Supabase Edge Function (`supabase/functions/parse-receipt`), a port of the web app's `/api/openai/parse` route. The OpenAI key never ships in the app.
-- **Sharing**: each receipt has a `share_token`. The owner shares `slipshare://join/<token>`; opening it calls the `join_receipt` RPC, which adds the person to `receipt_participants` so RLS lets them read the receipt and save their own selection. This needs the `receipt_sharing` migration from slip-share.
+- **Sharing**: each receipt has a `share_token`. The owner shares `slipshare://join/<token>`; opening it calls the `join_receipt` RPC, which adds the person to `receipt_participants` so RLS lets them read the receipt and save their own selection. This needs the `receipt_sharing` migration in `supabase/migrations`.
 - **Split math**: `src/lib/split.ts`, ported from the web app's cost calculator, with tests in `src/lib/split.test.ts`.
 
 ## Screens
@@ -26,10 +26,11 @@ Built with Expo (SDK 57, Expo Router) and TypeScript. It uses the same Supabase 
 
 1. `npm install`
 2. Copy `.env.example` to `.env` and fill in the slip-share Supabase URL and anon key.
-3. Deploy the parser to the same Supabase project:
+3. Apply the database changes and deploy the parser to the same Supabase project:
    ```bash
    npx supabase login
    npx supabase link --project-ref <project-ref>
+   npx supabase db push          # applies migrations not yet on the project
    npx supabase secrets set OPENAI_API_KEY=sk-...
    npx supabase functions deploy parse-receipt
    ```

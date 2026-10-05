@@ -18,7 +18,7 @@ export interface Receipt {
   subtotal: number
   total: number
   user_type: UserType
-  /** Token in the share link; see join_receipt() in the slip-share migrations. */
+  /** Token in the share link; see join_receipt() in supabase/migrations. */
   share_token: string
   created_at: string
   updated_at: string
