@@ -18,6 +18,8 @@ export interface Receipt {
   subtotal: number
   total: number
   user_type: UserType
+  /** Token in the share link; see join_receipt() in the slip-share migrations. */
+  share_token: string
   created_at: string
   updated_at: string
 }
@@ -70,4 +72,12 @@ export interface ParsedReceipt {
   subtotal: number
   total: number
   rounding: number
+}
+
+/** One person's line in the owner's "who owes what" list. */
+export interface ParticipantShare {
+  user_id: string
+  name: string
+  /** null until they have picked their items. */
+  total: number | null
 }

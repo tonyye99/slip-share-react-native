@@ -25,6 +25,8 @@ function RootStack() {
         <Stack.Screen name="sign-in" />
         <Stack.Screen name="sign-up" />
       </Stack.Protected>
+      {/* Share links work signed in or out; see join/[token].tsx. */}
+      <Stack.Screen name="join/[token]" />
     </Stack>
   )
 }

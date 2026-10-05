@@ -1,5 +1,8 @@
 import { Stack } from 'expo-router'
 
+// Keeps the receipt list underneath a receipt opened straight from a share link.
+export const unstable_settings = { initialRouteName: 'index' }
+
 export default function AppLayout() {
   return (
     <Stack screenOptions={{ headerBackButtonDisplayMode: 'minimal' }}>

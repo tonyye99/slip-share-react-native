@@ -8,6 +8,7 @@ Built with Expo (SDK 57, Expo Router) and TypeScript. It uses the same Supabase 
 
 - **Auth and data**: the app talks to Supabase directly with `@supabase/supabase-js`. The tables and row-level security come from the web repo's `supabase/migrations`, so nothing changes in the database. Sessions are kept in the device keychain via `expo-secure-store`.
 - **Receipt parsing**: the OpenAI call runs in a Supabase Edge Function (`supabase/functions/parse-receipt`), a port of the web app's `/api/openai/parse` route. The OpenAI key never ships in the app.
+- **Sharing**: each receipt has a `share_token`. The owner shares `slipshare://join/<token>`; opening it calls the `join_receipt` RPC, which adds the person to `receipt_participants` so RLS lets them read the receipt and save their own selection. This needs the `receipt_sharing` migration from slip-share.
 - **Split math**: `src/lib/split.ts`, ported from the web app's cost calculator, with tests in `src/lib/split.test.ts`.
 
 ## Screens
@@ -18,7 +19,8 @@ Built with Expo (SDK 57, Expo Router) and TypeScript. It uses the same Supabase 
 | `(app)/index` | Your receipts (pull to refresh, infinite scroll) and "Scan a receipt" |
 | `(app)/scan` | Camera or photo library, optional English translation, sends a resized JPEG to the parser |
 | `(app)/review` | Parsed items and totals, choose "I paid" or "Someone else paid", save |
-| `(app)/receipts/[id]` | Tap items you had, set how many people shared each, live total, save your share |
+| `(app)/receipts/[id]` | Tap items you had, set how many people shared each, live total, save your share. The owner can share a link and sees who owes what |
+| `join/[token]` | Opened from a share link; joins the receipt (after sign-in if needed) and opens it |
 
 ## Setup
 
