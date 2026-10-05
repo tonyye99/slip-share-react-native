@@ -1,8 +1,9 @@
 import { Link } from 'expo-router'
-import { useState } from 'react'
+import { useState, type ReactNode } from 'react'
 import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, View } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 
+import { SocialSignIn } from '@/components/social-sign-in'
 import { AppText, Button, TextField } from '@/components/ui'
 import { MaxContentWidth, Spacing } from '@/constants/theme'
 import { useTheme } from '@/hooks/use-theme'
@@ -17,9 +18,30 @@ interface AuthFormProps {
   onSubmit: (values: { name: string; email: string; password: string }) => Promise<AuthResult>
 }
 
+/** Centered, keyboard-aware page used by every signed-out screen. */
+export function AuthLayout({ subtitle, children }: { subtitle: string; children: ReactNode }) {
+  const theme = useTheme()
+  return (
+    <SafeAreaView style={[styles.safe, { backgroundColor: theme.background }]}>
+      <KeyboardAvoidingView style={styles.safe} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+        <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+          <View style={styles.header}>
+            <AppText variant="title">SlipShare</AppText>
+            <AppText variant="muted">{subtitle}</AppText>
+          </View>
+          {children}
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </SafeAreaView>
+  )
+}
+
+export const authStyles = StyleSheet.create({
+  link: { alignSelf: 'center', paddingVertical: Spacing.two },
+})
+
 /** Shared email/password form for the sign-in and sign-up screens. */
 export function AuthForm({ mode, onSubmit }: AuthFormProps) {
-  const theme = useTheme()
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -43,44 +65,43 @@ export function AuthForm({ mode, onSubmit }: AuthFormProps) {
   }
 
   return (
-    <SafeAreaView style={[styles.safe, { backgroundColor: theme.background }]}>
-      <KeyboardAvoidingView style={styles.safe} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-        <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-          <View style={styles.header}>
-            <AppText variant="title">SlipShare</AppText>
-            <AppText variant="muted">{signUp ? 'Create an account to start splitting bills.' : 'Sign in to split your bills.'}</AppText>
-          </View>
+    <AuthLayout subtitle={signUp ? 'Create an account to start splitting bills.' : 'Sign in to split your bills.'}>
+      {signUp && <TextField label="Name" value={name} onChangeText={setName} autoComplete="name" />}
+      <TextField
+        label="Email"
+        value={email}
+        onChangeText={setEmail}
+        autoCapitalize="none"
+        autoComplete="email"
+        keyboardType="email-address"
+      />
+      <TextField
+        label="Password"
+        value={password}
+        onChangeText={setPassword}
+        secureTextEntry
+        autoComplete={signUp ? 'new-password' : 'current-password'}
+      />
 
-          {signUp && <TextField label="Name" value={name} onChangeText={setName} autoComplete="name" />}
-          <TextField
-            label="Email"
-            value={email}
-            onChangeText={setEmail}
-            autoCapitalize="none"
-            autoComplete="email"
-            keyboardType="email-address"
-          />
-          <TextField
-            label="Password"
-            value={password}
-            onChangeText={setPassword}
-            secureTextEntry
-            autoComplete={signUp ? 'new-password' : 'current-password'}
-          />
+      {error && <AppText variant="error">{error}</AppText>}
+      {notice && <AppText>{notice}</AppText>}
 
-          {error && <AppText variant="error">{error}</AppText>}
-          {notice && <AppText>{notice}</AppText>}
+      <Button title={signUp ? 'Create account' : 'Sign in'} onPress={submit} loading={busy} />
 
-          <Button title={signUp ? 'Create account' : 'Sign in'} onPress={submit} loading={busy} />
+      {!signUp && (
+        <Link href="/forgot-password" style={authStyles.link}>
+          <AppText variant="muted">Forgot your password?</AppText>
+        </Link>
+      )}
 
-          <Link href={signUp ? '/sign-in' : '/sign-up'} replace style={styles.link}>
-            <AppText variant="muted">
-              {signUp ? 'Already have an account? Sign in' : 'New here? Create an account'}
-            </AppText>
-          </Link>
-        </ScrollView>
-      </KeyboardAvoidingView>
-    </SafeAreaView>
+      <SocialSignIn onError={setError} />
+
+      <Link href={signUp ? '/sign-in' : '/sign-up'} replace style={authStyles.link}>
+        <AppText variant="muted">
+          {signUp ? 'Already have an account? Sign in' : 'New here? Create an account'}
+        </AppText>
+      </Link>
+    </AuthLayout>
   )
 }
 
@@ -96,5 +117,4 @@ const styles = StyleSheet.create({
     alignSelf: 'center',
   },
   header: { gap: Spacing.one, marginBottom: Spacing.three },
-  link: { alignSelf: 'center', paddingVertical: Spacing.two },
 })

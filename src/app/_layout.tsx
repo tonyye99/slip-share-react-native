@@ -24,9 +24,12 @@ function RootStack() {
       <Stack.Protected guard={!session}>
         <Stack.Screen name="sign-in" />
         <Stack.Screen name="sign-up" />
+        <Stack.Screen name="forgot-password" />
       </Stack.Protected>
-      {/* Share links work signed in or out; see join/[token].tsx. */}
+      {/* Links from outside the app work signed in or out. */}
       <Stack.Screen name="join/[token]" />
+      <Stack.Screen name="auth/callback" />
+      <Stack.Screen name="reset-password" />
     </Stack>
   )
 }

@@ -15,7 +15,9 @@ Built with Expo (SDK 57, Expo Router) and TypeScript. It uses the same Supabase 
 
 | Route | What it does |
 |---|---|
-| `sign-in`, `sign-up` | Email and password auth |
+| `sign-in`, `sign-up` | Email and password, plus Continue with Apple (iOS), Google and GitHub |
+| `forgot-password`, `reset-password` | Emails a reset link; the link opens the app to choose a new password |
+| `auth/callback` | Where email confirmation and OAuth links land |
 | `(app)/index` | Your receipts (pull to refresh, infinite scroll) and "Scan a receipt" |
 | `(app)/scan` | Camera or photo library, optional English translation, sends a resized JPEG to the parser |
 | `(app)/review` | Parsed items and totals, choose "I paid" or "Someone else paid", save |
@@ -34,7 +36,17 @@ Built with Expo (SDK 57, Expo Router) and TypeScript. It uses the same Supabase 
    npx supabase secrets set OPENAI_API_KEY=sk-...
    npx supabase functions deploy parse-receipt
    ```
-4. `npx expo start`, then open it in Expo Go or a development build.
+4. Set up sign-in in the Supabase dashboard (see below).
+5. `npx expo start`, then open it in Expo Go or a development build.
+
+## Sign-in setup (Supabase dashboard)
+
+Auth links use PKCE: they come back to the app as `slipshare://…?code=…`, and `src/lib/auth-links.ts` exchanges the code for a session.
+
+- **Authentication → URL Configuration → Redirect URLs**: add `slipshare://**`. For Expo Go during development, also add `exp://**`.
+- **Google** and **GitHub** providers: these are the same ones the web app uses. Nothing else is needed, because the app signs in through Supabase's web flow in an in-app browser.
+- **Apple** provider: enable it and add the bundle ID `com.tonyye99.slipshare` under *Client IDs*. iOS uses native Sign in with Apple (`usesAppleSignIn` in `app.json`), so test it in a development build. In Expo Go the token is issued to `host.exp.Exponent`, which you would also have to list. The App Store requires Apple sign-in when other social logins are offered.
+- **Password reset** and **email confirmation** links use the same redirect URLs. Open them on the phone that asked for them, because the PKCE verifier is stored there.
 
 ## Checks
 
