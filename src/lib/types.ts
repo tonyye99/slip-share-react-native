@@ -80,4 +80,13 @@ export interface ParticipantShare {
   name: string
   /** null until they have picked their items. */
   total: number | null
+  /** Set when the owner marks them as paid; null for the owner's own line. */
+  payment: Payment | null
+}
+
+/** A friend's payment as the receipt owner recorded it (receipt_participants). */
+export interface Payment {
+  paid_at: string
+  /** Their total when it was marked, which can differ if they change picks later. */
+  paid_amount: number
 }

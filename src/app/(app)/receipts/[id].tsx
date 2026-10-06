@@ -8,10 +8,17 @@ import { AppText, Button, Card, Row } from '@/components/ui'
 import { MaxContentWidth, Spacing } from '@/constants/theme'
 import { useTheme } from '@/hooks/use-theme'
 import { useUserId } from '@/lib/auth'
-import { getOwnerName, getParticipantShares, getReceipt, saveSelection } from '@/lib/receipts'
+import {
+  getMyPayment,
+  getOwnerName,
+  getParticipantShares,
+  getReceipt,
+  saveSelection,
+  setParticipantPaid,
+} from '@/lib/receipts'
 import { shareReceipt } from '@/lib/share'
 import { calculateSplit, formatMoney, itemCostPerPerson } from '@/lib/split'
-import type { ParticipantShare, ReceiptWithItems, ShareCounts, UserSelection } from '@/lib/types'
+import type { ParticipantShare, Payment, ReceiptWithItems, ShareCounts, UserSelection } from '@/lib/types'
 
 export default function SplitScreen() {
   const { id } = useLocalSearchParams<{ id: string }>()
@@ -28,11 +35,19 @@ export default function SplitScreen() {
   // Owner sees everyone's totals; a participant sees who shared the bill.
   const [participants, setParticipants] = useState<ParticipantShare[] | null>(null)
   const [ownerName, setOwnerName] = useState<string | null>(null)
+  // A participant's own payment, once the owner marks it.
+  const [myPayment, setMyPayment] = useState<Payment | null>(null)
+  const [updatingPaymentFor, setUpdatingPaymentFor] = useState<string | null>(null)
 
   const loadParticipants = useCallback(
     async (receipt: ReceiptWithItems) => {
-      if (receipt.user_id === userId) setParticipants(await getParticipantShares(receipt, userId))
-      else setOwnerName(await getOwnerName(receipt.user_id))
+      if (receipt.user_id === userId) {
+        setParticipants(await getParticipantShares(receipt, userId))
+      } else {
+        const [name, payment] = await Promise.all([getOwnerName(receipt.user_id), getMyPayment(receipt.id, userId)])
+        setOwnerName(name)
+        setMyPayment(payment)
+      }
     },
     [userId],
   )
@@ -109,6 +124,19 @@ export default function SplitScreen() {
     }
   }
 
+  const togglePaid = async (participant: ParticipantShare) => {
+    setUpdatingPaymentFor(participant.user_id)
+    try {
+      await setParticipantPaid(receipt.id, participant.user_id, !participant.payment)
+      await loadParticipants(receipt)
+    } catch (e) {
+      console.error('Payment update failed', e)
+      Alert.alert('Could not update', 'Please try again.')
+    } finally {
+      setUpdatingPaymentFor(null)
+    }
+  }
+
   return (
     <SafeAreaView edges={['bottom']} style={[styles.flex, { backgroundColor: theme.background }]}>
       {isOwner && (
@@ -141,7 +169,22 @@ export default function SplitScreen() {
             total={receipt.total}
             money={money}
             onShare={share}
+            // Payments only make sense when the owner paid the bill.
+            onTogglePaid={isPayer ? togglePaid : undefined}
+            updatingPaymentFor={updatingPaymentFor}
           />
+        )}
+
+        {myPayment && (
+          <Card>
+            <AppText variant="label">✓ {ownerName ?? 'The owner'} marked your share as paid</AppText>
+            <AppText variant="muted">
+              {money(myPayment.paid_amount)} on {new Date(myPayment.paid_at).toLocaleDateString()}
+              {selection && !sameAmount(Number(selection.calculated_total), myPayment.paid_amount)
+                ? `. Your saved share is now ${money(Number(selection.calculated_total))}.`
+                : ''}
+            </AppText>
+          </Card>
         )}
 
         {hasTranslation && (
@@ -218,14 +261,23 @@ function WhoOwesWhat({
   total,
   money,
   onShare,
+  onTogglePaid,
+  updatingPaymentFor,
 }: {
   participants: ParticipantShare[]
   total: number
   money: (amount: number) => string
   onShare: () => void
+  /** Set when the owner paid the bill, so they can tick off friends who paid them back. */
+  onTogglePaid?: (participant: ParticipantShare) => void
+  updatingPaymentFor: string | null
 }) {
   const claimed = participants.reduce((sum, participant) => sum + (participant.total ?? 0), 0)
   const unclaimed = total - claimed
+  // The owner's own line is first and is never "paid back".
+  const friends = participants.slice(1).filter((participant) => participant.total !== null)
+  const owedByFriends = friends.reduce((sum, friend) => sum + (friend.total ?? 0), 0)
+  const paidBack = friends.reduce((sum, friend) => sum + (friend.payment?.paid_amount ?? 0), 0)
 
   if (participants.length === 1) {
     return (
@@ -240,18 +292,63 @@ function WhoOwesWhat({
   return (
     <Card>
       <AppText variant="heading">Who owes what</AppText>
-      {participants.map((participant) => (
-        <Row
-          key={participant.user_id}
-          label={participant.name}
-          value={participant.total === null ? 'Not picked yet' : money(participant.total)}
-        />
-      ))}
+      {participants.map((participant, index) => {
+        const value = participant.total === null ? 'Not picked yet' : money(participant.total)
+        const canMarkPaid = onTogglePaid && index > 0 && participant.total !== null
+        if (!canMarkPaid) return <Row key={participant.user_id} label={participant.name} value={value} />
+        const { payment } = participant
+        return (
+          <View key={participant.user_id} style={styles.participant}>
+            <View style={styles.participantRow}>
+              <AppText variant="muted" style={styles.flex}>
+                {participant.name}
+              </AppText>
+              <AppText style={styles.amount}>{value}</AppText>
+              <PaidToggle
+                paid={!!payment}
+                busy={updatingPaymentFor === participant.user_id}
+                onPress={() => onTogglePaid(participant)}
+              />
+            </View>
+            {payment && !sameAmount(payment.paid_amount, participant.total ?? 0) && (
+              <AppText variant="muted">
+                Paid {money(payment.paid_amount)} before changing their picks
+              </AppText>
+            )}
+          </View>
+        )
+      })}
       {Math.abs(unclaimed) > 0.005 && <Row label="Not claimed yet" value={money(unclaimed)} />}
+      {onTogglePaid && friends.length > 0 && (
+        <Row label="Paid back" value={`${money(paidBack)} of ${money(owedByFriends)}`} />
+      )}
       <AppText variant="muted">Pull down to refresh.</AppText>
     </Card>
   )
 }
+
+function PaidToggle({ paid, busy, onPress }: { paid: boolean; busy: boolean; onPress: () => void }) {
+  const theme = useTheme()
+  return (
+    <Pressable
+      onPress={onPress}
+      disabled={busy}
+      hitSlop={8}
+      accessibilityRole="checkbox"
+      accessibilityLabel="Paid"
+      accessibilityState={{ checked: paid, busy }}
+      style={[
+        styles.paidToggle,
+        { borderColor: theme.primary, backgroundColor: paid ? theme.primary : 'transparent', opacity: busy ? 0.5 : 1 },
+      ]}>
+      <AppText variant="label" style={{ color: paid ? theme.onPrimary : theme.primary }}>
+        {paid ? '✓ Paid' : 'Mark paid'}
+      </AppText>
+    </Pressable>
+  )
+}
+
+const sameAmount = (a: number, b: number) => Math.abs(a - b) < 0.005
 
 const styles = StyleSheet.create({
   flex: { flex: 1 },
@@ -263,6 +360,16 @@ const styles = StyleSheet.create({
   itemRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.three },
   check: { width: 24, height: 24, borderRadius: 6, borderWidth: 2, alignItems: 'center', justifyContent: 'center' },
   amount: { fontVariant: ['tabular-nums'] },
+  participant: { gap: Spacing.one },
+  participantRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
+  paidToggle: {
+    borderWidth: 1,
+    borderRadius: 999,
+    paddingHorizontal: Spacing.two,
+    paddingVertical: 2,
+    minWidth: 84,
+    alignItems: 'center',
+  },
   summary: {
     padding: Spacing.three,
     gap: Spacing.one,
