@@ -8,7 +8,7 @@ import { AppText, Button, TextField } from '@/components/ui'
 import { MaxContentWidth, Spacing } from '@/constants/theme'
 import { useTheme } from '@/hooks/use-theme'
 
-export interface AuthResult {
+interface AuthResult {
   error?: string
   notice?: string
 }

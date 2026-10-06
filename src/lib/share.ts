@@ -7,13 +7,9 @@ export function isShareToken(value: string): boolean {
   return UUID.test(value)
 }
 
-/** slipshare://join/<token> in builds, exp://… in Expo Go. */
-export function shareLink(shareToken: string): string {
-  return Linking.createURL(`join/${shareToken}`)
-}
-
 export async function shareReceipt(shareToken: string, merchant: string | null) {
-  const url = shareLink(shareToken)
+  // slipshare://join/<token> in builds, exp://… in Expo Go.
+  const url = Linking.createURL(`join/${shareToken}`)
   const what = merchant ? `the ${merchant} bill` : 'this bill'
   // The link goes in the message only; passing `url` too makes iOS share it twice.
   await Share.share({ message: `Pick what you had from ${what} on SlipShare: ${url}` })

@@ -1,4 +1,4 @@
-// Mirrors the Supabase schema in tonyye99/slip-share (supabase/migrations).
+// Mirrors the Supabase schema in supabase/migrations.
 
 export type UserType = 'payer' | 'sharer'
 

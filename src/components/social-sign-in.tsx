@@ -1,10 +1,9 @@
 import * as AppleAuthentication from 'expo-apple-authentication'
 import { useEffect, useState } from 'react'
-import { Platform, StyleSheet, View } from 'react-native'
+import { Platform, StyleSheet, useColorScheme, View } from 'react-native'
 
 import { AppText, Button } from '@/components/ui'
 import { Spacing } from '@/constants/theme'
-import { useColorScheme } from '@/hooks/use-color-scheme'
 import { useTheme } from '@/hooks/use-theme'
 import { signInWithApple, signInWithProvider } from '@/lib/auth-links'
 
