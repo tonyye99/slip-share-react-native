@@ -21,7 +21,7 @@ Built with Expo (SDK 57, Expo Router) and TypeScript. It uses the same Supabase 
 | `auth/callback` | Where email confirmation and OAuth links land |
 | `(app)/index` | Your receipts (pull to refresh, infinite scroll) and "Scan a receipt" |
 | `(app)/scan` | Camera or photo library, optional English translation, sends a resized JPEG to the parser |
-| `(app)/review` | Parsed items and totals, choose "I paid" or "Someone else paid", save |
+| `(app)/review` | Parsed items and totals. Fix, add or remove misread items (warns when they don't add up to the printed total), choose "I paid" or "Someone else paid", save |
 | `(app)/receipts/[id]` | Tap items you had, set how many people shared each, live total, save your share. The owner can share a link, sees who owes what, and marks who has paid them back |
 | `join/[token]` | Opened from a share link; joins the receipt (after sign-in if needed) and opens it |
 
