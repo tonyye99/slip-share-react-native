@@ -1,17 +1,13 @@
 import { router, useLocalSearchParams } from 'expo-router'
 import { useEffect, useState } from 'react'
-import { ActivityIndicator, StyleSheet, View } from 'react-native'
 
-import { AppText, Button } from '@/components/ui'
-import { Spacing } from '@/constants/theme'
-import { useTheme } from '@/hooks/use-theme'
+import { LinkStatus } from '@/components/link-status'
 import { completeAuthRedirect, type AuthRedirectParams } from '@/lib/auth-links'
 
 // slipshare://auth/callback: where email confirmation links (and, on Android,
 // OAuth redirects) land. Signs in with the link's code, then goes home.
 export default function AuthCallbackScreen() {
   const params = useLocalSearchParams<Record<keyof AuthRedirectParams, string>>()
-  const theme = useTheme()
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
@@ -26,25 +22,11 @@ export default function AuthCallbackScreen() {
   }, [])
 
   return (
-    <View style={[styles.container, { backgroundColor: theme.background }]}>
-      {error ? (
-        <>
-          <AppText variant="error" style={styles.center}>
-            {error}
-          </AppText>
-          <Button title="Back to sign in" variant="secondary" onPress={() => router.replace('/sign-in')} />
-        </>
-      ) : (
-        <>
-          <ActivityIndicator />
-          <AppText variant="muted">Signing you in…</AppText>
-        </>
-      )}
-    </View>
+    <LinkStatus
+      error={error}
+      progressMessage="Signing you in…"
+      errorActionTitle="Back to sign in"
+      onErrorAction={() => router.replace('/sign-in')}
+    />
   )
 }
-
-const styles = StyleSheet.create({
-  container: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: Spacing.three, padding: Spacing.four },
-  center: { textAlign: 'center' },
-})

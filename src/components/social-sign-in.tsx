@@ -1,10 +1,9 @@
 import * as AppleAuthentication from 'expo-apple-authentication'
 import { useEffect, useState } from 'react'
-import { Platform, StyleSheet, View } from 'react-native'
+import { Platform, StyleSheet, useColorScheme, View } from 'react-native'
 
 import { AppText, Button } from '@/components/ui'
 import { Spacing } from '@/constants/theme'
-import { useColorScheme } from '@/hooks/use-color-scheme'
 import { useTheme } from '@/hooks/use-theme'
 import { signInWithApple, signInWithProvider } from '@/lib/auth-links'
 
@@ -13,16 +12,16 @@ type Provider = 'apple' | 'google' | 'github'
 /** "Continue with Apple / Google / GitHub". The session change moves the app on. */
 export function SocialSignIn({ onError }: { onError: (message: string | null) => void }) {
   const theme = useTheme()
-  const dark = useColorScheme() === 'dark'
+  const isDark = useColorScheme() === 'dark'
   const [appleAvailable, setAppleAvailable] = useState(false)
-  const [busy, setBusy] = useState<Provider | null>(null)
+  const [pendingProvider, setPendingProvider] = useState<Provider | null>(null)
 
   useEffect(() => {
     if (Platform.OS === 'ios') AppleAuthentication.isAvailableAsync().then(setAppleAvailable)
   }, [])
 
-  const run = async (provider: Provider) => {
-    setBusy(provider)
+  const signIn = async (provider: Provider) => {
+    setPendingProvider(provider)
     onError(null)
     try {
       if (provider === 'apple') await signInWithApple()
@@ -31,7 +30,7 @@ export function SocialSignIn({ onError }: { onError: (message: string | null) =>
       console.error(`${provider} sign-in failed`, e)
       onError(e instanceof Error ? e.message : 'Sign-in failed. Please try again.')
     } finally {
-      setBusy(null)
+      setPendingProvider(null)
     }
   }
 
@@ -46,28 +45,28 @@ export function SocialSignIn({ onError }: { onError: (message: string | null) =>
         <AppleAuthentication.AppleAuthenticationButton
           buttonType={AppleAuthentication.AppleAuthenticationButtonType.CONTINUE}
           buttonStyle={
-            dark
+            isDark
               ? AppleAuthentication.AppleAuthenticationButtonStyle.WHITE
               : AppleAuthentication.AppleAuthenticationButtonStyle.BLACK
           }
           cornerRadius={12}
           style={styles.apple}
-          onPress={() => run('apple')}
+          onPress={() => signIn('apple')}
         />
       )}
       <Button
         title="Continue with Google"
         variant="secondary"
-        onPress={() => run('google')}
-        loading={busy === 'google'}
-        disabled={busy !== null}
+        onPress={() => signIn('google')}
+        loading={pendingProvider === 'google'}
+        disabled={pendingProvider !== null}
       />
       <Button
         title="Continue with GitHub"
         variant="secondary"
-        onPress={() => run('github')}
-        loading={busy === 'github'}
-        disabled={busy !== null}
+        onPress={() => signIn('github')}
+        loading={pendingProvider === 'github'}
+        disabled={pendingProvider !== null}
       />
     </View>
   )

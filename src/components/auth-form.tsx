@@ -8,7 +8,7 @@ import { AppText, Button, TextField } from '@/components/ui'
 import { MaxContentWidth, Spacing } from '@/constants/theme'
 import { useTheme } from '@/hooks/use-theme'
 
-export interface AuthResult {
+interface AuthResult {
   error?: string
   notice?: string
 }
@@ -47,26 +47,26 @@ export function AuthForm({ mode, onSubmit }: AuthFormProps) {
   const [password, setPassword] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [notice, setNotice] = useState<string | null>(null)
-  const [busy, setBusy] = useState(false)
-  const signUp = mode === 'sign-up'
+  const [submitting, setSubmitting] = useState(false)
+  const isSignUp = mode === 'sign-up'
 
   const submit = async () => {
     if (!email.trim() || password.length < 6) {
       setError('Enter your email and a password of at least 6 characters.')
       return
     }
-    setBusy(true)
+    setSubmitting(true)
     setError(null)
     setNotice(null)
     const result = await onSubmit({ name: name.trim(), email: email.trim(), password })
-    setBusy(false)
+    setSubmitting(false)
     setError(result.error ?? null)
     setNotice(result.notice ?? null)
   }
 
   return (
-    <AuthLayout subtitle={signUp ? 'Create an account to start splitting bills.' : 'Sign in to split your bills.'}>
-      {signUp && <TextField label="Name" value={name} onChangeText={setName} autoComplete="name" />}
+    <AuthLayout subtitle={isSignUp ? 'Create an account to start splitting bills.' : 'Sign in to split your bills.'}>
+      {isSignUp && <TextField label="Name" value={name} onChangeText={setName} autoComplete="name" />}
       <TextField
         label="Email"
         value={email}
@@ -80,15 +80,15 @@ export function AuthForm({ mode, onSubmit }: AuthFormProps) {
         value={password}
         onChangeText={setPassword}
         secureTextEntry
-        autoComplete={signUp ? 'new-password' : 'current-password'}
+        autoComplete={isSignUp ? 'new-password' : 'current-password'}
       />
 
       {error && <AppText variant="error">{error}</AppText>}
       {notice && <AppText>{notice}</AppText>}
 
-      <Button title={signUp ? 'Create account' : 'Sign in'} onPress={submit} loading={busy} />
+      <Button title={isSignUp ? 'Create account' : 'Sign in'} onPress={submit} loading={submitting} />
 
-      {!signUp && (
+      {!isSignUp && (
         <Link href="/forgot-password" style={authStyles.link}>
           <AppText variant="muted">Forgot your password?</AppText>
         </Link>
@@ -96,9 +96,9 @@ export function AuthForm({ mode, onSubmit }: AuthFormProps) {
 
       <SocialSignIn onError={setError} />
 
-      <Link href={signUp ? '/sign-in' : '/sign-up'} replace style={authStyles.link}>
+      <Link href={isSignUp ? '/sign-in' : '/sign-up'} replace style={authStyles.link}>
         <AppText variant="muted">
-          {signUp ? 'Already have an account? Sign in' : 'New here? Create an account'}
+          {isSignUp ? 'Already have an account? Sign in' : 'New here? Create an account'}
         </AppText>
       </Link>
     </AuthLayout>

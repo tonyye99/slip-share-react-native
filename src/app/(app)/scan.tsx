@@ -13,11 +13,11 @@ import { parseReceipt, prepareImage } from '@/lib/parse'
 export default function ScanScreen() {
   const theme = useTheme()
   const [asset, setAsset] = useState<ImagePicker.ImagePickerAsset | null>(null)
-  const [translate, setTranslate] = useState(false)
+  const [translateToEnglish, setTranslateToEnglish] = useState(false)
   const [parsing, setParsing] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  const pick = async (source: 'camera' | 'library') => {
+  const pickImage = async (source: 'camera' | 'library') => {
     setError(null)
     if (source === 'camera') {
       const permission = await ImagePicker.requestCameraPermissionsAsync()
@@ -34,13 +34,13 @@ export default function ScanScreen() {
     if (!result.canceled) setAsset(result.assets[0])
   }
 
-  const parse = async () => {
+  const readReceipt = async () => {
     if (!asset) return
     setParsing(true)
     setError(null)
     try {
-      const base64 = await prepareImage(asset.uri, asset.width)
-      const parsed = await parseReceipt(base64, translate)
+      const imageBase64 = await prepareImage(asset.uri, asset.width)
+      const parsed = await parseReceipt(imageBase64, translateToEnglish)
       if (!parsed.is_receipt) {
         setError("This doesn't look like a receipt. Try a clearer photo of the bill.")
         return
@@ -70,10 +70,10 @@ export default function ScanScreen() {
 
       <View style={styles.buttons}>
         <View style={styles.flex}>
-          <Button title={asset ? 'Retake' : 'Camera'} variant={asset ? 'secondary' : 'primary'} onPress={() => pick('camera')} disabled={parsing} />
+          <Button title={asset ? 'Retake' : 'Camera'} variant={asset ? 'secondary' : 'primary'} onPress={() => pickImage('camera')} disabled={parsing} />
         </View>
         <View style={styles.flex}>
-          <Button title="Photo library" variant="secondary" onPress={() => pick('library')} disabled={parsing} />
+          <Button title="Photo library" variant="secondary" onPress={() => pickImage('library')} disabled={parsing} />
         </View>
       </View>
 
@@ -82,12 +82,12 @@ export default function ScanScreen() {
           <AppText variant="label">Translate to English</AppText>
           <AppText variant="muted">For receipts in other languages.</AppText>
         </View>
-        <Switch value={translate} onValueChange={setTranslate} />
+        <Switch value={translateToEnglish} onValueChange={setTranslateToEnglish} />
       </Card>
 
       {error && <AppText variant="error">{error}</AppText>}
 
-      {asset && <Button title={parsing ? 'Reading receipt…' : 'Read receipt'} onPress={parse} loading={parsing} />}
+      {asset && <Button title={parsing ? 'Reading receipt…' : 'Read receipt'} onPress={readReceipt} loading={parsing} />}
     </ScrollView>
   )
 }

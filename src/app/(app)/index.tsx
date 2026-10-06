@@ -23,7 +23,7 @@ export default function HomeScreen() {
   const [loadingMore, setLoadingMore] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  const load = useCallback(async () => {
+  const loadFirstPage = useCallback(async () => {
     try {
       const page = await listReceipts(0, PAGE_SIZE)
       setReceipts(page.receipts)
@@ -42,8 +42,8 @@ export default function HomeScreen() {
     useCallback(() => {
       const token = pendingJoin.take()
       if (token) router.push(`/join/${token}`)
-      load()
-    }, [load]),
+      loadFirstPage()
+    }, [loadFirstPage]),
   )
 
   const loadMore = async () => {
@@ -75,9 +75,9 @@ export default function HomeScreen() {
       />
       <FlatList
         data={receipts}
-        keyExtractor={(r) => r.id}
+        keyExtractor={(receipt) => receipt.id}
         contentContainerStyle={styles.list}
-        refreshControl={<RefreshControl refreshing={false} onRefresh={load} />}
+        refreshControl={<RefreshControl refreshing={false} onRefresh={loadFirstPage} />}
         onEndReached={loadMore}
         onEndReachedThreshold={0.5}
         ListHeaderComponent={

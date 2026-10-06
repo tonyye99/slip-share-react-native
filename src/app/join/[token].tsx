@@ -1,10 +1,7 @@
 import { router, useLocalSearchParams } from 'expo-router'
 import { useEffect, useState } from 'react'
-import { ActivityIndicator, StyleSheet, View } from 'react-native'
 
-import { AppText, Button } from '@/components/ui'
-import { Spacing } from '@/constants/theme'
-import { useTheme } from '@/hooks/use-theme'
+import { LinkStatus } from '@/components/link-status'
 import { useAuth } from '@/lib/auth'
 import { joinReceipt } from '@/lib/receipts'
 import { isShareToken, pendingJoin } from '@/lib/share'
@@ -14,7 +11,6 @@ import { isShareToken, pendingJoin } from '@/lib/share'
 export default function JoinScreen() {
   const { token } = useLocalSearchParams<{ token: string }>()
   const { session } = useAuth()
-  const theme = useTheme()
   const valid = isShareToken(token)
   const [joinError, setJoinError] = useState<string | null>(null)
   const error = valid ? joinError : "This link isn't valid. Ask for a new one."
@@ -35,25 +31,11 @@ export default function JoinScreen() {
   }, [token, valid, session])
 
   return (
-    <View style={[styles.container, { backgroundColor: theme.background }]}>
-      {error ? (
-        <>
-          <AppText variant="error" style={styles.center}>
-            {error}
-          </AppText>
-          <Button title="Go to my receipts" variant="secondary" onPress={() => router.replace('/')} />
-        </>
-      ) : (
-        <>
-          <ActivityIndicator />
-          <AppText variant="muted">Opening the bill…</AppText>
-        </>
-      )}
-    </View>
+    <LinkStatus
+      error={error}
+      progressMessage="Opening the bill…"
+      errorActionTitle="Go to my receipts"
+      onErrorAction={() => router.replace('/')}
+    />
   )
 }
-
-const styles = StyleSheet.create({
-  container: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: Spacing.three, padding: Spacing.four },
-  center: { textAlign: 'center' },
-})

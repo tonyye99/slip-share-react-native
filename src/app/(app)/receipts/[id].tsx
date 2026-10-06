@@ -10,7 +10,7 @@ import { useTheme } from '@/hooks/use-theme'
 import { useUserId } from '@/lib/auth'
 import { getOwnerName, getParticipantShares, getReceipt, saveSelection } from '@/lib/receipts'
 import { shareReceipt } from '@/lib/share'
-import { calculateSplit, formatMoney, itemShare } from '@/lib/split'
+import { calculateSplit, formatMoney, itemCostPerPerson } from '@/lib/split'
 import type { ParticipantShare, ReceiptWithItems, ShareCounts, UserSelection } from '@/lib/types'
 
 export default function SplitScreen() {
@@ -19,20 +19,20 @@ export default function SplitScreen() {
   const userId = useUserId()
   const [receipt, setReceipt] = useState<ReceiptWithItems | null>(null)
   const [selection, setSelection] = useState<UserSelection | null>(null)
-  const [selected, setSelected] = useState<string[]>([])
-  const [shares, setShares] = useState<ShareCounts>({})
-  const [english, setEnglish] = useState(false)
+  const [selectedItemIds, setSelectedItemIds] = useState<string[]>([])
+  const [shareCounts, setShareCounts] = useState<ShareCounts>({})
+  const [showEnglish, setShowEnglish] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
   const [refreshing, setRefreshing] = useState(false)
-  // Owner: everyone's totals. Participant: who shared the bill.
-  const [people, setPeople] = useState<ParticipantShare[] | null>(null)
+  // Owner sees everyone's totals; a participant sees who shared the bill.
+  const [participants, setParticipants] = useState<ParticipantShare[] | null>(null)
   const [ownerName, setOwnerName] = useState<string | null>(null)
 
-  const loadPeople = useCallback(
-    async (r: ReceiptWithItems) => {
-      if (r.user_id === userId) setPeople(await getParticipantShares(r, userId))
-      else setOwnerName(await getOwnerName(r.user_id))
+  const loadParticipants = useCallback(
+    async (receipt: ReceiptWithItems) => {
+      if (receipt.user_id === userId) setParticipants(await getParticipantShares(receipt, userId))
+      else setOwnerName(await getOwnerName(receipt.user_id))
     },
     [userId],
   )
@@ -42,21 +42,21 @@ export default function SplitScreen() {
       .then(({ receipt, selection }) => {
         setReceipt(receipt)
         setSelection(selection)
-        setSelected(selection?.selected_items ?? [])
-        setShares(selection?.item_shares ?? {})
-        return loadPeople(receipt)
+        setSelectedItemIds(selection?.selected_items ?? [])
+        setShareCounts(selection?.item_shares ?? {})
+        return loadParticipants(receipt)
       })
       .catch((e) => {
         console.error('Load failed', e)
         setError("This receipt doesn't exist or you don't have access to it.")
       })
-  }, [id, userId, loadPeople])
+  }, [id, userId, loadParticipants])
 
   const refresh = async () => {
     if (!receipt) return
     setRefreshing(true)
     try {
-      await loadPeople(receipt)
+      await loadParticipants(receipt)
     } catch (e) {
       console.error('Refresh failed', e)
     } finally {
@@ -65,8 +65,8 @@ export default function SplitScreen() {
   }
 
   const split = useMemo(
-    () => (receipt ? calculateSplit(receipt, receipt.receipts_items, selected, shares) : null),
-    [receipt, selected, shares],
+    () => (receipt ? calculateSplit(receipt, receipt.receipts_items, selectedItemIds, shareCounts) : null),
+    [receipt, selectedItemIds, shareCounts],
   )
 
   if (error) {
@@ -85,19 +85,21 @@ export default function SplitScreen() {
   }
 
   const money = (amount: number) => formatMoney(amount, receipt.currency)
+  const share = () => shareReceipt(receipt.share_token, receipt.merchant_name)
   const isOwner = receipt.user_id === userId
   const isPayer = isOwner && receipt.user_type === 'payer'
-  const hasTranslation = !!receipt.merchant_name_en || receipt.receipts_items.some((i) => i.name_en)
-  const display = (original: string | null, en: string | null) => (english && en ? en : original || en || '')
+  const hasTranslation = !!receipt.merchant_name_en || receipt.receipts_items.some((item) => item.name_en)
+  const localizedName = (original: string | null, english: string | null) =>
+    showEnglish && english ? english : original || english || ''
 
-  const toggle = (itemId: string) =>
-    setSelected((prev) => (prev.includes(itemId) ? prev.filter((x) => x !== itemId) : [...prev, itemId]))
+  const toggleItem = (itemId: string) =>
+    setSelectedItemIds((prev) => (prev.includes(itemId) ? prev.filter((selectedId) => selectedId !== itemId) : [...prev, itemId]))
 
   const save = async () => {
     setSaving(true)
     try {
-      setSelection(await saveSelection(receipt, userId, selected, shares))
-      if (isOwner) loadPeople(receipt).catch((e) => console.error('Refresh failed', e))
+      setSelection(await saveSelection(receipt, userId, selectedItemIds, shareCounts))
+      if (isOwner) loadParticipants(receipt).catch((e) => console.error('Refresh failed', e))
       Alert.alert('Saved', isPayer ? 'Your consumption has been saved.' : 'Your share has been saved.')
     } catch (e) {
       console.error('Save failed', e)
@@ -113,10 +115,7 @@ export default function SplitScreen() {
         <Stack.Screen
           options={{
             headerRight: () => (
-              <Pressable
-                onPress={() => shareReceipt(receipt.share_token, receipt.merchant_name)}
-                hitSlop={8}
-                accessibilityRole="button">
+              <Pressable onPress={share} hitSlop={8} accessibilityRole="button">
                 <AppText variant="label" style={{ color: theme.primary }}>
                   Share
                 </AppText>
@@ -129,19 +128,19 @@ export default function SplitScreen() {
         contentContainerStyle={styles.content}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refresh} />}>
         <View style={styles.header}>
-          <AppText variant="title">{display(receipt.merchant_name, receipt.merchant_name_en) || 'Receipt'}</AppText>
+          <AppText variant="title">{localizedName(receipt.merchant_name, receipt.merchant_name_en) || 'Receipt'}</AppText>
           <AppText variant="muted">
             {isOwner ? (isPayer ? 'You paid' : 'Someone else paid') : `Shared by ${ownerName ?? '…'}`} · Total{' '}
             {money(receipt.total)}
           </AppText>
         </View>
 
-        {people && (
+        {participants && (
           <WhoOwesWhat
-            people={people}
+            participants={participants}
             total={receipt.total}
             money={money}
-            onShare={() => shareReceipt(receipt.share_token, receipt.merchant_name)}
+            onShare={share}
           />
         )}
 
@@ -150,19 +149,19 @@ export default function SplitScreen() {
             <AppText variant="label" style={styles.flex}>
               Show English names
             </AppText>
-            <Switch value={english} onValueChange={setEnglish} />
+            <Switch value={showEnglish} onValueChange={setShowEnglish} />
           </Card>
         )}
 
         <AppText variant="muted">Tap what you had. If you shared a dish, set how many people split it.</AppText>
 
         {receipt.receipts_items.map((item) => {
-          const isSelected = selected.includes(item.id)
-          const count = shares[item.id] || 1
+          const isSelected = selectedItemIds.includes(item.id)
+          const shareCount = shareCounts[item.id] || 1
           return (
             <Pressable
               key={item.id}
-              onPress={() => toggle(item.id)}
+              onPress={() => toggleItem(item.id)}
               accessibilityRole="checkbox"
               accessibilityState={{ checked: isSelected }}>
               <Card style={[styles.item, { borderColor: isSelected ? theme.primary : 'transparent' }]}>
@@ -176,17 +175,17 @@ export default function SplitScreen() {
                     {isSelected && <AppText style={{ color: theme.onPrimary, lineHeight: 18 }}>✓</AppText>}
                   </View>
                   <View style={styles.flex}>
-                    <AppText>{display(item.name, item.name_en)}</AppText>
+                    <AppText>{localizedName(item.name, item.name_en)}</AppText>
                     <AppText variant="muted">
                       {item.qty} × {money(item.unit_price)}
                     </AppText>
                   </View>
                   <AppText style={styles.amount}>
-                    {money(isSelected ? itemShare(item, count) : item.qty * item.unit_price)}
+                    {money(isSelected ? itemCostPerPerson(item, shareCount) : item.qty * item.unit_price)}
                   </AppText>
                 </View>
                 {isSelected && (
-                  <ShareStepper value={count} onChange={(value) => setShares((prev) => ({ ...prev, [item.id]: value }))} />
+                  <ShareStepper value={shareCount} onChange={(value) => setShareCounts((prev) => ({ ...prev, [item.id]: value }))} />
                 )}
               </Card>
             </Pressable>
@@ -195,7 +194,7 @@ export default function SplitScreen() {
       </ScrollView>
 
       <View style={[styles.summary, { backgroundColor: theme.background, borderColor: theme.border }]}>
-        {selected.length > 0 && (
+        {selectedItemIds.length > 0 && (
           <>
             <Row label="Your items" value={money(split.subtotal)} />
             {receipt.service_percent > 0 && <Row label={`Service (${receipt.service_percent}%)`} value={money(split.service)} />}
@@ -215,20 +214,20 @@ export default function SplitScreen() {
 }
 
 function WhoOwesWhat({
-  people,
+  participants,
   total,
   money,
   onShare,
 }: {
-  people: ParticipantShare[]
+  participants: ParticipantShare[]
   total: number
   money: (amount: number) => string
   onShare: () => void
 }) {
-  const claimed = people.reduce((sum, p) => sum + (p.total ?? 0), 0)
+  const claimed = participants.reduce((sum, participant) => sum + (participant.total ?? 0), 0)
   const unclaimed = total - claimed
 
-  if (people.length === 1) {
+  if (participants.length === 1) {
     return (
       <Card>
         <AppText variant="heading">Split it with friends</AppText>
@@ -241,8 +240,12 @@ function WhoOwesWhat({
   return (
     <Card>
       <AppText variant="heading">Who owes what</AppText>
-      {people.map((p) => (
-        <Row key={p.user_id} label={p.name} value={p.total === null ? 'Not picked yet' : money(p.total)} />
+      {participants.map((participant) => (
+        <Row
+          key={participant.user_id}
+          label={participant.name}
+          value={participant.total === null ? 'Not picked yet' : money(participant.total)}
+        />
       ))}
       {Math.abs(unclaimed) > 0.005 && <Row label="Not claimed yet" value={money(unclaimed)} />}
       <AppText variant="muted">Pull down to refresh.</AppText>

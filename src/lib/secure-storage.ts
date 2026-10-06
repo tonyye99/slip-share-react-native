@@ -11,7 +11,7 @@ async function getItem(key: string): Promise<string | null> {
   const chunks = await Promise.all(
     Array.from({ length: Number(count) }, (_, i) => SecureStore.getItemAsync(`${key}.${i}`)),
   )
-  if (chunks.some((c) => c === null)) return null
+  if (chunks.some((chunk) => chunk === null)) return null
   return chunks.join('')
 }
 
@@ -27,7 +27,7 @@ async function removeItem(key: string): Promise<void> {
 async function setItem(key: string, value: string): Promise<void> {
   await removeItem(key)
   const chunks = value.match(new RegExp(`[\\s\\S]{1,${CHUNK_SIZE}}`, 'g')) ?? ['']
-  await Promise.all(chunks.map((c, i) => SecureStore.setItemAsync(`${key}.${i}`, c)))
+  await Promise.all(chunks.map((chunk, i) => SecureStore.setItemAsync(`${key}.${i}`, chunk)))
   await SecureStore.setItemAsync(`${key}.count`, String(chunks.length))
 }
 

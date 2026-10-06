@@ -1,4 +1,3 @@
-import type { ReactNode } from 'react'
 import {
   ActivityIndicator,
   Pressable,
@@ -51,10 +50,9 @@ interface ButtonProps {
   variant?: 'primary' | 'secondary'
   loading?: boolean
   disabled?: boolean
-  icon?: ReactNode
 }
 
-export function Button({ title, onPress, variant = 'primary', loading, disabled, icon }: ButtonProps) {
+export function Button({ title, onPress, variant = 'primary', loading, disabled }: ButtonProps) {
   const theme = useTheme()
   const primary = variant === 'primary'
   const inactive = disabled || loading
@@ -74,10 +72,7 @@ export function Button({ title, onPress, variant = 'primary', loading, disabled,
       {loading ? (
         <ActivityIndicator color={primary ? theme.onPrimary : theme.text} />
       ) : (
-        <View style={styles.buttonContent}>
-          {icon}
-          <Text style={[styles.buttonText, { color: primary ? theme.onPrimary : theme.text }]}>{title}</Text>
-        </View>
+        <Text style={[styles.buttonText, { color: primary ? theme.onPrimary : theme.text }]}>{title}</Text>
       )}
     </Pressable>
   )
@@ -118,7 +113,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  buttonContent: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
   buttonText: { fontSize: 16, fontWeight: '600' },
   input: { borderWidth: 1, borderRadius: 12, paddingHorizontal: Spacing.three, minHeight: 48, fontSize: 16 },
   row: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline', gap: Spacing.two },

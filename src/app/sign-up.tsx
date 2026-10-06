@@ -7,7 +7,7 @@ export default function SignUpScreen() {
     <AuthForm
       mode="sign-up"
       onSubmit={async ({ name, email, password }) => {
-        // display_name feeds the profiles trigger in the slip-share migrations.
+        // display_name feeds the profiles trigger in supabase/migrations.
         const { data, error } = await supabase.auth.signUp({
           email,
           password,
