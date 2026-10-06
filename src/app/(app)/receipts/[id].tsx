@@ -85,6 +85,7 @@ export default function SplitScreen() {
   }
 
   const money = (amount: number) => formatMoney(amount, receipt.currency)
+  const share = () => shareReceipt(receipt.share_token, receipt.merchant_name)
   const isOwner = receipt.user_id === userId
   const isPayer = isOwner && receipt.user_type === 'payer'
   const hasTranslation = !!receipt.merchant_name_en || receipt.receipts_items.some((item) => item.name_en)
@@ -114,10 +115,7 @@ export default function SplitScreen() {
         <Stack.Screen
           options={{
             headerRight: () => (
-              <Pressable
-                onPress={() => shareReceipt(receipt.share_token, receipt.merchant_name)}
-                hitSlop={8}
-                accessibilityRole="button">
+              <Pressable onPress={share} hitSlop={8} accessibilityRole="button">
                 <AppText variant="label" style={{ color: theme.primary }}>
                   Share
                 </AppText>
@@ -142,7 +140,7 @@ export default function SplitScreen() {
             participants={participants}
             total={receipt.total}
             money={money}
-            onShare={() => shareReceipt(receipt.share_token, receipt.merchant_name)}
+            onShare={share}
           />
         )}
 
