@@ -18,6 +18,9 @@ export const supabase = createClient(url, anonKey, {
     autoRefreshToken: true,
     persistSession: true,
     detectSessionInUrl: false,
+    // OAuth, email confirmation and password reset links come back to the
+    // app with a ?code= that auth-links.ts exchanges for a session.
+    flowType: 'pkce',
   },
 })
 

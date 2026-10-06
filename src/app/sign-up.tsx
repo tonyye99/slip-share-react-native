@@ -1,4 +1,5 @@
 import { AuthForm } from '@/components/auth-form'
+import { authCallbackUrl } from '@/lib/auth-links'
 import { supabase } from '@/lib/supabase'
 
 export default function SignUpScreen() {
@@ -10,7 +11,7 @@ export default function SignUpScreen() {
         const { data, error } = await supabase.auth.signUp({
           email,
           password,
-          options: { data: { display_name: name || undefined } },
+          options: { data: { display_name: name || undefined }, emailRedirectTo: authCallbackUrl() },
         })
         if (error) return { error: error.message }
         // With email confirmation on, there is no session until the link is clicked.
