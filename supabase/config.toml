@@ -1,5 +1,6 @@
-# Only the Edge Function lives here. The database schema and migrations stay
-# in tonyye99/slip-share (supabase/migrations), which owns the project.
+# Supabase project shared with the slip-share web app. This repo holds the
+# schema (supabase/migrations, copied from slip-share and extended here) and
+# the parse-receipt Edge Function.
 
 [functions.parse-receipt]
 verify_jwt = true

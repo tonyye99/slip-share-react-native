@@ -2,6 +2,7 @@ import { calculateSplit, receiptSubtotal } from '@/lib/split'
 import { supabase } from '@/lib/supabase'
 import type {
   ParsedReceipt,
+  ParticipantShare,
   Receipt,
   ReceiptWithItems,
   ShareCounts,
@@ -9,18 +10,19 @@ import type {
   UserType,
 } from '@/lib/types'
 
-// The app talks to Supabase directly; the tables' RLS policies limit each
-// user to their own receipts and selections, same as the web app's API routes.
+// The app talks to Supabase directly; RLS limits each user to receipts they
+// own or joined through a share link, and to their own selections (owners can
+// also read everyone's selections on their receipts).
 
 export type ReceiptSummary = Pick<
   Receipt,
-  'id' | 'merchant_name' | 'merchant_name_en' | 'currency' | 'total' | 'user_type' | 'created_at'
+  'id' | 'user_id' | 'merchant_name' | 'merchant_name_en' | 'currency' | 'total' | 'user_type' | 'created_at'
 > & { receipts_items: { count: number }[] }
 
 export async function listReceipts(offset: number, limit: number) {
   const { data, error, count } = await supabase
     .from('receipts')
-    .select('id, merchant_name, merchant_name_en, currency, total, user_type, created_at, receipts_items(count)', {
+    .select('id, user_id, merchant_name, merchant_name_en, currency, total, user_type, created_at, receipts_items(count)', {
       count: 'exact',
     })
     .order('created_at', { ascending: false })
@@ -115,4 +117,45 @@ export async function saveSelection(
     .single()
   if (error) throw error
   return data as UserSelection
+}
+
+/** Joins the receipt behind a share link and returns its id. */
+export async function joinReceipt(shareToken: string): Promise<string> {
+  const { data, error } = await supabase.rpc('join_receipt', { p_share_token: shareToken })
+  if (error) throw error
+  return data as string
+}
+
+async function profileNames(userIds: string[]): Promise<Map<string, string>> {
+  if (userIds.length === 0) return new Map()
+  const { data, error } = await supabase.from('profiles').select('user_id, display_name').in('user_id', userIds)
+  if (error) throw error
+  return new Map((data ?? []).map((p) => [p.user_id as string, (p.display_name as string | null) || 'Unnamed']))
+}
+
+export async function getOwnerName(ownerId: string): Promise<string> {
+  return (await profileNames([ownerId])).get(ownerId) ?? 'Unnamed'
+}
+
+/**
+ * Everyone on a receipt and what they owe, for the receipt owner. Includes
+ * the owner's own selection and people who joined but haven't picked yet.
+ */
+export async function getParticipantShares(receipt: Receipt, ownerId: string): Promise<ParticipantShare[]> {
+  const [participantsRes, selectionsRes] = await Promise.all([
+    supabase.from('receipt_participants').select('user_id, joined_at').eq('receipt_id', receipt.id).order('joined_at'),
+    supabase.from('user_selections').select('user_id, calculated_total').eq('receipt_id', receipt.id),
+  ])
+  if (participantsRes.error) throw participantsRes.error
+  if (selectionsRes.error) throw selectionsRes.error
+
+  const totals = new Map(selectionsRes.data.map((s) => [s.user_id as string, Number(s.calculated_total)]))
+  const userIds = [ownerId, ...participantsRes.data.map((p) => p.user_id as string).filter((id) => id !== ownerId)]
+  const names = await profileNames(userIds)
+
+  return userIds.map((id) => ({
+    user_id: id,
+    name: id === ownerId ? 'You' : (names.get(id) ?? 'Unnamed'),
+    total: totals.get(id) ?? null,
+  }))
 }
