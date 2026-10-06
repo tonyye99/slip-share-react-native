@@ -2,11 +2,14 @@
 // Ported from slip-share's /api/openai/parse route so the OpenAI key stays
 // server-side. Deploy with: supabase functions deploy parse-receipt
 // and set the key with: supabase secrets set OPENAI_API_KEY=...
-// JWT verification is on by default, so only signed-in users can call it.
+// Only signed-in users can call it: the gateway's JWT check alone also lets
+// the public anon key through, so the handler confirms a real user below.
 
+import { createClient } from 'npm:@supabase/supabase-js@2'
 import OpenAI from 'npm:openai@5'
 
 const openai = new OpenAI({ apiKey: Deno.env.get('OPENAI_API_KEY') })
+const supabase = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_ANON_KEY')!)
 
 const MAX_BASE64_LENGTH = 14_000_000 // ~10MB image
 
@@ -98,6 +101,10 @@ function json(body: unknown, status = 200) {
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders })
   if (req.method !== 'POST') return json({ error: 'Method not allowed' }, 405)
+
+  const token = req.headers.get('Authorization')?.replace(/^Bearer /i, '')
+  const { data: auth } = token ? await supabase.auth.getUser(token) : { data: { user: null } }
+  if (!auth.user) return json({ error: 'Sign in to scan receipts' }, 401)
 
   let imageBase64: unknown
   let enableTranslation = false
