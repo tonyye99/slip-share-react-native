@@ -1,3 +1,4 @@
+import { FunctionsHttpError } from '@supabase/supabase-js'
 import { ImageManipulator, SaveFormat } from 'expo-image-manipulator'
 
 import { supabase } from '@/lib/supabase'
@@ -16,10 +17,18 @@ export async function prepareImage(uri: string, width: number): Promise<string> 
   return result.base64
 }
 
+/** The parse-receipt function allows a limited number of scans per user per day. */
+export class ScanLimitError extends Error {
+  constructor() {
+    super("You've reached today's scan limit. Try again tomorrow.")
+  }
+}
+
 export async function parseReceipt(imageBase64: string, enableTranslation: boolean): Promise<ParsedReceipt> {
   const { data, error } = await supabase.functions.invoke<ParsedReceipt>('parse-receipt', {
     body: { imageBase64, enableTranslation },
   })
+  if (error instanceof FunctionsHttpError && error.context.status === 429) throw new ScanLimitError()
   if (error) throw error
   if (!data) throw new Error('No response from parser')
   return data

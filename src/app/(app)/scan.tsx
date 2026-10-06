@@ -8,7 +8,7 @@ import { AppText, Button, Card } from '@/components/ui'
 import { MaxContentWidth, Spacing } from '@/constants/theme'
 import { useTheme } from '@/hooks/use-theme'
 import { receiptDraft } from '@/lib/draft'
-import { parseReceipt, prepareImage } from '@/lib/parse'
+import { parseReceipt, prepareImage, ScanLimitError } from '@/lib/parse'
 
 export default function ScanScreen() {
   const theme = useTheme()
@@ -49,7 +49,9 @@ export default function ScanScreen() {
       router.replace('/review')
     } catch (e) {
       console.error('Parse failed', e)
-      setError('Could not read the receipt. Check your connection and try again.')
+      setError(
+        e instanceof ScanLimitError ? e.message : 'Could not read the receipt. Check your connection and try again.',
+      )
     } finally {
       setParsing(false)
     }

@@ -106,6 +106,17 @@ Deno.serve(async (req) => {
   const { data: auth } = token ? await supabase.auth.getUser(token) : { data: { user: null } }
   if (!auth.user) return json({ error: 'Sign in to scan receipts' }, 401)
 
+  // Counted as this user, so the database applies the daily scan limit.
+  const userClient = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_ANON_KEY')!, {
+    global: { headers: { Authorization: `Bearer ${token}` } },
+  })
+  const { data: withinLimit, error: limitError } = await userClient.rpc('use_receipt_scan')
+  if (limitError) {
+    console.error('use_receipt_scan failed:', limitError)
+    return json({ error: 'Failed to parse receipt' }, 500)
+  }
+  if (!withinLimit) return json({ error: 'Daily scan limit reached' }, 429)
+
   let imageBase64: unknown
   let enableTranslation = false
   try {
