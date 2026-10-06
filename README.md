@@ -38,7 +38,7 @@ Built with Expo (SDK 57, Expo Router) and TypeScript. It uses the same Supabase 
    npx supabase functions deploy parse-receipt
    ```
 4. Set up sign-in in the Supabase dashboard (see below).
-5. `npx expo start`, then open it in Expo Go or a development build.
+5. `npx expo start`, then open it in Expo Go or a development build. To install the app on your phone instead, see [Install on your phone](#install-on-your-phone-eas-build).
 
 ## Sign-in setup (Supabase dashboard)
 
@@ -48,6 +48,36 @@ Auth links use PKCE: they come back to the app as `slipshare://…?code=…`, an
 - **Google** and **GitHub** providers: these are the same ones the web app uses. Nothing else is needed, because the app signs in through Supabase's web flow in an in-app browser.
 - **Apple** provider: enable it and add the bundle ID `com.tonyye99.slipshare` under *Client IDs*. iOS uses native Sign in with Apple (`usesAppleSignIn` in `app.json`), so test it in a development build. In Expo Go the token is issued to `host.exp.Exponent`, which you would also have to list. The App Store requires Apple sign-in when other social logins are offered.
 - **Password reset** and **email confirmation** links use the same redirect URLs. Open them on the phone that asked for them, because the PKCE verifier is stored there.
+
+## Install on your phone (EAS Build)
+
+EAS builds the app in Expo's cloud, so you don't need Xcode or Android Studio. `eas.json` has three profiles:
+
+| Profile | What you get |
+|---|---|
+| `preview` | The app as users will see it, installed from a link. Android gets an APK. |
+| `development` | A dev build that loads code from `npx expo start` on your computer, with live reload. Needed for native modules Expo Go lacks. |
+| `production` | Store builds. The build number goes up on each build. |
+
+Builds need a free [Expo account](https://expo.dev/signup). An iPhone also needs a paid Apple Developer account, because builds outside the App Store must be signed for your device. Android needs nothing extra.
+
+1. Sign in and link this repo to an EAS project. `init` writes the project ID into `app.json`, so commit that change:
+   ```bash
+   npx eas-cli@latest login
+   npx eas-cli@latest init
+   ```
+2. Give the builds the Supabase settings. `.env` is not uploaded to EAS, and the anon key is safe to ship in the app because RLS protects the data:
+   ```bash
+   npx eas-cli@latest env:set --name EXPO_PUBLIC_SUPABASE_URL --value https://<project-ref>.supabase.co \
+     --environment preview --environment development --environment production --visibility plaintext
+   npx eas-cli@latest env:set --name EXPO_PUBLIC_SUPABASE_ANON_KEY --value <anon-key> \
+     --environment preview --environment development --environment production --visibility plaintext
+   ```
+3. Build and install:
+   - **Android:** `npx eas-cli@latest build --profile preview --platform android`. When it finishes, open the link or scan the QR code on your phone and install the APK.
+   - **iPhone:** register the phone once with `npx eas-cli@latest device:create`, then run `npx eas-cli@latest build --profile preview --platform ios`. Sign in with your Apple Developer account when asked, and let EAS manage the certificates. It turns on Sign in with Apple from `app.json`. Open the link on the iPhone to install. A phone you register later only gets the next build.
+
+Builds use the `slipshare://` redirect URL, so `exp://**` in Supabase is only needed for Expo Go.
 
 ## Checks
 
