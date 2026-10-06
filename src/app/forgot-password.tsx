@@ -8,7 +8,7 @@ import { supabase } from '@/lib/supabase'
 
 export default function ForgotPasswordScreen() {
   const [email, setEmail] = useState('')
-  const [busy, setBusy] = useState(false)
+  const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [sent, setSent] = useState(false)
 
@@ -17,12 +17,12 @@ export default function ForgotPasswordScreen() {
       setError('Enter the email you signed up with.')
       return
     }
-    setBusy(true)
+    setSubmitting(true)
     setError(null)
     const { error: resetError } = await supabase.auth.resetPasswordForEmail(email.trim(), {
       redirectTo: resetPasswordUrl(),
     })
-    setBusy(false)
+    setSubmitting(false)
     if (resetError) setError(resetError.message)
     else setSent(true)
   }
@@ -42,7 +42,7 @@ export default function ForgotPasswordScreen() {
             keyboardType="email-address"
           />
           {error && <AppText variant="error">{error}</AppText>}
-          <Button title="Send reset link" onPress={submit} loading={busy} />
+          <Button title="Send reset link" onPress={submit} loading={submitting} />
         </>
       )}
       <Link href="/sign-in" replace style={authStyles.link}>

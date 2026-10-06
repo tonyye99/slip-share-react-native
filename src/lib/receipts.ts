@@ -93,18 +93,18 @@ export async function createReceipt(parsed: ParsedReceipt, userType: UserType, u
 export async function saveSelection(
   receipt: ReceiptWithItems,
   userId: string,
-  selectedItems: string[],
-  itemShares: ShareCounts,
+  selectedItemIds: string[],
+  shareCounts: ShareCounts,
 ) {
-  const split = calculateSplit(receipt, receipt.receipts_items, selectedItems, itemShares)
+  const split = calculateSplit(receipt, receipt.receipts_items, selectedItemIds, shareCounts)
   const { data, error } = await supabase
     .from('user_selections')
     .upsert(
       {
         user_id: userId,
         receipt_id: receipt.id,
-        selected_items: selectedItems,
-        item_shares: itemShares,
+        selected_items: selectedItemIds,
+        item_shares: shareCounts,
         calculated_total: split.total,
         tax_amount: split.tax,
         service_amount: split.service,
@@ -126,15 +126,15 @@ export async function joinReceipt(shareToken: string): Promise<string> {
   return data as string
 }
 
-async function profileNames(userIds: string[]): Promise<Map<string, string>> {
+async function getDisplayNames(userIds: string[]): Promise<Map<string, string>> {
   if (userIds.length === 0) return new Map()
   const { data, error } = await supabase.from('profiles').select('user_id, display_name').in('user_id', userIds)
   if (error) throw error
-  return new Map((data ?? []).map((p) => [p.user_id as string, (p.display_name as string | null) || 'Unnamed']))
+  return new Map((data ?? []).map((profile) => [profile.user_id as string, (profile.display_name as string | null) || 'Unnamed']))
 }
 
 export async function getOwnerName(ownerId: string): Promise<string> {
-  return (await profileNames([ownerId])).get(ownerId) ?? 'Unnamed'
+  return (await getDisplayNames([ownerId])).get(ownerId) ?? 'Unnamed'
 }
 
 /**
@@ -149,9 +149,9 @@ export async function getParticipantShares(receipt: Receipt, ownerId: string): P
   if (participantsRes.error) throw participantsRes.error
   if (selectionsRes.error) throw selectionsRes.error
 
-  const totals = new Map(selectionsRes.data.map((s) => [s.user_id as string, Number(s.calculated_total)]))
-  const userIds = [ownerId, ...participantsRes.data.map((p) => p.user_id as string).filter((id) => id !== ownerId)]
-  const names = await profileNames(userIds)
+  const totals = new Map(selectionsRes.data.map((selection) => [selection.user_id as string, Number(selection.calculated_total)]))
+  const userIds = [ownerId, ...participantsRes.data.map((participant) => participant.user_id as string).filter((id) => id !== ownerId)]
+  const names = await getDisplayNames(userIds)
 
   return userIds.map((id) => ({
     user_id: id,

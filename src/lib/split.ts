@@ -25,20 +25,20 @@ export interface SplitResult {
   proportion: number
 }
 
-export function itemShare(item: SplitItem, shareCount: number | undefined): number {
+export function itemCostPerPerson(item: SplitItem, shareCount: number | undefined): number {
   return (item.qty * item.unit_price) / (shareCount || 1)
 }
 
 export function calculateSplit(
   receipt: SplitReceipt,
   items: SplitItem[],
-  selectedIds: string[],
-  shares: Record<string, number>,
+  selectedItemIds: string[],
+  shareCounts: Record<string, number>,
 ): SplitResult {
-  const selected = new Set(selectedIds)
+  const selected = new Set(selectedItemIds)
   const subtotal = items
     .filter((item) => selected.has(item.id))
-    .reduce((sum, item) => sum + itemShare(item, shares[item.id]), 0)
+    .reduce((sum, item) => sum + itemCostPerPerson(item, shareCounts[item.id]), 0)
 
   const proportion = receipt.subtotal > 0 ? subtotal / receipt.subtotal : 0
   const tax = (receipt.tax_percent / 100) * subtotal

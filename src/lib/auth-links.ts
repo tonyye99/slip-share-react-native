@@ -21,26 +21,26 @@ export interface AuthRedirectParams {
   error_description?: string | string[]
 }
 
-const first = (value: string | string[] | undefined) => (Array.isArray(value) ? value[0] : value)
+const firstParam = (value: string | string[] | undefined) => (Array.isArray(value) ? value[0] : value)
 
 // On Android the redirect can arrive both as the auth session's result and as
 // a deep link to auth/callback, so each code is exchanged only once.
-const exchanges = new Map<string, Promise<void>>()
+const codeExchanges = new Map<string, Promise<void>>()
 
 /** Turns the ?code= on an auth redirect into a session. */
 export function completeAuthRedirect(params: AuthRedirectParams): Promise<void> {
-  const error = first(params.error_description) ?? first(params.error)
+  const error = firstParam(params.error_description) ?? firstParam(params.error)
   if (error) return Promise.reject(new Error(error))
-  const code = first(params.code)
+  const code = firstParam(params.code)
   if (!code) return Promise.reject(new Error('This link is missing its sign-in code.'))
 
-  let exchange = exchanges.get(code)
+  let exchange = codeExchanges.get(code)
   if (!exchange) {
     exchange = supabase.auth.exchangeCodeForSession(code).then(({ data, error: exchangeError }) => {
       if (exchangeError) throw exchangeError
       return ensureDisplayName(data.user)
     })
-    exchanges.set(code, exchange)
+    codeExchanges.set(code, exchange)
   }
   return exchange
 }
@@ -104,9 +104,9 @@ export async function signInWithApple(): Promise<boolean> {
  */
 async function ensureDisplayName(user: User | null, preferred?: string): Promise<void> {
   if (!user) return
-  const meta = user.user_metadata ?? {}
-  const name = [preferred, meta.display_name, meta.full_name, meta.name, meta.user_name, user.email?.split('@')[0]]
-    .map((v) => (typeof v === 'string' ? v.trim() : ''))
+  const metadata = user.user_metadata ?? {}
+  const name = [preferred, metadata.display_name, metadata.full_name, metadata.name, metadata.user_name, user.email?.split('@')[0]]
+    .map((value) => (typeof value === 'string' ? value.trim() : ''))
     .find(Boolean)
   if (!name) return
 

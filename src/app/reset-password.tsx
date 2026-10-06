@@ -16,7 +16,7 @@ export default function ResetPasswordScreen() {
   const [password, setPassword] = useState('')
   const [confirm, setConfirm] = useState('')
   const [error, setError] = useState<string | null>(null)
-  const [busy, setBusy] = useState(false)
+  const [submitting, setSubmitting] = useState(false)
 
   useEffect(() => {
     completeAuthRedirect(params)
@@ -38,10 +38,10 @@ export default function ResetPasswordScreen() {
       setError("The passwords don't match.")
       return
     }
-    setBusy(true)
+    setSubmitting(true)
     setError(null)
     const { error: updateError } = await supabase.auth.updateUser({ password })
-    setBusy(false)
+    setSubmitting(false)
     if (updateError) setError(updateError.message)
     else router.replace('/')
   }
@@ -68,7 +68,7 @@ export default function ResetPasswordScreen() {
       <TextField label="New password" value={password} onChangeText={setPassword} secureTextEntry autoComplete="new-password" />
       <TextField label="Confirm password" value={confirm} onChangeText={setConfirm} secureTextEntry autoComplete="new-password" />
       {error && <AppText variant="error">{error}</AppText>}
-      <Button title="Save password" onPress={submit} loading={busy} />
+      <Button title="Save password" onPress={submit} loading={submitting} />
     </AuthLayout>
   )
 }
