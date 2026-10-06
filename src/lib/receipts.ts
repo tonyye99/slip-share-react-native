@@ -3,6 +3,7 @@ import { supabase } from '@/lib/supabase'
 import type {
   ParsedReceipt,
   ParticipantShare,
+  Payment,
   Receipt,
   ReceiptWithItems,
   ShareCounts,
@@ -143,13 +144,18 @@ export async function getOwnerName(ownerId: string): Promise<string> {
  */
 export async function getParticipantShares(receipt: Receipt, ownerId: string): Promise<ParticipantShare[]> {
   const [participantsRes, selectionsRes] = await Promise.all([
-    supabase.from('receipt_participants').select('user_id, joined_at').eq('receipt_id', receipt.id).order('joined_at'),
+    supabase
+      .from('receipt_participants')
+      .select('user_id, joined_at, paid_at, paid_amount')
+      .eq('receipt_id', receipt.id)
+      .order('joined_at'),
     supabase.from('user_selections').select('user_id, calculated_total').eq('receipt_id', receipt.id),
   ])
   if (participantsRes.error) throw participantsRes.error
   if (selectionsRes.error) throw selectionsRes.error
 
   const totals = new Map(selectionsRes.data.map((selection) => [selection.user_id as string, Number(selection.calculated_total)]))
+  const payments = new Map(participantsRes.data.map((participant) => [participant.user_id as string, toPayment(participant)]))
   const userIds = [ownerId, ...participantsRes.data.map((participant) => participant.user_id as string).filter((id) => id !== ownerId)]
   const names = await getDisplayNames(userIds)
 
@@ -157,5 +163,32 @@ export async function getParticipantShares(receipt: Receipt, ownerId: string): P
     user_id: id,
     name: id === ownerId ? 'You' : (names.get(id) ?? 'Unnamed'),
     total: totals.get(id) ?? null,
+    payment: payments.get(id) ?? null,
   }))
+}
+
+/** Records (or clears) a friend's payment on a receipt you own. */
+export async function setParticipantPaid(receiptId: string, participantId: string, paid: boolean) {
+  const { error } = await supabase.rpc('set_participant_paid', {
+    p_receipt_id: receiptId,
+    p_user_id: participantId,
+    p_paid: paid,
+  })
+  if (error) throw error
+}
+
+/** Your own payment on a receipt someone shared with you, if the owner marked it. */
+export async function getMyPayment(receiptId: string, userId: string): Promise<Payment | null> {
+  const { data, error } = await supabase
+    .from('receipt_participants')
+    .select('paid_at, paid_amount')
+    .eq('receipt_id', receiptId)
+    .eq('user_id', userId)
+    .maybeSingle()
+  if (error) throw error
+  return data ? toPayment(data) : null
+}
+
+function toPayment(row: { paid_at: string | null; paid_amount: number | string | null }): Payment | null {
+  return row.paid_at ? { paid_at: row.paid_at, paid_amount: Number(row.paid_amount) } : null
 }
