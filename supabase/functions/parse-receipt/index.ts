@@ -106,10 +106,19 @@ Deno.serve(async (req) => {
   const { data: auth } = token ? await supabase.auth.getUser(token) : { data: { user: null } }
   if (!auth.user) return json({ error: 'Sign in to scan receipts' }, 401)
 
-  // Counted as this user, so the database applies the daily scan limit.
+  // Queries run as this user, so RLS and the daily scan limit apply.
   const userClient = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_ANON_KEY')!, {
     global: { headers: { Authorization: `Bearer ${token}` } },
   })
+
+  // No photo goes to OpenAI until the user has agreed in the app (ai_consents).
+  const { data: consent, error: consentError } = await userClient.from('ai_consents').select('user_id').maybeSingle()
+  if (consentError) {
+    console.error('ai_consents lookup failed:', consentError)
+    return json({ error: 'Failed to parse receipt' }, 500)
+  }
+  if (!consent) return json({ error: 'consent_required' }, 403)
+
   const { data: withinLimit, error: limitError } = await userClient.rpc('use_receipt_scan')
   if (limitError) {
     console.error('use_receipt_scan failed:', limitError)
@@ -136,6 +145,8 @@ Deno.serve(async (req) => {
   try {
     const result = await openai.responses.create({
       model: 'gpt-4.1-mini',
+      // Don't keep the response on OpenAI's side; nothing here reads it back later.
+      store: false,
       input: [
         {
           role: 'user',

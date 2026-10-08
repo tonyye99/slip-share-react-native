@@ -79,6 +79,18 @@ export function Button({ title, onPress, variant = 'primary', loading, disabled 
   )
 }
 
+/** Tappable inline text, for links such as "Privacy policy". */
+export function TextLink({ title, onPress }: { title: string; onPress: () => void }) {
+  const theme = useTheme()
+  return (
+    <Pressable onPress={onPress} hitSlop={8} accessibilityRole="link" style={styles.textLink}>
+      <AppText variant="label" style={{ color: theme.primary }}>
+        {title}
+      </AppText>
+    </Pressable>
+  )
+}
+
 export function TextField({ label, ...rest }: TextInputProps & { label: string }) {
   const theme = useTheme()
   return (
@@ -115,6 +127,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   buttonText: { fontSize: 16, fontWeight: '600' },
+  textLink: { alignSelf: 'flex-start' },
   input: { borderWidth: 1, borderRadius: 12, paddingHorizontal: Spacing.three, minHeight: 48, fontSize: 16 },
   row: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline', gap: Spacing.two },
   rowLabel: { flexShrink: 1 },

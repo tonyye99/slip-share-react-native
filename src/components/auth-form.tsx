@@ -7,6 +7,7 @@ import { SocialSignIn } from '@/components/social-sign-in'
 import { AppText, Button, TextField } from '@/components/ui'
 import { MaxContentWidth, Spacing } from '@/constants/theme'
 import { useTheme } from '@/hooks/use-theme'
+import { openPrivacyPolicy } from '@/lib/consent'
 
 interface AuthResult {
   error?: string
@@ -42,6 +43,7 @@ export const authStyles = StyleSheet.create({
 
 /** Shared email/password form for the sign-in and sign-up screens. */
 export function AuthForm({ mode, onSubmit }: AuthFormProps) {
+  const theme = useTheme()
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -96,6 +98,15 @@ export function AuthForm({ mode, onSubmit }: AuthFormProps) {
 
       <SocialSignIn onError={setError} />
 
+      {/* Social sign-in creates an account on either screen, so both show this. */}
+      <AppText variant="muted" style={styles.center}>
+        By continuing, you agree to the{' '}
+        <AppText variant="muted" style={{ color: theme.primary }} onPress={openPrivacyPolicy} accessibilityRole="link">
+          Privacy Policy
+        </AppText>
+        .
+      </AppText>
+
       <Link href={isSignUp ? '/sign-in' : '/sign-up'} replace style={authStyles.link}>
         <AppText variant="muted">
           {isSignUp ? 'Already have an account? Sign in' : 'New here? Create an account'}
@@ -117,4 +128,5 @@ const styles = StyleSheet.create({
     alignSelf: 'center',
   },
   header: { gap: Spacing.one, marginBottom: Spacing.three },
+  center: { textAlign: 'center' },
 })
