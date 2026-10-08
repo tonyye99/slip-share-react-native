@@ -20,6 +20,24 @@ updates:
           - "@types/react"
       minor-and-patch:
         update-types: [minor, patch]
+    # Expo SDK upgrades move many packages at once, which Dependabot can't do.
+    # Each SDK pins one React Native minor, so its minor bumps are SDK changes too.
+    # Upgrade the SDK by hand with `npx expo install expo@^<next> --fix`.
+    ignore:
+      - dependency-name: "expo"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "expo-*"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "@expo/*"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "react-native"
+        update-types: ["version-update:semver-major", "version-update:semver-minor"]
+      - dependency-name: "react"
+        update-types: ["version-update:semver-major", "version-update:semver-minor"]
+      - dependency-name: "react-dom"
+        update-types: ["version-update:semver-major", "version-update:semver-minor"]
+      - dependency-name: "@types/react"
+        update-types: ["version-update:semver-major", "version-update:semver-minor"]
 
   - package-ecosystem: github-actions
     directory: /
