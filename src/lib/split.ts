@@ -55,8 +55,13 @@ export function calculateSplit(
   }
 }
 
-export function receiptSubtotal(items: SplitItem[]): number {
+export function receiptSubtotal(items: Pick<SplitItem, 'qty' | 'unit_price'>[]): number {
   return items.reduce((sum, item) => sum + item.qty * item.unit_price, 0)
+}
+
+/** What the whole bill comes to: items plus service, tax and rounding. */
+export function billTotal(receipt: Omit<SplitReceipt, 'subtotal'>, subtotal: number): number {
+  return subtotal + (subtotal * receipt.service_percent) / 100 + (subtotal * receipt.tax_percent) / 100 + receipt.rounding
 }
 
 export function formatMoney(amount: number, currency: string): string {

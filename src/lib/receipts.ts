@@ -1,4 +1,4 @@
-import { calculateSplit, receiptSubtotal } from '@/lib/split'
+import { billTotal, calculateSplit, receiptSubtotal } from '@/lib/split'
 import { supabase } from '@/lib/supabase'
 import type {
   ParsedReceipt,
@@ -48,9 +48,7 @@ export async function getReceipt(id: string, userId: string) {
 export async function createReceipt(parsed: ParsedReceipt, userType: UserType, userId: string) {
   const translated = parsed.original_language !== 'en'
   const subtotal = receiptSubtotal(parsed.items)
-  const total =
-    parsed.total ||
-    subtotal + (subtotal * parsed.tax_percent) / 100 + (subtotal * parsed.service_percent) / 100 + parsed.rounding
+  const total = parsed.total || billTotal(parsed, subtotal)
 
   const { data: receipt, error } = await supabase
     .from('receipts')
