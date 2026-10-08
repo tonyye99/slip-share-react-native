@@ -10,7 +10,6 @@ import { useUserId } from '@/lib/auth'
 import { listReceipts, type ReceiptSummary } from '@/lib/receipts'
 import { pendingJoin } from '@/lib/share'
 import { formatMoney } from '@/lib/split'
-import { supabase } from '@/lib/supabase'
 
 const PAGE_SIZE = 20
 
@@ -65,9 +64,9 @@ export default function HomeScreen() {
       <Stack.Screen
         options={{
           headerRight: () => (
-            <Pressable onPress={() => supabase.auth.signOut()} hitSlop={8} accessibilityRole="button">
+            <Pressable onPress={() => router.push('/account')} hitSlop={8} accessibilityRole="button">
               <AppText variant="label" style={{ color: theme.primary }}>
-                Sign out
+                Account
               </AppText>
             </Pressable>
           ),

@@ -10,6 +10,7 @@ export default function AppLayout() {
       <Stack.Screen name="scan" options={{ title: 'Scan receipt' }} />
       <Stack.Screen name="review" options={{ title: 'Review' }} />
       <Stack.Screen name="receipts/[id]" options={{ title: 'Split bill' }} />
+      <Stack.Screen name="account" options={{ title: 'Account' }} />
     </Stack>
   )
 }

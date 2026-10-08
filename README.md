@@ -8,6 +8,7 @@ Built with Expo (SDK 57, Expo Router) and TypeScript. It uses the same Supabase 
 
 - **Auth and data**: the app talks to Supabase directly with `@supabase/supabase-js`. The schema and row-level security live in `supabase/migrations`. The first seven files are copied unchanged from the web repo, so they match what is already applied; anything after them is new for the app. Sessions are kept in the device keychain via `expo-secure-store`.
 - **Receipt parsing**: the OpenAI call runs in a Supabase Edge Function (`supabase/functions/parse-receipt`), a port of the web app's `/api/openai/parse` route. The OpenAI key never ships in the app.
+- **Account deletion**: `supabase/functions/delete-account` deletes the signed-in user with the admin API. Every table is keyed on the user with `on delete cascade`, so their profile, receipts, shares and scan counts go with it. The service role key it needs stays on the server.
 - **Sharing**: each receipt has a `share_token`. The owner shares `slipshare://join/<token>`; opening it calls the `join_receipt` RPC, which adds the person to `receipt_participants` so RLS lets them read the receipt and save their own selection. This needs the `receipt_sharing` migration in `supabase/migrations`.
 - **Mark as paid**: when the owner paid the bill, they tick off friends who paid them back. The `set_participant_paid` RPC (owner only) sets `paid_at` on the friend's `receipt_participants` row and copies their saved total into `paid_amount`. Friends can read their own row, so they see it too.
 - **Split math**: `src/lib/split.ts`, ported from the web app's cost calculator, with tests in `src/lib/split.test.ts`.
@@ -20,6 +21,7 @@ Built with Expo (SDK 57, Expo Router) and TypeScript. It uses the same Supabase 
 | `forgot-password`, `reset-password` | Emails a reset link; the link opens the app to choose a new password |
 | `auth/callback` | Where email confirmation and OAuth links land |
 | `(app)/index` | Your receipts (pull to refresh, infinite scroll) and "Scan a receipt" |
+| `(app)/account` | Your email, sign out, and delete your account (asks you to confirm first) |
 | `(app)/scan` | Camera or photo library, optional English translation, sends a resized JPEG to the parser |
 | `(app)/review` | Parsed items and totals. Fix, add or remove misread items (warns when they don't add up to the printed total), choose "I paid" or "Someone else paid", save |
 | `(app)/receipts/[id]` | Tap items you had, set how many people shared each, live total, save your share. The owner can share a link, sees who owes what, and marks who has paid them back |
@@ -36,6 +38,7 @@ Built with Expo (SDK 57, Expo Router) and TypeScript. It uses the same Supabase 
    npx supabase db push          # applies migrations not yet on the project
    npx supabase secrets set OPENAI_API_KEY=sk-...
    npx supabase functions deploy parse-receipt
+   npx supabase functions deploy delete-account
    ```
 4. Set up sign-in in the Supabase dashboard (see below).
 5. `npx expo start`, then open it in Expo Go or a development build. To install the app on your phone instead, see [Install on your phone](#install-on-your-phone-eas-build).
