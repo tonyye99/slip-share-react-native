@@ -47,14 +47,15 @@ export function Card({ style, ...rest }: ViewProps) {
 interface ButtonProps {
   title: string
   onPress: () => void
-  variant?: 'primary' | 'secondary'
+  variant?: 'primary' | 'secondary' | 'danger'
   loading?: boolean
   disabled?: boolean
 }
 
 export function Button({ title, onPress, variant = 'primary', loading, disabled }: ButtonProps) {
   const theme = useTheme()
-  const primary = variant === 'primary'
+  const filled = variant !== 'secondary'
+  const fill = variant === 'danger' ? theme.danger : theme.primary
   const inactive = disabled || loading
   return (
     <Pressable
@@ -65,14 +66,14 @@ export function Button({ title, onPress, variant = 'primary', loading, disabled 
       style={({ pressed }) => [
         styles.button,
         {
-          backgroundColor: primary ? theme.primary : theme.backgroundElement,
+          backgroundColor: filled ? fill : theme.backgroundElement,
           opacity: inactive ? 0.5 : pressed ? 0.8 : 1,
         },
       ]}>
       {loading ? (
-        <ActivityIndicator color={primary ? theme.onPrimary : theme.text} />
+        <ActivityIndicator color={filled ? theme.onPrimary : theme.text} />
       ) : (
-        <Text style={[styles.buttonText, { color: primary ? theme.onPrimary : theme.text }]}>{title}</Text>
+        <Text style={[styles.buttonText, { color: filled ? theme.onPrimary : theme.text }]}>{title}</Text>
       )}
     </Pressable>
   )
