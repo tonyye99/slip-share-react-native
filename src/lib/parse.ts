@@ -24,11 +24,19 @@ export class ScanLimitError extends Error {
   }
 }
 
+/** parse-receipt won't send a photo to OpenAI until the user has agreed (see lib/consent). */
+export class ConsentRequiredError extends Error {
+  constructor() {
+    super('Allow receipt scanning to read this receipt.')
+  }
+}
+
 export async function parseReceipt(imageBase64: string, enableTranslation: boolean): Promise<ParsedReceipt> {
   const { data, error } = await supabase.functions.invoke<ParsedReceipt>('parse-receipt', {
     body: { imageBase64, enableTranslation },
   })
   if (error instanceof FunctionsHttpError && error.context.status === 429) throw new ScanLimitError()
+  if (error instanceof FunctionsHttpError && error.context.status === 403) throw new ConsentRequiredError()
   if (error) throw error
   if (!data) throw new Error('No response from parser')
   return data
