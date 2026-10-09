@@ -1,6 +1,6 @@
 # SlipShare Privacy Policy
 
-Last updated: October 8, 2026
+Last updated: October 9, 2026
 
 SlipShare is an app for splitting restaurant bills with friends. This policy explains what the SlipShare mobile app collects, why, who can see it, and how to delete it.
 
@@ -65,4 +65,4 @@ If we change this policy, we will update the date at the top. If a change affect
 
 ## Contact
 
-Questions or requests about your privacy: open an issue at <https://github.com/tonyye99/slip-share-react-native/issues>.
+Questions or requests about your privacy: email <tony.yehtetaung@gmail.com>.
