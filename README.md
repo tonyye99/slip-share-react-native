@@ -1,12 +1,12 @@
 # SlipShare (React Native)
 
-Mobile app for [SlipShare](https://github.com/tonyye99/slip-share): scan a receipt, tap what you had, and see what you owe, including your share of tax, service charge and rounding.
+Mobile app and website for [SlipShare](https://github.com/tonyye99/slip-share): scan a receipt, tap what you had, and see what you owe, including your share of tax, service charge and rounding.
 
 Built with Expo (SDK 57, Expo Router) and TypeScript. It uses the same Supabase project as the web app.
 
 ## How it fits together
 
-- **Auth and data**: the app talks to Supabase directly with `@supabase/supabase-js`. The schema and row-level security live in `supabase/migrations`. The first seven files are copied unchanged from the web repo, so they match what is already applied; anything after them is new for the app. Sessions are kept in the device keychain via `expo-secure-store`.
+- **Auth and data**: the app talks to Supabase directly with `@supabase/supabase-js`. The schema and row-level security live in `supabase/migrations`. The first seven files are copied unchanged from the web repo, so they match what is already applied; anything after them is new for the app. Sessions are kept in the device keychain via `expo-secure-store`, or in the browser's localStorage on the website.
 - **Receipt parsing**: the OpenAI call runs in a Supabase Edge Function (`supabase/functions/parse-receipt`), a port of the web app's `/api/openai/parse` route. The OpenAI key never ships in the app.
 - **AI consent and privacy**: before the first scan, the scan screen asks permission to send receipt photos to OpenAI. Agreeing adds a row to `ai_consents`, and `parse-receipt` returns 403 without one, so no photo reaches OpenAI before the user agrees. Turning scanning off in Account deletes the row. The parser also sends `store: false`, so OpenAI doesn't keep the response. [`PRIVACY.md`](PRIVACY.md) is the privacy policy; the app links to it on GitHub from the sign-in, sign-up, scan and Account screens, and the App Store and Google Play listings need the same link.
 - **Account deletion**: `supabase/functions/delete-account` deletes the signed-in user with the admin API. Every table is keyed on the user with `on delete cascade`, so their profile, receipts, shares and scan counts go with it. The service role key it needs stays on the server.
@@ -18,7 +18,7 @@ Built with Expo (SDK 57, Expo Router) and TypeScript. It uses the same Supabase 
 
 | Route | What it does |
 |---|---|
-| `sign-in`, `sign-up` | Email and password, plus Continue with Apple (iOS), Google and GitHub |
+| `sign-in`, `sign-up` | Email and password, plus Continue with Apple (iOS app only), Google and GitHub |
 | `forgot-password`, `reset-password` | Emails a reset link; the link opens the app to choose a new password |
 | `auth/callback` | Where email confirmation and OAuth links land |
 | `(app)/index` | Your receipts (pull to refresh, infinite scroll) and "Scan a receipt" |
@@ -82,6 +82,20 @@ Builds need a free [Expo account](https://expo.dev/signup). An iPhone also needs
    - **iPhone:** register the phone once with `npx eas-cli@latest device:create`, then run `npx eas-cli@latest build --profile preview --platform ios`. Sign in with your Apple Developer account when asked, and let EAS manage the certificates. It turns on Sign in with Apple from `app.json`. Open the link on the iPhone to install. A phone you register later only gets the next build.
 
 Builds use the `slipshare://` redirect URL, so `exp://**` in Supabase is only needed for Expo Go.
+
+## Website (EAS Hosting)
+
+The same app runs in a browser. `app.json` uses `web.output: "server"`, so every screen, including `receipts/<id>`, opens straight from a link. Try it locally with `npm run web`.
+
+Differences from the phone app: no Sign in with Apple; Google and GitHub sign-in go to the provider in the same tab and come back to `/auth/callback`; Camera opens the phone's camera in a mobile browser and a file picker on a computer; pop-up messages use the browser's own dialogs (`src/lib/alert.ts`).
+
+To publish it:
+
+1. One time: `npx eas-cli@latest login`, and `npx eas-cli@latest init` if `app.json` has no EAS project ID yet.
+2. Run `npm run deploy:web`. It builds the site with the Supabase settings from your `.env`, then uploads it. The first time, it asks you to pick a name, and the site lives at `https://<name>.expo.app`.
+3. One time: in Supabase, **Authentication → URL Configuration → Redirect URLs**, add `https://<name>.expo.app/**` so sign-in and password reset links can come back to the site.
+
+Run `npm run deploy:web` again whenever you want the site to have the latest code.
 
 ## Checks
 

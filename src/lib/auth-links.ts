@@ -3,16 +3,17 @@ import * as AppleAuthentication from 'expo-apple-authentication'
 import * as Crypto from 'expo-crypto'
 import * as Linking from 'expo-linking'
 import * as WebBrowser from 'expo-web-browser'
+import { Platform } from 'react-native'
 
 import { supabase } from '@/lib/supabase'
 
-// Closes the auth popup on web; a no-op on iOS and Android.
-WebBrowser.maybeCompleteAuthSession()
-
-/** Where OAuth and email-confirmation links return: slipshare://auth/callback. */
+/**
+ * Where OAuth and email-confirmation links return: slipshare://auth/callback
+ * in the app, https://<site>/auth/callback on the website.
+ */
 export const authCallbackUrl = () => Linking.createURL('auth/callback')
 
-/** Where password reset emails return: slipshare://reset-password. */
+/** Where password reset emails return: slipshare://reset-password (or /reset-password on the website). */
 export const resetPasswordUrl = () => Linking.createURL('reset-password')
 
 export interface AuthRedirectParams {
@@ -48,9 +49,18 @@ export function completeAuthRedirect(params: AuthRedirectParams): Promise<void> 
 /**
  * Google and GitHub sign-in through Supabase in an in-app browser.
  * Resolves false if the person closed the browser.
+ *
+ * On the website the whole page goes to the provider instead of a popup
+ * (which browsers often block) and comes back to auth/callback.
  */
 export async function signInWithProvider(provider: 'google' | 'github'): Promise<boolean> {
   const redirectTo = authCallbackUrl()
+  if (Platform.OS === 'web') {
+    const { error } = await supabase.auth.signInWithOAuth({ provider, options: { redirectTo } })
+    if (error) throw error
+    // The page is navigating away; keep the button busy until it does.
+    return new Promise<boolean>(() => {})
+  }
   const { data, error } = await supabase.auth.signInWithOAuth({
     provider,
     options: { redirectTo, skipBrowserRedirect: true },
