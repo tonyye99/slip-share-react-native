@@ -18,15 +18,9 @@ import {
 } from '@/lib/item-edits'
 import { createReceipt } from '@/lib/receipts'
 import { billTotal, formatMoney, receiptSubtotal } from '@/lib/split'
-import type { UserType } from '@/lib/types'
 
 // iOS's decimal pad has no minus key, which discount lines need.
 const PRICE_KEYBOARD = Platform.OS === 'ios' ? 'numbers-and-punctuation' : 'numeric'
-
-const ROLES: { value: UserType; title: string; description: string }[] = [
-  { value: 'payer', title: 'I paid this bill', description: 'See what you consumed from the bill you paid.' },
-  { value: 'sharer', title: 'Someone else paid', description: 'Work out how much you owe.' },
-]
 
 export default function ReviewScreen() {
   const theme = useTheme()
@@ -37,7 +31,6 @@ export default function ReviewScreen() {
   const [edited, setEdited] = useState(false)
   // Field errors show once you try to leave edit mode or save, not while typing.
   const [showErrors, setShowErrors] = useState(false)
-  const [userType, setUserType] = useState<UserType>('sharer')
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -90,7 +83,7 @@ export default function ReviewScreen() {
     setSaving(true)
     setError(null)
     try {
-      const id = await createReceipt({ ...draft, items: parsedItems, total }, userType, userId)
+      const id = await createReceipt({ ...draft, items: parsedItems, total }, userId)
       receiptDraft.clear()
       router.replace(`/receipts/${id}`)
     } catch (e) {
@@ -204,23 +197,6 @@ export default function ReviewScreen() {
         )}
       </Card>
 
-      <AppText variant="heading">Who paid this bill?</AppText>
-      {ROLES.map((role) => {
-        const selected = role.value === userType
-        return (
-          <Pressable
-            key={role.value}
-            accessibilityRole="radio"
-            accessibilityState={{ selected }}
-            onPress={() => setUserType(role.value)}>
-            <Card style={[styles.role, { borderColor: selected ? theme.primary : 'transparent' }]}>
-              <AppText variant="label">{role.title}</AppText>
-              <AppText variant="muted">{role.description}</AppText>
-            </Card>
-          </Pressable>
-        )
-      })}
-
       {error && <AppText variant="error">{error}</AppText>}
 
       <Button title="Continue" onPress={save} loading={saving} />
@@ -239,5 +215,4 @@ const styles = StyleSheet.create({
   editRow: { flexDirection: 'row', gap: Spacing.two },
   qtyField: { width: 88 },
   amount: { fontVariant: ['tabular-nums'] },
-  role: { borderWidth: 2, gap: Spacing.one },
 })

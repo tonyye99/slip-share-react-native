@@ -1,87 +1,90 @@
-import { Stack, useLocalSearchParams } from 'expo-router'
-import { useCallback, useEffect, useMemo, useState } from 'react'
-import { ActivityIndicator, Alert, Pressable, RefreshControl, ScrollView, StyleSheet, Switch, View } from 'react-native'
+import { useLocalSearchParams } from 'expo-router'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import {
+  ActivityIndicator,
+  Alert,
+  Platform,
+  Pressable,
+  ScrollView,
+  Share,
+  StyleSheet,
+  Switch,
+  TextInput,
+  View,
+} from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 
-import { ShareStepper } from '@/components/share-stepper'
 import { AppText, Button, Card, Row } from '@/components/ui'
 import { MaxContentWidth, Spacing } from '@/constants/theme'
 import { useTheme } from '@/hooks/use-theme'
-import { useUserId } from '@/lib/auth'
 import {
-  getMyPayment,
-  getOwnerName,
-  getParticipantShares,
+  addItemPeople,
+  addPerson,
+  getRecentNames,
   getReceipt,
-  saveSelection,
-  setParticipantPaid,
+  removeItemPeople,
+  removePerson,
+  setPayer,
+  setPersonPaid,
 } from '@/lib/receipts'
-import { shareReceipt } from '@/lib/share'
-import { calculateSplit, formatMoney, itemCostPerPerson } from '@/lib/split'
-import type { ParticipantShare, Payment, ReceiptWithItems, ShareCounts, UserSelection } from '@/lib/types'
+import { formatMoney, splitByPerson, totalsMessage, type Assignments } from '@/lib/split'
+import type { ReceiptPerson, ReceiptWithPeople } from '@/lib/types'
 
+const MAX_NAME_LENGTH = 40
+const MAX_SUGGESTIONS = 6
+
+/** Your own line reads "You" on screen. */
+const nameOf = (person: ReceiptPerson) => (person.is_me ? 'You' : person.name)
+
+const assignmentsOf = (receipt: ReceiptWithPeople): Assignments =>
+  Object.fromEntries(receipt.receipts_items.map((item) => [item.id, item.receipt_item_people.map((row) => row.person_id)]))
+
+// The person who scanned the bill splits it: they add who was there, tick who
+// had each item and send everyone their total. Friends don't need the app.
 export default function SplitScreen() {
   const { id } = useLocalSearchParams<{ id: string }>()
   const theme = useTheme()
-  const userId = useUserId()
-  const [receipt, setReceipt] = useState<ReceiptWithItems | null>(null)
-  const [selection, setSelection] = useState<UserSelection | null>(null)
-  const [selectedItemIds, setSelectedItemIds] = useState<string[]>([])
-  const [shareCounts, setShareCounts] = useState<ShareCounts>({})
+  const [receipt, setReceipt] = useState<ReceiptWithPeople | null>(null)
+  const [people, setPeople] = useState<ReceiptPerson[]>([])
+  const [assignments, setAssignments] = useState<Assignments>({})
+  const [recentNames, setRecentNames] = useState<string[]>([])
+  const [newName, setNewName] = useState('')
+  const [adding, setAdding] = useState(false)
   const [showEnglish, setShowEnglish] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [saving, setSaving] = useState(false)
-  const [refreshing, setRefreshing] = useState(false)
-  // Owner sees everyone's totals; a participant sees who shared the bill.
-  const [participants, setParticipants] = useState<ParticipantShare[] | null>(null)
-  const [ownerName, setOwnerName] = useState<string | null>(null)
-  // A participant's own payment, once the owner marks it.
-  const [myPayment, setMyPayment] = useState<Payment | null>(null)
-  const [updatingPaymentFor, setUpdatingPaymentFor] = useState<string | null>(null)
+  // Changes save as you tap. They reach the database one at a time and in
+  // order, so quick taps on the same name can't land out of order.
+  const saves = useRef<Promise<void>>(Promise.resolve())
 
-  const loadParticipants = useCallback(
-    async (receipt: ReceiptWithItems) => {
-      if (receipt.user_id === userId) {
-        setParticipants(await getParticipantShares(receipt, userId))
-      } else {
-        const [name, payment] = await Promise.all([getOwnerName(receipt.user_id), getMyPayment(receipt.id, userId)])
-        setOwnerName(name)
-        setMyPayment(payment)
-      }
-    },
-    [userId],
-  )
+  const show = useCallback((receipt: ReceiptWithPeople) => {
+    setReceipt(receipt)
+    setPeople(receipt.receipt_people)
+    setAssignments(assignmentsOf(receipt))
+  }, [])
 
   useEffect(() => {
-    getReceipt(id, userId)
-      .then(({ receipt, selection }) => {
-        setReceipt(receipt)
-        setSelection(selection)
-        setSelectedItemIds(selection?.selected_items ?? [])
-        setShareCounts(selection?.item_shares ?? {})
-        return loadParticipants(receipt)
-      })
+    getReceipt(id)
+      .then(show)
       .catch((e) => {
         console.error('Load failed', e)
         setError("This receipt doesn't exist or you don't have access to it.")
       })
-  }, [id, userId, loadParticipants])
-
-  const refresh = async () => {
-    if (!receipt) return
-    setRefreshing(true)
-    try {
-      await loadParticipants(receipt)
-    } catch (e) {
-      console.error('Refresh failed', e)
-    } finally {
-      setRefreshing(false)
-    }
-  }
+    getRecentNames()
+      .then(setRecentNames)
+      .catch((e) => console.error('Could not load recent names', e))
+  }, [id, show])
 
   const split = useMemo(
-    () => (receipt ? calculateSplit(receipt, receipt.receipts_items, selectedItemIds, shareCounts) : null),
-    [receipt, selectedItemIds, shareCounts],
+    () =>
+      receipt
+        ? splitByPerson(
+            receipt,
+            receipt.receipts_items,
+            people.map((person) => person.id),
+            assignments,
+          )
+        : null,
+    [receipt, people, assignments],
   )
 
   if (error) {
@@ -100,90 +103,264 @@ export default function SplitScreen() {
   }
 
   const money = (amount: number) => formatMoney(amount, receipt.currency)
-  const share = () => shareReceipt(receipt.share_token, receipt.merchant_name)
-  const isOwner = receipt.user_id === userId
-  const isPayer = isOwner && receipt.user_type === 'payer'
+  const totalOf = (person: ReceiptPerson) => split.people[person.id]?.total ?? 0
+  const payer = people.find((person) => person.is_payer) ?? null
+  const payerName = payer?.is_me ? 'you' : payer?.name
   const hasTranslation = !!receipt.merchant_name_en || receipt.receipts_items.some((item) => item.name_en)
   const localizedName = (original: string | null, english: string | null) =>
     showEnglish && english ? english : original || english || ''
+  const title = localizedName(receipt.merchant_name, receipt.merchant_name_en) || 'Receipt'
+  const everyoneIds = people.map((person) => person.id)
+  const hasUnassigned = Math.abs(split.unassigned.total) >= 0.005
+  const onBill = new Set(people.map((person) => person.name.toLowerCase()))
+  const suggestions = recentNames.filter((name) => !onBill.has(name.toLowerCase())).slice(0, MAX_SUGGESTIONS)
+  // Everyone except the payer pays the payer back.
+  const owesPayer = payer ? people.filter((person) => !person.is_payer) : []
+  const owedBack = owesPayer.reduce((sum, person) => sum + totalOf(person), 0)
+  const paidBack = owesPayer.filter((person) => person.paid_at).reduce((sum, person) => sum + totalOf(person), 0)
 
-  const toggleItem = (itemId: string) =>
-    setSelectedItemIds((prev) => (prev.includes(itemId) ? prev.filter((selectedId) => selectedId !== itemId) : [...prev, itemId]))
+  // Shows a change straight away and saves it in the background. If saving
+  // fails, the screen goes back to what is saved.
+  const save = (write: () => Promise<void>) => {
+    saves.current = saves.current.then(() =>
+      write().catch((e) => {
+        console.error('Save failed', e)
+        Alert.alert('Could not save that change', 'Check your connection and try again.')
+        return getReceipt(receipt.id)
+          .then(show)
+          .catch((loadError) => console.error('Reload failed', loadError))
+      }),
+    )
+  }
 
-  const save = async () => {
-    setSaving(true)
-    try {
-      setSelection(await saveSelection(receipt, userId, selectedItemIds, shareCounts))
-      if (isOwner) loadParticipants(receipt).catch((e) => console.error('Refresh failed', e))
-      Alert.alert('Saved', isPayer ? 'Your consumption has been saved.' : 'Your share has been saved.')
-    } catch (e) {
-      console.error('Save failed', e)
-      Alert.alert('Could not save', 'Please try again.')
-    } finally {
-      setSaving(false)
+  const setItemPeople = (itemId: string, personIds: string[]) =>
+    setAssignments((prev) => ({ ...prev, [itemId]: personIds }))
+
+  const togglePerson = (itemId: string, personId: string) => {
+    const had = assignments[itemId] ?? []
+    if (had.includes(personId)) {
+      setItemPeople(
+        itemId,
+        had.filter((id) => id !== personId),
+      )
+      save(() => removeItemPeople(itemId, [personId]))
+    } else {
+      setItemPeople(itemId, [...had, personId])
+      save(() => addItemPeople([{ item_id: itemId, person_id: personId }]))
     }
   }
 
-  const togglePaid = async (participant: ParticipantShare) => {
-    setUpdatingPaymentFor(participant.user_id)
+  const toggleEveryone = (itemId: string) => {
+    const had = assignments[itemId] ?? []
+    if (everyoneIds.every((personId) => had.includes(personId))) {
+      setItemPeople(itemId, [])
+      save(() => removeItemPeople(itemId, everyoneIds))
+    } else {
+      setItemPeople(itemId, everyoneIds)
+      save(() => addItemPeople(everyoneIds.map((person_id) => ({ item_id: itemId, person_id }))))
+    }
+  }
+
+  const splitEvenly = () => {
+    const run = () => {
+      setAssignments(Object.fromEntries(receipt.receipts_items.map((item) => [item.id, everyoneIds])))
+      save(() =>
+        addItemPeople(
+          receipt.receipts_items.flatMap((item) => everyoneIds.map((person_id) => ({ item_id: item.id, person_id }))),
+        ),
+      )
+    }
+    if (!Object.values(assignments).some((had) => had.length > 0)) return run()
+    Alert.alert('Split everything evenly?', 'Everyone will share every item, including the ones you already ticked.', [
+      { text: 'Cancel', style: 'cancel' },
+      { text: 'Split evenly', style: 'destructive', onPress: run },
+    ])
+  }
+
+  const add = async (typed: string) => {
+    const name = typed.trim().replace(/\s+/g, ' ').slice(0, MAX_NAME_LENGTH)
+    if (!name || adding) return
+    const key = name.toLowerCase()
+    if (key === 'you' || key === 'me') {
+      Alert.alert('Already on this bill', "You're on every bill you scan.")
+      return
+    }
+    if (onBill.has(key)) {
+      Alert.alert('Already on this bill', `${name} is already on this bill.`)
+      return
+    }
+    setAdding(true)
     try {
-      await setParticipantPaid(receipt.id, participant.user_id, !participant.payment)
-      await loadParticipants(receipt)
+      const person = await addPerson(receipt.id, name)
+      setPeople((prev) => [...prev, person])
+      setNewName('')
     } catch (e) {
-      console.error('Payment update failed', e)
-      Alert.alert('Could not update', 'Please try again.')
+      console.error('Add person failed', e)
+      Alert.alert(`Could not add ${name}`, 'Check your connection and try again.')
     } finally {
-      setUpdatingPaymentFor(null)
+      setAdding(false)
+    }
+  }
+
+  const confirmRemove = (person: ReceiptPerson) => {
+    const remove = () => {
+      setPeople((prev) => prev.filter((other) => other.id !== person.id))
+      setAssignments((prev) =>
+        Object.fromEntries(Object.entries(prev).map(([itemId, had]) => [itemId, had.filter((id) => id !== person.id)])),
+      )
+      save(() => removePerson(person.id))
+    }
+    if (!Object.values(assignments).some((had) => had.includes(person.id))) return remove()
+    Alert.alert(
+      `Remove ${person.name}?`,
+      'Items they shared will be split between the others who had them. Items only they had will be unassigned.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Remove', style: 'destructive', onPress: remove },
+      ],
+    )
+  }
+
+  const choosePayer = (person: ReceiptPerson) => {
+    if (person.is_payer) return
+    setPeople((prev) =>
+      prev.map((other) => ({
+        ...other,
+        is_payer: other.id === person.id,
+        // The payer has nobody to pay back.
+        paid_at: other.id === person.id ? null : other.paid_at,
+      })),
+    )
+    save(() => setPayer(receipt.id, person.id))
+  }
+
+  const togglePaid = (person: ReceiptPerson) => {
+    const paid = !person.paid_at
+    setPeople((prev) =>
+      prev.map((other) => (other.id === person.id ? { ...other, paid_at: paid ? new Date().toISOString() : null } : other)),
+    )
+    save(() => setPersonPaid(person.id, paid))
+  }
+
+  const sendTotals = async () => {
+    const message = totalsMessage({
+      title,
+      currency: receipt.currency,
+      total: receipt.total,
+      service_percent: receipt.service_percent,
+      tax_percent: receipt.tax_percent,
+      payer: payer ? (payer.is_me ? 'me' : payer.name) : null,
+      people: people.map((person) => ({
+        name: person.is_me ? 'Me' : person.name,
+        total: totalOf(person),
+        paid: !!person.paid_at,
+      })),
+      unassigned: split.unassigned.total,
+    })
+    try {
+      await Share.share({ message })
+    } catch (e) {
+      // Browsers without a share sheet (most desktops): copy the text instead.
+      if (Platform.OS !== 'web') return console.error('Share failed', e)
+      try {
+        await navigator.clipboard.writeText(message)
+        window.alert('Totals copied. Paste them into LINE, WhatsApp or wherever you chat.')
+      } catch (copyError) {
+        console.error('Copy failed', copyError)
+        window.alert(message)
+      }
     }
   }
 
   return (
     <SafeAreaView edges={['bottom']} style={[styles.flex, { backgroundColor: theme.background }]}>
-      {isOwner && (
-        <Stack.Screen
-          options={{
-            headerRight: () => (
-              <Pressable onPress={share} hitSlop={8} accessibilityRole="button">
-                <AppText variant="label" style={{ color: theme.primary }}>
-                  Share
-                </AppText>
-              </Pressable>
-            ),
-          }}
-        />
-      )}
       <ScrollView
         contentContainerStyle={styles.content}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refresh} />}>
+        keyboardShouldPersistTaps="handled"
+        automaticallyAdjustKeyboardInsets>
         <View style={styles.header}>
-          <AppText variant="title">{localizedName(receipt.merchant_name, receipt.merchant_name_en) || 'Receipt'}</AppText>
+          <AppText variant="title">{title}</AppText>
           <AppText variant="muted">
-            {isOwner ? (isPayer ? 'You paid' : 'Someone else paid') : `Shared by ${ownerName ?? '…'}`} · Total{' '}
-            {money(receipt.total)}
+            Total {money(receipt.total)}
+            {payer && people.length > 1 ? ` · Paid by ${payerName}` : ''}
           </AppText>
         </View>
 
-        {participants && (
-          <WhoOwesWhat
-            participants={participants}
-            total={receipt.total}
-            money={money}
-            onShare={share}
-            // Payments only make sense when the owner paid the bill.
-            onTogglePaid={isPayer ? togglePaid : undefined}
-            updatingPaymentFor={updatingPaymentFor}
-          />
-        )}
+        <Card>
+          <AppText variant="heading">Who&apos;s splitting</AppText>
+          {people.length === 1 && (
+            <AppText variant="muted">Add the people you ate with, then tap who had each item.</AppText>
+          )}
+          {people.map((person) => (
+            <View key={person.id} style={styles.personRow}>
+              <View style={styles.flex}>
+                <AppText>{nameOf(person)}</AppText>
+                {person.is_payer && people.length > 1 && <AppText variant="muted">Paid the bill</AppText>}
+              </View>
+              <AppText style={styles.amount}>{money(totalOf(person))}</AppText>
+              {payer && !person.is_payer && (
+                <Chip
+                  label={person.paid_at ? '✓ Paid' : 'Mark paid'}
+                  selected={!!person.paid_at}
+                  onPress={() => togglePaid(person)}
+                  accessibilityLabel={`${nameOf(person)} paid ${payerName} back`}
+                />
+              )}
+              {!person.is_me && (
+                <Pressable
+                  onPress={() => confirmRemove(person)}
+                  hitSlop={8}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Remove ${person.name}`}>
+                  <AppText variant="muted">✕</AppText>
+                </Pressable>
+              )}
+            </View>
+          ))}
+          {owesPayer.length > 0 && (
+            <Row label={`Paid back to ${payerName}`} value={`${money(paidBack)} of ${money(owedBack)}`} />
+          )}
+          <View style={styles.addRow}>
+            <TextInput
+              value={newName}
+              onChangeText={setNewName}
+              onSubmitEditing={() => add(newName)}
+              placeholder="Add a name"
+              placeholderTextColor={theme.textSecondary}
+              maxLength={MAX_NAME_LENGTH}
+              autoCapitalize="words"
+              autoCorrect={false}
+              returnKeyType="done"
+              submitBehavior="submit"
+              editable={!adding}
+              accessibilityLabel="Name of someone to add"
+              style={[styles.input, { color: theme.text, borderColor: theme.border, backgroundColor: theme.background }]}
+            />
+            <Button title="Add" variant="secondary" onPress={() => add(newName)} loading={adding} disabled={!newName.trim()} />
+          </View>
+          {suggestions.length > 0 && (
+            <View style={styles.chips}>
+              {suggestions.map((name) => (
+                <Chip key={name} label={`+ ${name}`} onPress={() => add(name)} accessibilityLabel={`Add ${name}`} />
+              ))}
+            </View>
+          )}
+        </Card>
 
-        {myPayment && (
+        {people.length > 1 && (
           <Card>
-            <AppText variant="label">✓ {ownerName ?? 'The owner'} marked your share as paid</AppText>
-            <AppText variant="muted">
-              {money(myPayment.paid_amount)} on {new Date(myPayment.paid_at).toLocaleDateString()}
-              {selection && !sameAmount(Number(selection.calculated_total), myPayment.paid_amount)
-                ? `. Your saved share is now ${money(Number(selection.calculated_total))}.`
-                : ''}
-            </AppText>
+            <AppText variant="heading">Who paid?</AppText>
+            <View style={styles.chips}>
+              {people.map((person) => (
+                <Chip
+                  key={person.id}
+                  role="radio"
+                  label={nameOf(person)}
+                  selected={person.is_payer}
+                  onPress={() => choosePayer(person)}
+                />
+              ))}
+            </View>
           </Card>
         )}
 
@@ -196,159 +373,86 @@ export default function SplitScreen() {
           </Card>
         )}
 
-        <AppText variant="muted">Tap what you had. If you shared a dish, set how many people split it.</AppText>
+        <AppText variant="muted">Tap who had each item. Shared items are split evenly.</AppText>
+        {people.length > 1 && <Button title="Split everything evenly" variant="secondary" onPress={splitEvenly} />}
 
         {receipt.receipts_items.map((item) => {
-          const isSelected = selectedItemIds.includes(item.id)
-          const shareCount = shareCounts[item.id] || 1
+          const had = assignments[item.id] ?? []
+          const lineTotal = item.qty * item.unit_price
           return (
-            <Pressable
-              key={item.id}
-              onPress={() => toggleItem(item.id)}
-              accessibilityRole="checkbox"
-              accessibilityState={{ checked: isSelected }}>
-              <Card style={[styles.item, { borderColor: isSelected ? theme.primary : 'transparent' }]}>
-                <View style={styles.itemRow}>
-                  <View
-                    style={[
-                      styles.check,
-                      { borderColor: isSelected ? theme.primary : theme.textSecondary },
-                      isSelected && { backgroundColor: theme.primary },
-                    ]}>
-                    {isSelected && <AppText style={{ color: theme.onPrimary, lineHeight: 18 }}>✓</AppText>}
-                  </View>
-                  <View style={styles.flex}>
-                    <AppText>{localizedName(item.name, item.name_en)}</AppText>
-                    <AppText variant="muted">
-                      {item.qty} × {money(item.unit_price)}
-                    </AppText>
-                  </View>
-                  <AppText style={styles.amount}>
-                    {money(isSelected ? itemCostPerPerson(item, shareCount) : item.qty * item.unit_price)}
+            <Card key={item.id}>
+              <View style={styles.itemRow}>
+                <View style={styles.flex}>
+                  <AppText>{localizedName(item.name, item.name_en)}</AppText>
+                  <AppText variant="muted">
+                    {item.qty} × {money(item.unit_price)}
+                    {had.length > 1 ? ` · ${money(lineTotal / had.length)} each` : ''}
                   </AppText>
                 </View>
-                {isSelected && (
-                  <ShareStepper value={shareCount} onChange={(value) => setShareCounts((prev) => ({ ...prev, [item.id]: value }))} />
+                <AppText style={styles.amount}>{money(lineTotal)}</AppText>
+              </View>
+              <View style={styles.chips}>
+                {people.map((person) => (
+                  <Chip
+                    key={person.id}
+                    label={nameOf(person)}
+                    selected={had.includes(person.id)}
+                    onPress={() => togglePerson(item.id, person.id)}
+                  />
+                ))}
+                {people.length > 2 && (
+                  <Chip
+                    label="Everyone"
+                    selected={everyoneIds.every((personId) => had.includes(personId))}
+                    onPress={() => toggleEveryone(item.id)}
+                  />
                 )}
-              </Card>
-            </Pressable>
+              </View>
+            </Card>
           )
         })}
       </ScrollView>
 
       <View style={[styles.summary, { backgroundColor: theme.background, borderColor: theme.border }]}>
-        {selectedItemIds.length > 0 && (
-          <>
-            <Row label="Your items" value={money(split.subtotal)} />
-            {receipt.service_percent > 0 && <Row label={`Service (${receipt.service_percent}%)`} value={money(split.service)} />}
-            {receipt.tax_percent > 0 && <Row label={`Tax (${receipt.tax_percent}%)`} value={money(split.tax)} />}
-            {Math.abs(split.rounding) > 0.001 && <Row label="Rounding" value={money(split.rounding)} />}
-          </>
+        {hasUnassigned ? (
+          <Row label="Not assigned yet" value={money(split.unassigned.total)} bold />
+        ) : (
+          <AppText variant="muted">Every item is assigned.</AppText>
         )}
-        <Row label={isPayer ? 'Your consumption' : 'You owe'} value={money(split.total)} bold />
-        <AppText variant="muted">
-          {(split.proportion * 100).toFixed(1)}% of the bill
-          {selection ? ` · Last saved ${new Date(selection.updated_at).toLocaleDateString()}` : ''}
-        </AppText>
-        <Button title={isPayer ? 'Save your consumption' : 'Save your share'} onPress={save} loading={saving} />
+        <Button title="Send totals" onPress={sendTotals} />
       </View>
     </SafeAreaView>
   )
 }
 
-function WhoOwesWhat({
-  participants,
-  total,
-  money,
-  onShare,
-  onTogglePaid,
-  updatingPaymentFor,
+function Chip({
+  label,
+  selected = false,
+  onPress,
+  role = 'checkbox',
+  accessibilityLabel,
 }: {
-  participants: ParticipantShare[]
-  total: number
-  money: (amount: number) => string
-  onShare: () => void
-  /** Set when the owner paid the bill, so they can tick off friends who paid them back. */
-  onTogglePaid?: (participant: ParticipantShare) => void
-  updatingPaymentFor: string | null
+  label: string
+  selected?: boolean
+  onPress: () => void
+  role?: 'checkbox' | 'radio'
+  accessibilityLabel?: string
 }) {
-  const claimed = participants.reduce((sum, participant) => sum + (participant.total ?? 0), 0)
-  const unclaimed = total - claimed
-  // The owner's own line is first and is never "paid back".
-  const friends = participants.slice(1).filter((participant) => participant.total !== null)
-  const owedByFriends = friends.reduce((sum, friend) => sum + (friend.total ?? 0), 0)
-  const paidBack = friends.reduce((sum, friend) => sum + (friend.payment?.paid_amount ?? 0), 0)
-
-  if (participants.length === 1) {
-    return (
-      <Card>
-        <AppText variant="heading">Split it with friends</AppText>
-        <AppText variant="muted">Send them a link. They pick what they had and you see what each person owes.</AppText>
-        <Button title="Share link" variant="secondary" onPress={onShare} />
-      </Card>
-    )
-  }
-
-  return (
-    <Card>
-      <AppText variant="heading">Who owes what</AppText>
-      {participants.map((participant, index) => {
-        const value = participant.total === null ? 'Not picked yet' : money(participant.total)
-        const canMarkPaid = onTogglePaid && index > 0 && participant.total !== null
-        if (!canMarkPaid) return <Row key={participant.user_id} label={participant.name} value={value} />
-        const { payment } = participant
-        return (
-          <View key={participant.user_id} style={styles.participant}>
-            <View style={styles.participantRow}>
-              <AppText variant="muted" style={styles.flex}>
-                {participant.name}
-              </AppText>
-              <AppText style={styles.amount}>{value}</AppText>
-              <PaidToggle
-                paid={!!payment}
-                busy={updatingPaymentFor === participant.user_id}
-                onPress={() => onTogglePaid(participant)}
-              />
-            </View>
-            {payment && !sameAmount(payment.paid_amount, participant.total ?? 0) && (
-              <AppText variant="muted">
-                Paid {money(payment.paid_amount)} before changing their picks
-              </AppText>
-            )}
-          </View>
-        )
-      })}
-      {Math.abs(unclaimed) > 0.005 && <Row label="Not claimed yet" value={money(unclaimed)} />}
-      {onTogglePaid && friends.length > 0 && (
-        <Row label="Paid back" value={`${money(paidBack)} of ${money(owedByFriends)}`} />
-      )}
-      <AppText variant="muted">Pull down to refresh.</AppText>
-    </Card>
-  )
-}
-
-function PaidToggle({ paid, busy, onPress }: { paid: boolean; busy: boolean; onPress: () => void }) {
   const theme = useTheme()
   return (
     <Pressable
       onPress={onPress}
-      disabled={busy}
-      hitSlop={8}
-      accessibilityRole="checkbox"
-      accessibilityLabel="Paid"
-      accessibilityState={{ checked: paid, busy }}
-      style={[
-        styles.paidToggle,
-        { borderColor: theme.primary, backgroundColor: paid ? theme.primary : 'transparent', opacity: busy ? 0.5 : 1 },
-      ]}>
-      <AppText variant="label" style={{ color: paid ? theme.onPrimary : theme.primary }}>
-        {paid ? '✓ Paid' : 'Mark paid'}
+      hitSlop={4}
+      accessibilityRole={role}
+      accessibilityLabel={accessibilityLabel ?? label}
+      accessibilityState={role === 'radio' ? { selected } : { checked: selected }}
+      style={[styles.chip, { borderColor: theme.primary, backgroundColor: selected ? theme.primary : 'transparent' }]}>
+      <AppText variant="label" style={{ color: selected ? theme.onPrimary : theme.primary }}>
+        {label}
       </AppText>
     </Pressable>
   )
 }
-
-const sameAmount = (a: number, b: number) => Math.abs(a - b) < 0.005
 
 const styles = StyleSheet.create({
   flex: { flex: 1 },
@@ -356,23 +460,23 @@ const styles = StyleSheet.create({
   content: { padding: Spacing.three, gap: Spacing.two, width: '100%', maxWidth: MaxContentWidth, alignSelf: 'center' },
   header: { gap: Spacing.one, marginBottom: Spacing.two },
   toggle: { flexDirection: 'row', alignItems: 'center' },
-  item: { borderWidth: 2 },
   itemRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.three },
-  check: { width: 24, height: 24, borderRadius: 6, borderWidth: 2, alignItems: 'center', justifyContent: 'center' },
   amount: { fontVariant: ['tabular-nums'] },
-  participant: { gap: Spacing.one },
-  participantRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
-  paidToggle: {
+  personRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two, minHeight: 36 },
+  addRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
+  input: { flex: 1, borderWidth: 1, borderRadius: 12, paddingHorizontal: Spacing.three, minHeight: 48, fontSize: 16 },
+  chips: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.two },
+  chip: {
     borderWidth: 1,
     borderRadius: 999,
-    paddingHorizontal: Spacing.two,
-    paddingVertical: 2,
-    minWidth: 84,
-    alignItems: 'center',
+    paddingHorizontal: Spacing.three,
+    paddingVertical: Spacing.one,
+    minHeight: 32,
+    justifyContent: 'center',
   },
   summary: {
     padding: Spacing.three,
-    gap: Spacing.one,
+    gap: Spacing.two,
     borderTopWidth: StyleSheet.hairlineWidth,
     width: '100%',
     maxWidth: MaxContentWidth,

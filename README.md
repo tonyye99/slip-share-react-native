@@ -1,6 +1,6 @@
 # SlipShare (React Native)
 
-Mobile app for [SlipShare](https://github.com/tonyye99/slip-share): scan a receipt, tap what you had, and see what you owe, including your share of tax, service charge and rounding.
+Mobile app for [SlipShare](https://github.com/tonyye99/slip-share): scan a receipt, tick who had what, and send everyone their total, including their share of tax, service charge and rounding.
 
 Built with Expo (SDK 57, Expo Router) and TypeScript. It uses the same Supabase project as the web app.
 
@@ -9,10 +9,11 @@ Built with Expo (SDK 57, Expo Router) and TypeScript. It uses the same Supabase 
 - **Auth and data**: the app talks to Supabase directly with `@supabase/supabase-js`. The schema and row-level security live in `supabase/migrations`. The first seven files are copied unchanged from the web repo, so they match what is already applied; anything after them is new for the app. Sessions are kept in the device keychain via `expo-secure-store`.
 - **Receipt parsing**: the OpenAI call runs in a Supabase Edge Function (`supabase/functions/parse-receipt`), a port of the web app's `/api/openai/parse` route. The OpenAI key never ships in the app.
 - **AI consent and privacy**: before the first scan, the scan screen asks permission to send receipt photos to OpenAI. Agreeing adds a row to `ai_consents`, and `parse-receipt` returns 403 without one, so no photo reaches OpenAI before the user agrees. Turning scanning off in Account deletes the row. The parser also sends `store: false`, so OpenAI doesn't keep the response. [`PRIVACY.md`](PRIVACY.md) is the privacy policy; the app links to it on GitHub from the sign-in, sign-up, scan and Account screens, and the App Store and Google Play listings need the same link.
-- **Account deletion**: `supabase/functions/delete-account` deletes the signed-in user with the admin API. Every table is keyed on the user with `on delete cascade`, so their profile, receipts, shares and scan counts go with it. The service role key it needs stays on the server.
-- **Sharing**: each receipt has a `share_token`. The owner shares `slipshare://join/<token>`; opening it calls the `join_receipt` RPC, which adds the person to `receipt_participants` so RLS lets them read the receipt and save their own selection. This needs the `receipt_sharing` migration in `supabase/migrations`.
-- **Mark as paid**: when the owner paid the bill, they tick off friends who paid them back. The `set_participant_paid` RPC (owner only) sets `paid_at` on the friend's `receipt_participants` row and copies their saved total into `paid_amount`. Friends can read their own row, so they see it too.
-- **Split math**: `src/lib/split.ts`, ported from the web app's cost calculator, with tests in `src/lib/split.test.ts`.
+- **Account deletion**: `supabase/functions/delete-account` deletes the signed-in user with the admin API. Every table is keyed on the user with `on delete cascade`, so their profile, receipts (with the people on them) and scan counts go with it. The service role key it needs stays on the server.
+- **Splitting**: the person who scanned the receipt splits it for everyone, and friends don't need the app. They add people by name (`receipt_people`; names from their latest receipts come back as one-tap suggestions), tick who had each item (`receipt_item_people`; an item several people had is split evenly) and pick who paid. Every receipt has the owner's own "You" line, added by a trigger. Changes save as you tap. **Send totals** opens the share sheet with a text list for LINE, WhatsApp and the like. Only the receipt owner can read or change these rows.
+- **Who paid and mark as paid**: the `set_receipt_payer` RPC moves the payer in one step and keeps `receipts.user_type` in step for the web app. The owner ticks off people who have paid the payer back (`receipt_people.paid_at`).
+- **Share links (retired)**: the `payer_picks` migration drops `join_receipt` and the policies that let people who joined by link read a receipt. `receipt_participants` and `receipts.share_token` stay in the database, so this can be undone.
+- **Split math**: `src/lib/split.ts`, ported from the web app's cost calculator, with tests in `src/lib/split.test.ts` and `src/lib/people-split.test.ts`.
 
 ## Screens
 
@@ -24,9 +25,8 @@ Built with Expo (SDK 57, Expo Router) and TypeScript. It uses the same Supabase 
 | `(app)/index` | Your receipts (pull to refresh, infinite scroll) and "Scan a receipt" |
 | `(app)/account` | Your email, sign out, turn receipt scanning off, the privacy policy, and delete your account (asks you to confirm first) |
 | `(app)/scan` | Asks once for permission to send photos to OpenAI. Then camera or photo library, optional English translation, sends a resized JPEG to the parser |
-| `(app)/review` | Parsed items and totals. Fix, add or remove misread items (warns when they don't add up to the printed total), choose "I paid" or "Someone else paid", save |
-| `(app)/receipts/[id]` | Tap items you had, set how many people shared each, live total, save your share. The owner can share a link, sees who owes what, and marks who has paid them back |
-| `join/[token]` | Opened from a share link; joins the receipt (after sign-in if needed) and opens it |
+| `(app)/review` | Parsed items and totals. Fix, add or remove misread items (warns when they don't add up to the printed total), save |
+| `(app)/receipts/[id]` | Add who was there, tap who had each item (or split everything evenly), pick who paid, mark who has paid back, and send everyone their total. Saves as you tap |
 
 ## Setup
 

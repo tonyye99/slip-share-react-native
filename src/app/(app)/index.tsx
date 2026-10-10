@@ -6,16 +6,13 @@ import { SafeAreaView } from 'react-native-safe-area-context'
 import { AppText, Button, Card } from '@/components/ui'
 import { MaxContentWidth, Spacing } from '@/constants/theme'
 import { useTheme } from '@/hooks/use-theme'
-import { useUserId } from '@/lib/auth'
 import { listReceipts, type ReceiptSummary } from '@/lib/receipts'
-import { pendingJoin } from '@/lib/share'
 import { formatMoney } from '@/lib/split'
 
 const PAGE_SIZE = 20
 
 export default function HomeScreen() {
   const theme = useTheme()
-  const userId = useUserId()
   const [receipts, setReceipts] = useState<ReceiptSummary[]>([])
   const [total, setTotal] = useState(0)
   const [loading, setLoading] = useState(true)
@@ -35,12 +32,9 @@ export default function HomeScreen() {
     }
   }, [])
 
-  // Reload when coming back from a newly saved receipt, and resume a share
-  // link that was opened before signing in.
+  // Reload when coming back from a newly saved receipt.
   useFocusEffect(
     useCallback(() => {
-      const token = pendingJoin.take()
-      if (token) router.push(`/join/${token}`)
       loadFirstPage()
     }, [loadFirstPage]),
   )
@@ -97,13 +91,13 @@ export default function HomeScreen() {
           )
         }
         ListFooterComponent={loadingMore ? <ActivityIndicator style={styles.footer} /> : null}
-        renderItem={({ item }) => <ReceiptRow receipt={item} shared={item.user_id !== userId} />}
+        renderItem={({ item }) => <ReceiptRow receipt={item} />}
       />
     </SafeAreaView>
   )
 }
 
-function ReceiptRow({ receipt, shared }: { receipt: ReceiptSummary; shared: boolean }) {
+function ReceiptRow({ receipt }: { receipt: ReceiptSummary }) {
   const itemCount = receipt.receipts_items[0]?.count ?? 0
   return (
     <Pressable onPress={() => router.push(`/receipts/${receipt.id}`)} accessibilityRole="button">
@@ -115,7 +109,7 @@ function ReceiptRow({ receipt, shared }: { receipt: ReceiptSummary; shared: bool
             </AppText>
             <AppText variant="muted">
               {new Date(receipt.created_at).toLocaleDateString()} · {itemCount} item{itemCount === 1 ? '' : 's'} ·{' '}
-              {shared ? 'Shared with you' : receipt.user_type === 'payer' ? 'You paid' : 'Someone else paid'}
+              {receipt.user_type === 'payer' ? 'You paid' : 'Someone else paid'}
             </AppText>
           </View>
           <AppText variant="label">{formatMoney(receipt.total, receipt.currency)}</AppText>

@@ -52,7 +52,7 @@ export default function AccountScreen() {
   const confirmDelete = () =>
     Alert.alert(
       'Delete your account?',
-      "Your receipts and shares will be deleted for good, and friends will lose the bills you shared with them. This can't be undone.",
+      "Your receipts, and the names and payments on them, will be deleted for good. This can't be undone.",
       [
         { text: 'Cancel', style: 'cancel' },
         { text: 'Delete account', style: 'destructive', onPress: runDelete },
@@ -89,8 +89,8 @@ export default function AccountScreen() {
       <Card>
         <AppText variant="heading">Delete account</AppText>
         <AppText variant="muted">
-          Removes your account, every receipt you scanned and your shares on friends&apos; bills. Friends lose
-          access to bills you shared. This also deletes your account on the SlipShare website.
+          Removes your account and every receipt you scanned, with the names and payments on it. This also
+          deletes your account on the SlipShare website.
         </AppText>
         <Button title="Delete account" variant="danger" onPress={confirmDelete} loading={deleting} />
       </Card>

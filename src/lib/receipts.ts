@@ -1,29 +1,19 @@
-import { billTotal, calculateSplit, receiptSubtotal } from '@/lib/split'
+import { billTotal, receiptSubtotal } from '@/lib/split'
 import { supabase } from '@/lib/supabase'
-import type {
-  ParsedReceipt,
-  ParticipantShare,
-  Payment,
-  Receipt,
-  ReceiptWithItems,
-  ShareCounts,
-  UserSelection,
-  UserType,
-} from '@/lib/types'
+import type { ParsedReceipt, Receipt, ReceiptPerson, ReceiptWithPeople } from '@/lib/types'
 
-// The app talks to Supabase directly; RLS limits each user to receipts they
-// own or joined through a share link, and to their own selections (owners can
-// also read everyone's selections on their receipts).
+// The app talks to Supabase directly; RLS limits each user to their own
+// receipts and the people on them.
 
 export type ReceiptSummary = Pick<
   Receipt,
-  'id' | 'user_id' | 'merchant_name' | 'merchant_name_en' | 'currency' | 'total' | 'user_type' | 'created_at'
+  'id' | 'merchant_name' | 'merchant_name_en' | 'currency' | 'total' | 'user_type' | 'created_at'
 > & { receipts_items: { count: number }[] }
 
 export async function listReceipts(offset: number, limit: number) {
   const { data, error, count } = await supabase
     .from('receipts')
-    .select('id, user_id, merchant_name, merchant_name_en, currency, total, user_type, created_at, receipts_items(count)', {
+    .select('id, merchant_name, merchant_name_en, currency, total, user_type, created_at, receipts_items(count)', {
       count: 'exact',
     })
     .order('created_at', { ascending: false })
@@ -32,20 +22,22 @@ export async function listReceipts(offset: number, limit: number) {
   return { receipts: (data ?? []) as ReceiptSummary[], total: count ?? 0 }
 }
 
-export async function getReceipt(id: string, userId: string) {
-  const [receiptRes, selectionRes] = await Promise.all([
-    supabase.from('receipts').select('*, receipts_items(*)').eq('id', id).single(),
-    supabase.from('user_selections').select('*').eq('receipt_id', id).eq('user_id', userId).maybeSingle(),
-  ])
-  if (receiptRes.error) throw receiptRes.error
-  if (selectionRes.error) throw selectionRes.error
+export async function getReceipt(id: string): Promise<ReceiptWithPeople> {
+  const { data, error } = await supabase
+    .from('receipts')
+    .select('*, receipts_items(*, receipt_item_people(person_id)), receipt_people(*)')
+    .eq('id', id)
+    .single()
+  if (error) throw error
 
-  const receipt = receiptRes.data as ReceiptWithItems
+  const receipt = data as ReceiptWithPeople
   receipt.receipts_items.sort((a, b) => a.position - b.position)
-  return { receipt, selection: selectionRes.data as UserSelection | null }
+  // You first, then everyone else in the order they were added.
+  receipt.receipt_people.sort((a, b) => Number(b.is_me) - Number(a.is_me) || a.created_at.localeCompare(b.created_at))
+  return receipt
 }
 
-export async function createReceipt(parsed: ParsedReceipt, userType: UserType, userId: string) {
+export async function createReceipt(parsed: ParsedReceipt, userId: string) {
   const translated = parsed.original_language !== 'en'
   const subtotal = receiptSubtotal(parsed.items)
   const total = parsed.total || billTotal(parsed, subtotal)
@@ -66,7 +58,8 @@ export async function createReceipt(parsed: ParsedReceipt, userType: UserType, u
       raw_json: parsed,
       parser_version: 'gpt-4.1-mini',
       issued_at: new Date().toISOString(),
-      user_type: userType,
+      // You're the payer until you pick someone else on the receipt screen.
+      user_type: 'payer',
     })
     .select('id')
     .single()
@@ -89,104 +82,67 @@ export async function createReceipt(parsed: ParsedReceipt, userType: UserType, u
   return receipt.id as string
 }
 
-export async function saveSelection(
-  receipt: ReceiptWithItems,
-  userId: string,
-  selectedItemIds: string[],
-  shareCounts: ShareCounts,
-) {
-  const split = calculateSplit(receipt, receipt.receipts_items, selectedItemIds, shareCounts)
+/** Adds someone to a receipt by name. */
+export async function addPerson(receiptId: string, name: string): Promise<ReceiptPerson> {
+  const { data, error } = await supabase.from('receipt_people').insert({ receipt_id: receiptId, name }).select().single()
+  if (error) throw error
+  return data as ReceiptPerson
+}
+
+/** Removes someone from a receipt; the items they had go back to nobody. */
+export async function removePerson(personId: string) {
+  const { error } = await supabase.from('receipt_people').delete().eq('id', personId)
+  if (error) throw error
+}
+
+/** Ticks people on items. Rows that are already there are left alone. */
+export async function addItemPeople(rows: { item_id: string; person_id: string }[]) {
+  if (rows.length === 0) return
+  const { error } = await supabase
+    .from('receipt_item_people')
+    .upsert(rows, { onConflict: 'item_id,person_id', ignoreDuplicates: true })
+  if (error) throw error
+}
+
+export async function removeItemPeople(itemId: string, personIds: string[]) {
+  if (personIds.length === 0) return
+  const { error } = await supabase.from('receipt_item_people').delete().eq('item_id', itemId).in('person_id', personIds)
+  if (error) throw error
+}
+
+/** Makes someone on the receipt the one who paid the bill. */
+export async function setPayer(receiptId: string, personId: string) {
+  const { error } = await supabase.rpc('set_receipt_payer', { p_receipt_id: receiptId, p_person_id: personId })
+  if (error) throw error
+}
+
+/** Records (or clears) that someone has paid the payer back. */
+export async function setPersonPaid(personId: string, paid: boolean) {
+  const { error } = await supabase
+    .from('receipt_people')
+    .update({ paid_at: paid ? new Date().toISOString() : null })
+    .eq('id', personId)
+  if (error) throw error
+}
+
+/** Names you added to your latest receipts, newest first, for adding them again in one tap. */
+export async function getRecentNames(): Promise<string[]> {
   const { data, error } = await supabase
-    .from('user_selections')
-    .upsert(
-      {
-        user_id: userId,
-        receipt_id: receipt.id,
-        selected_items: selectedItemIds,
-        item_shares: shareCounts,
-        calculated_total: split.total,
-        tax_amount: split.tax,
-        service_amount: split.service,
-        rounding_amount: split.rounding,
-        updated_at: new Date().toISOString(),
-      },
-      { onConflict: 'user_id,receipt_id' },
-    )
-    .select()
-    .single()
+    .from('receipts')
+    .select('receipt_people(name, is_me)')
+    .order('created_at', { ascending: false })
+    .limit(20)
   if (error) throw error
-  return data as UserSelection
-}
 
-/** Joins the receipt behind a share link and returns its id. */
-export async function joinReceipt(shareToken: string): Promise<string> {
-  const { data, error } = await supabase.rpc('join_receipt', { p_share_token: shareToken })
-  if (error) throw error
-  return data as string
-}
-
-async function getDisplayNames(userIds: string[]): Promise<Map<string, string>> {
-  if (userIds.length === 0) return new Map()
-  const { data, error } = await supabase.from('profiles').select('user_id, display_name').in('user_id', userIds)
-  if (error) throw error
-  return new Map((data ?? []).map((profile) => [profile.user_id as string, (profile.display_name as string | null) || 'Unnamed']))
-}
-
-export async function getOwnerName(ownerId: string): Promise<string> {
-  return (await getDisplayNames([ownerId])).get(ownerId) ?? 'Unnamed'
-}
-
-/**
- * Everyone on a receipt and what they owe, for the receipt owner. Includes
- * the owner's own selection and people who joined but haven't picked yet.
- */
-export async function getParticipantShares(receipt: Receipt, ownerId: string): Promise<ParticipantShare[]> {
-  const [participantsRes, selectionsRes] = await Promise.all([
-    supabase
-      .from('receipt_participants')
-      .select('user_id, joined_at, paid_at, paid_amount')
-      .eq('receipt_id', receipt.id)
-      .order('joined_at'),
-    supabase.from('user_selections').select('user_id, calculated_total').eq('receipt_id', receipt.id),
-  ])
-  if (participantsRes.error) throw participantsRes.error
-  if (selectionsRes.error) throw selectionsRes.error
-
-  const totals = new Map(selectionsRes.data.map((selection) => [selection.user_id as string, Number(selection.calculated_total)]))
-  const payments = new Map(participantsRes.data.map((participant) => [participant.user_id as string, toPayment(participant)]))
-  const userIds = [ownerId, ...participantsRes.data.map((participant) => participant.user_id as string).filter((id) => id !== ownerId)]
-  const names = await getDisplayNames(userIds)
-
-  return userIds.map((id) => ({
-    user_id: id,
-    name: id === ownerId ? 'You' : (names.get(id) ?? 'Unnamed'),
-    total: totals.get(id) ?? null,
-    payment: payments.get(id) ?? null,
-  }))
-}
-
-/** Records (or clears) a friend's payment on a receipt you own. */
-export async function setParticipantPaid(receiptId: string, participantId: string, paid: boolean) {
-  const { error } = await supabase.rpc('set_participant_paid', {
-    p_receipt_id: receiptId,
-    p_user_id: participantId,
-    p_paid: paid,
-  })
-  if (error) throw error
-}
-
-/** Your own payment on a receipt someone shared with you, if the owner marked it. */
-export async function getMyPayment(receiptId: string, userId: string): Promise<Payment | null> {
-  const { data, error } = await supabase
-    .from('receipt_participants')
-    .select('paid_at, paid_amount')
-    .eq('receipt_id', receiptId)
-    .eq('user_id', userId)
-    .maybeSingle()
-  if (error) throw error
-  return data ? toPayment(data) : null
-}
-
-function toPayment(row: { paid_at: string | null; paid_amount: number | string | null }): Payment | null {
-  return row.paid_at ? { paid_at: row.paid_at, paid_amount: Number(row.paid_amount) } : null
+  const seen = new Set<string>()
+  const names: string[] = []
+  for (const receipt of data as { receipt_people: Pick<ReceiptPerson, 'name' | 'is_me'>[] }[]) {
+    for (const person of receipt.receipt_people) {
+      const key = person.name.toLowerCase()
+      if (person.is_me || seen.has(key)) continue
+      seen.add(key)
+      names.push(person.name)
+    }
+  }
+  return names
 }
