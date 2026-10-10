@@ -3,7 +3,7 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
 
-import { calculateSplit, receiptSubtotal } from './split.ts'
+import { calculateSplit, dropIncludedCharges, receiptSubtotal } from './split.ts'
 
 // The example receipt from slip-share's CLAUDE.md.
 const items = [
@@ -49,4 +49,27 @@ test('decimal prices work', () => {
 
 test('nothing selected is zero', () => {
   assert.equal(calculateSplit(receipt, items, [], {}).total, 0)
+})
+
+test('VAT already in the prices is dropped', () => {
+  // "VAT Included" receipt: items add up to the printed total, and VAT 7% is only a breakdown.
+  const parsed = { tax_percent: 7, service_percent: 0, rounding: 0, total: 579 }
+  assert.deepEqual(dropIncludedCharges(parsed, 579), { ...parsed, tax_percent: 0 })
+})
+
+test('charges added on top of the prices are kept', () => {
+  const parsed = { tax_percent: 7.35, service_percent: 5, rounding: 0, total: 929.13 }
+  assert.equal(dropIncludedCharges(parsed, 827), parsed)
+})
+
+test('service on top with VAT included keeps only the service', () => {
+  const parsed = { tax_percent: 7, service_percent: 10, rounding: 0, total: 1100 }
+  assert.deepEqual(dropIncludedCharges(parsed, 1000), { ...parsed, tax_percent: 0 })
+})
+
+test('charges are kept when nothing matches or the total is missing', () => {
+  const noMatch = { tax_percent: 7, service_percent: 0, rounding: 0, total: 900 }
+  assert.equal(dropIncludedCharges(noMatch, 579), noMatch)
+  const noTotal = { tax_percent: 7, service_percent: 0, rounding: 0, total: 0 }
+  assert.equal(dropIncludedCharges(noTotal, 579), noTotal)
 })

@@ -64,6 +64,25 @@ export function billTotal(receipt: Omit<SplitReceipt, 'subtotal'>, subtotal: num
   return subtotal + (subtotal * receipt.service_percent) / 100 + (subtotal * receipt.tax_percent) / 100 + receipt.rounding
 }
 
+/**
+ * Receipts often print VAT or a service charge that is already inside the item
+ * prices ("VAT included"). If the charges as read don't reach the printed total
+ * but leaving some of them out does, those were included, so they're dropped.
+ */
+export function dropIncludedCharges<T extends Omit<SplitReceipt, 'subtotal'> & { total: number }>(
+  receipt: T,
+  subtotal: number,
+): T {
+  const matchesTotal = (r: T) => Math.abs(billTotal(r, subtotal) - receipt.total) < 0.5
+  if (receipt.total <= 0 || matchesTotal(receipt)) return receipt
+  const withoutCharges = [
+    { ...receipt, tax_percent: 0 },
+    { ...receipt, service_percent: 0 },
+    { ...receipt, tax_percent: 0, service_percent: 0 },
+  ]
+  return withoutCharges.find(matchesTotal) ?? receipt
+}
+
 export function formatMoney(amount: number, currency: string): string {
   try {
     return new Intl.NumberFormat('en-US', { style: 'currency', currency }).format(amount)
