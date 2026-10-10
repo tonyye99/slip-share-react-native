@@ -2,7 +2,6 @@ import { useLocalSearchParams } from 'expo-router'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   ActivityIndicator,
-  Alert,
   Platform,
   Pressable,
   ScrollView,
@@ -17,6 +16,7 @@ import { SafeAreaView } from 'react-native-safe-area-context'
 import { AppText, Button, Card, Row } from '@/components/ui'
 import { MaxContentWidth, Spacing } from '@/constants/theme'
 import { useTheme } from '@/hooks/use-theme'
+import { confirmDestructive, showAlert } from '@/lib/alert'
 import {
   addItemPeople,
   addPerson,
@@ -125,7 +125,7 @@ export default function SplitScreen() {
     saves.current = saves.current.then(() =>
       write().catch((e) => {
         console.error('Save failed', e)
-        Alert.alert('Could not save that change', 'Check your connection and try again.')
+        showAlert('Could not save that change', 'Check your connection and try again.')
         return getReceipt(receipt.id)
           .then(show)
           .catch((loadError) => console.error('Reload failed', loadError))
@@ -171,10 +171,12 @@ export default function SplitScreen() {
       )
     }
     if (!Object.values(assignments).some((had) => had.length > 0)) return run()
-    Alert.alert('Split everything evenly?', 'Everyone will share every item, including the ones you already ticked.', [
-      { text: 'Cancel', style: 'cancel' },
-      { text: 'Split evenly', style: 'destructive', onPress: run },
-    ])
+    confirmDestructive(
+      'Split everything evenly?',
+      'Everyone will share every item, including the ones you already ticked.',
+      'Split evenly',
+      run,
+    )
   }
 
   const add = async (typed: string) => {
@@ -182,11 +184,11 @@ export default function SplitScreen() {
     if (!name || adding) return
     const key = name.toLowerCase()
     if (key === 'you' || key === 'me') {
-      Alert.alert('Already on this bill', "You're on every bill you scan.")
+      showAlert('Already on this bill', "You're on every bill you scan.")
       return
     }
     if (onBill.has(key)) {
-      Alert.alert('Already on this bill', `${name} is already on this bill.`)
+      showAlert('Already on this bill', `${name} is already on this bill.`)
       return
     }
     setAdding(true)
@@ -196,7 +198,7 @@ export default function SplitScreen() {
       setNewName('')
     } catch (e) {
       console.error('Add person failed', e)
-      Alert.alert(`Could not add ${name}`, 'Check your connection and try again.')
+      showAlert(`Could not add ${name}`, 'Check your connection and try again.')
     } finally {
       setAdding(false)
     }
@@ -211,13 +213,11 @@ export default function SplitScreen() {
       save(() => removePerson(person.id))
     }
     if (!Object.values(assignments).some((had) => had.includes(person.id))) return remove()
-    Alert.alert(
+    confirmDestructive(
       `Remove ${person.name}?`,
       'Items they shared will be split between the others who had them. Items only they had will be unassigned.',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        { text: 'Remove', style: 'destructive', onPress: remove },
-      ],
+      'Remove',
+      remove,
     )
   }
 
@@ -264,10 +264,10 @@ export default function SplitScreen() {
       if (Platform.OS !== 'web') return console.error('Share failed', e)
       try {
         await navigator.clipboard.writeText(message)
-        window.alert('Totals copied. Paste them into LINE, WhatsApp or wherever you chat.')
+        showAlert('Totals copied', 'Paste them into LINE, WhatsApp or wherever you chat.')
       } catch (copyError) {
         console.error('Copy failed', copyError)
-        window.alert(message)
+        showAlert('Your totals', message)
       }
     }
   }
