@@ -146,3 +146,13 @@ export async function getRecentNames(): Promise<string[]> {
   }
   return names
 }
+
+/**
+ * Turns the friend link on or off and returns the receipt's link token.
+ * Turning it on after it was off makes a new token, so old links stop working.
+ */
+export async function setReceiptLink(receiptId: string, enabled: boolean): Promise<string> {
+  const { data, error } = await supabase.rpc('set_receipt_link', { p_receipt_id: receiptId, p_enabled: enabled })
+  if (error) throw error
+  return data as string
+}
