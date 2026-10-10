@@ -12,7 +12,8 @@ Built with Expo (SDK 57, Expo Router) and TypeScript. It uses the same Supabase 
 - **Account deletion**: `supabase/functions/delete-account` deletes the signed-in user with the admin API. Every table is keyed on the user with `on delete cascade`, so their profile, receipts (with the people on them) and scan counts go with it. The service role key it needs stays on the server.
 - **Splitting**: the person who scanned the receipt splits it for everyone, and friends don't need the app. They add people by name (`receipt_people`; names from their latest receipts come back as one-tap suggestions), tick who had each item (`receipt_item_people`; an item several people had is split evenly) and pick who paid. Every receipt has the owner's own "You" line, added by a trigger. Changes save as you tap. **Send totals** opens the share sheet with a text list for LINE, WhatsApp and the like. Only the receipt owner can read or change these rows.
 - **Who paid and mark as paid**: the `set_receipt_payer` RPC moves the payer in one step and keeps `receipts.user_type` in step for the web app. The owner ticks off people who have paid the payer back (`receipt_people.paid_at`).
-- **Share links (retired)**: the `payer_picks` migration drops `join_receipt` and the policies that let people who joined by link read a receipt. `receipt_participants` and `receipts.share_token` stay in the database, so this can be undone.
+- **Friend link**: the owner can also send `https://<site>/pick/<share_token>`, which opens the website. Friends type their name (or tap one the owner added) and tick their own items, with no app or account. They aren't signed in, so `get_link_receipt`, `join_link` and `set_link_pick` (SECURITY DEFINER, callable with the anon key) check the token on every call and only work while `receipts.link_enabled` is on. Joining gives the browser a random `guest_key`, kept in localStorage, and only that key can change that person's picks. `set_receipt_link` turns the link on or off; turning it back on makes a new token, so old links stop working. The phone app makes these links from `EXPO_PUBLIC_WEB_URL` and hides the option until it's set.
+- **Old in-app share links (retired)**: the `payer_picks` migration drops `join_receipt` and the policies that let people who joined by link read a receipt. `receipt_participants` stays in the database, so this can be undone.
 - **Split math**: `src/lib/split.ts`, ported from the web app's cost calculator, with tests in `src/lib/split.test.ts` and `src/lib/people-split.test.ts`.
 
 ## Screens
@@ -26,7 +27,8 @@ Built with Expo (SDK 57, Expo Router) and TypeScript. It uses the same Supabase 
 | `(app)/account` | Your email, sign out, turn receipt scanning off, the privacy policy, and delete your account (asks you to confirm first) |
 | `(app)/scan` | Asks once for permission to send photos to OpenAI. Then camera or photo library, optional English translation, sends a resized JPEG to the parser |
 | `(app)/review` | Parsed items and totals. Fix, add or remove misread items (warns when they don't add up to the printed total), save |
-| `(app)/receipts/[id]` | Add who was there, tap who had each item (or split everything evenly), pick who paid, mark who has paid back, and send everyone their total. Saves as you tap |
+| `(app)/receipts/[id]` | Add who was there, tap who had each item (or split everything evenly), pick who paid, mark who has paid back, and send everyone their total. Or share a link so friends pick their own items (pull down to see them). Saves as you tap |
+| `pick/[token]` | The friend link, usually opened on the website: type or tap your name, tick what you had, see your share. No sign-in |
 
 ## Setup
 
@@ -94,6 +96,11 @@ To publish it:
 1. One time: `npx eas-cli@latest login`, and `npx eas-cli@latest init` if `app.json` has no EAS project ID yet.
 2. Run `npm run deploy:web`. It builds the site with the Supabase settings from your `.env`, then uploads it. The first time, it asks you to pick a name, and the site lives at `https://<name>.expo.app`.
 3. One time: in Supabase, **Authentication → URL Configuration → Redirect URLs**, add `https://<name>.expo.app/**` so sign-in and password reset links can come back to the site.
+4. One time, so the phone app can send friend links: add `EXPO_PUBLIC_WEB_URL=https://<name>.expo.app` to `.env`, and for EAS builds:
+   ```bash
+   npx eas-cli@latest env:set --name EXPO_PUBLIC_WEB_URL --value https://<name>.expo.app \
+     --environment preview --environment development --environment production --visibility plaintext
+   ```
 
 Run `npm run deploy:web` again whenever you want the site to have the latest code.
 
