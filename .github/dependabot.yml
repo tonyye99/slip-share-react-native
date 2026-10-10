@@ -38,6 +38,12 @@ updates:
         update-types: ["version-update:semver-major", "version-update:semver-minor"]
       - dependency-name: "@types/react"
         update-types: ["version-update:semver-major", "version-update:semver-minor"]
+      # eslint-config-expo's plugins don't load on ESLint 10 or TypeScript 7 yet
+      # (#13, #23). Take these majors with the SDK upgrade that supports them.
+      - dependency-name: "eslint"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "typescript"
+        update-types: ["version-update:semver-major"]
 
   - package-ecosystem: github-actions
     directory: /
