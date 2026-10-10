@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react'
-import { Alert, ScrollView, StyleSheet } from 'react-native'
+import { ScrollView, StyleSheet } from 'react-native'
 
 import { AppText, Button, Card, TextLink } from '@/components/ui'
 import { MaxContentWidth, Spacing } from '@/constants/theme'
 import { useTheme } from '@/hooks/use-theme'
 import { deleteAccount } from '@/lib/account'
+import { confirmDestructive, showAlert } from '@/lib/alert'
 import { useAuth } from '@/lib/auth'
 import { getAiConsent, openPrivacyPolicy, withdrawAiConsent } from '@/lib/consent'
 import { supabase } from '@/lib/supabase'
@@ -31,7 +32,7 @@ export default function AccountScreen() {
       setConsentedAt(null)
     } catch (e) {
       console.error('Turning off scanning failed', e)
-      Alert.alert('Could not turn off scanning', 'Please check your connection and try again.')
+      showAlert('Could not turn off scanning', 'Please check your connection and try again.')
     } finally {
       setTurningOff(false)
     }
@@ -45,18 +46,16 @@ export default function AccountScreen() {
     } catch (e) {
       console.error('Delete account failed', e)
       setDeleting(false)
-      Alert.alert('Could not delete your account', 'Please check your connection and try again.')
+      showAlert('Could not delete your account', 'Please check your connection and try again.')
     }
   }
 
   const confirmDelete = () =>
-    Alert.alert(
+    confirmDestructive(
       'Delete your account?',
       "Your receipts and shares will be deleted for good, and friends will lose the bills you shared with them. This can't be undone.",
-      [
-        { text: 'Cancel', style: 'cancel' },
-        { text: 'Delete account', style: 'destructive', onPress: runDelete },
-      ],
+      'Delete account',
+      runDelete,
     )
 
   return (

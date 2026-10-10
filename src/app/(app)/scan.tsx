@@ -2,11 +2,12 @@ import { Image } from 'expo-image'
 import * as ImagePicker from 'expo-image-picker'
 import { router } from 'expo-router'
 import { useEffect, useState } from 'react'
-import { ActivityIndicator, Alert, ScrollView, StyleSheet, Switch, View } from 'react-native'
+import { ActivityIndicator, ScrollView, StyleSheet, Switch, View } from 'react-native'
 
 import { AppText, Button, Card, TextLink } from '@/components/ui'
 import { MaxContentWidth, Spacing } from '@/constants/theme'
 import { useTheme } from '@/hooks/use-theme'
+import { showAlert } from '@/lib/alert'
 import { useAuth } from '@/lib/auth'
 import { getAiConsent, giveAiConsent, openPrivacyPolicy } from '@/lib/consent'
 import { receiptDraft } from '@/lib/draft'
@@ -53,7 +54,7 @@ export default function ScanScreen() {
     if (source === 'camera') {
       const permission = await ImagePicker.requestCameraPermissionsAsync()
       if (!permission.granted) {
-        Alert.alert('Camera access needed', 'Allow camera access in Settings to scan receipts.')
+        showAlert('Camera access needed', 'Allow camera access in Settings to scan receipts.')
         return
       }
     }
