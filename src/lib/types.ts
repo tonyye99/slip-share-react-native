@@ -2,9 +2,6 @@
 
 export type UserType = 'payer' | 'sharer'
 
-/** item_id -> number of people sharing that item (1–99). */
-export type ShareCounts = Record<string, number>
-
 export interface Receipt {
   id: string
   user_id: string
@@ -17,9 +14,8 @@ export interface Receipt {
   rounding: number
   subtotal: number
   total: number
+  /** 'payer' when you paid. Follows receipt_people.is_payer; the web app reads it. */
   user_type: UserType
-  /** Token in the share link; see join_receipt() in supabase/migrations. */
-  share_token: string
   created_at: string
   updated_at: string
 }
@@ -34,21 +30,24 @@ export interface ReceiptItem {
   unit_price: number
 }
 
-export interface ReceiptWithItems extends Receipt {
-  receipts_items: ReceiptItem[]
+/** Someone at the table, added by name by the receipt owner. */
+export interface ReceiptPerson {
+  id: string
+  receipt_id: string
+  name: string
+  /** The owner's own line, shown as "You". */
+  is_me: boolean
+  /** Paid the bill. At most one per receipt. */
+  is_payer: boolean
+  /** When they paid the payer back. */
+  paid_at: string | null
+  created_at: string
 }
 
-export interface UserSelection {
-  id: string
-  user_id: string
-  receipt_id: string
-  selected_items: string[]
-  item_shares: ShareCounts
-  calculated_total: number
-  tax_amount: number
-  service_amount: number
-  rounding_amount: number
-  updated_at: string
+/** A receipt with its items, who had each item, and everyone on it. */
+export interface ReceiptWithPeople extends Receipt {
+  receipts_items: (ReceiptItem & { receipt_item_people: { person_id: string }[] })[]
+  receipt_people: ReceiptPerson[]
 }
 
 /** Output of the parse-receipt Edge Function (same shape as the web app's OpenAI schema). */
@@ -72,21 +71,4 @@ export interface ParsedReceipt {
   subtotal: number
   total: number
   rounding: number
-}
-
-/** One person's line in the owner's "who owes what" list. */
-export interface ParticipantShare {
-  user_id: string
-  name: string
-  /** null until they have picked their items. */
-  total: number | null
-  /** Set when the owner marks them as paid; null for the owner's own line. */
-  payment: Payment | null
-}
-
-/** A friend's payment as the receipt owner recorded it (receipt_participants). */
-export interface Payment {
-  paid_at: string
-  /** Their total when it was marked, which can differ if they change picks later. */
-  paid_amount: number
 }
