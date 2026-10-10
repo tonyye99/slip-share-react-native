@@ -20,7 +20,7 @@ const corsHeaders = {
 
 function prompt(enableTranslation: boolean): string {
   const base =
-    'You are a bill-parsing assistant. First, determine if this image contains a valid receipt or bill. If it does: 1) Detect the original language of the receipt text and provide the ISO 639-1 language code (e.g., "th" for Thai, "en" for English). 2) Identify the currency used in the receipt by looking for currency symbols (฿, $, €, £, ¥, etc.) or text indicators, and provide the 3-letter ISO currency code (e.g., THB, USD, EUR, GBP, JPY). 3) Extract the merchant name, line items, and charges from the receipt in the original language.'
+    'You are a bill-parsing assistant. First, determine if this image contains a valid receipt or bill. If it does: 1) Detect the original language of the receipt text and provide the ISO 639-1 language code (e.g., "th" for Thai, "en" for English). 2) Identify the currency used in the receipt by looking for currency symbols (฿, $, €, £, ¥, etc.) or text indicators, and provide the 3-letter ISO currency code (e.g., THB, USD, EUR, GBP, JPY). 3) Extract the merchant name, line items, and charges from the receipt in the original language. Only report tax_percent and service_percent for charges added on top of the item prices. If the receipt says tax/VAT or the service charge is already included in the prices (for example "VAT Included", "incl. VAT", or a "Before VAT" breakdown), or the total equals the sum of the items, set that percent to 0.'
   const notReceipt =
     'If the image is not a receipt (e.g., random photo, document, screenshot), set is_receipt to false and provide empty/default values for other fields.'
   if (enableTranslation) {
