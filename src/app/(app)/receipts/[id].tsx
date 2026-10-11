@@ -1,22 +1,14 @@
 import { useLocalSearchParams } from 'expo-router'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import {
-  ActivityIndicator,
-  Platform,
-  Pressable,
-  ScrollView,
-  Share,
-  StyleSheet,
-  Switch,
-  TextInput,
-  View,
-} from 'react-native'
+import { ActivityIndicator, Pressable, RefreshControl, ScrollView, StyleSheet, Switch, TextInput, View } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 
-import { AppText, Button, Card, Row } from '@/components/ui'
+import { Chip } from '@/components/chip'
+import { AppText, Button, Card, Row, TextLink } from '@/components/ui'
 import { MaxContentWidth, Spacing } from '@/constants/theme'
 import { useTheme } from '@/hooks/use-theme'
 import { confirmDestructive, showAlert } from '@/lib/alert'
+import { friendLinksAvailable, friendLinkUrl } from '@/lib/link-picks'
 import {
   addItemPeople,
   addPerson,
@@ -26,7 +18,9 @@ import {
   removePerson,
   setPayer,
   setPersonPaid,
+  setReceiptLink,
 } from '@/lib/receipts'
+import { shareText } from '@/lib/share-text'
 import { formatMoney, splitByPerson, totalsMessage, type Assignments } from '@/lib/split'
 import type { ReceiptPerson, ReceiptWithPeople } from '@/lib/types'
 
@@ -51,6 +45,8 @@ export default function SplitScreen() {
   const [newName, setNewName] = useState('')
   const [adding, setAdding] = useState(false)
   const [showEnglish, setShowEnglish] = useState(false)
+  const [linkBusy, setLinkBusy] = useState(false)
+  const [refreshing, setRefreshing] = useState(false)
   const [error, setError] = useState<string | null>(null)
   // Changes save as you tap. They reach the database one at a time and in
   // order, so quick taps on the same name can't land out of order.
@@ -242,42 +238,81 @@ export default function SplitScreen() {
     save(() => setPersonPaid(person.id, paid))
   }
 
-  const sendTotals = async () => {
-    const message = totalsMessage({
-      title,
-      currency: receipt.currency,
-      total: receipt.total,
-      service_percent: receipt.service_percent,
-      tax_percent: receipt.tax_percent,
-      payer: payer ? (payer.is_me ? 'me' : payer.name) : null,
-      people: people.map((person) => ({
-        name: person.is_me ? 'Me' : person.name,
-        total: totalOf(person),
-        paid: !!person.paid_at,
-      })),
-      unassigned: split.unassigned.total,
-    })
+  const sendTotals = () =>
+    shareText(
+      totalsMessage({
+        title,
+        currency: receipt.currency,
+        total: receipt.total,
+        service_percent: receipt.service_percent,
+        tax_percent: receipt.tax_percent,
+        payer: payer ? (payer.is_me ? 'me' : payer.name) : null,
+        people: people.map((person) => ({
+          name: person.is_me ? 'Me' : person.name,
+          total: totalOf(person),
+          paid: !!person.paid_at,
+        })),
+        unassigned: split.unassigned.total,
+      }),
+    )
+
+  // Friends who open the link pick their own items; pull down to see them.
+  const refresh = async () => {
+    setRefreshing(true)
     try {
-      await Share.share({ message })
+      await saves.current
+      show(await getReceipt(receipt.id))
     } catch (e) {
-      // Browsers without a share sheet (most desktops): copy the text instead.
-      if (Platform.OS !== 'web') return console.error('Share failed', e)
-      try {
-        await navigator.clipboard.writeText(message)
-        showAlert('Totals copied', 'Paste them into LINE, WhatsApp or wherever you chat.')
-      } catch (copyError) {
-        console.error('Copy failed', copyError)
-        showAlert('Your totals', message)
-      }
+      console.error('Refresh failed', e)
+    } finally {
+      setRefreshing(false)
     }
   }
+
+  const shareLink = async () => {
+    let token = receipt.share_token
+    if (!receipt.link_enabled) {
+      setLinkBusy(true)
+      try {
+        token = await setReceiptLink(receipt.id, true)
+        setReceipt({ ...receipt, link_enabled: true, share_token: token })
+      } catch (e) {
+        console.error('Link on failed', e)
+        showAlert('Could not make a link', 'Check your connection and try again.')
+        return
+      } finally {
+        setLinkBusy(false)
+      }
+    }
+    await shareText(`Tick what you had at ${title}, and SlipShare works out your share: ${friendLinkUrl(token)}`)
+  }
+
+  const turnOffLink = () =>
+    confirmDestructive(
+      'Turn off the link?',
+      'It stops working for everyone you sent it to. Their picks stay. Sharing again makes a new link.',
+      'Turn off',
+      async () => {
+        setLinkBusy(true)
+        try {
+          await setReceiptLink(receipt.id, false)
+          setReceipt({ ...receipt, link_enabled: false })
+        } catch (e) {
+          console.error('Link off failed', e)
+          showAlert('Could not turn off the link', 'Check your connection and try again.')
+        } finally {
+          setLinkBusy(false)
+        }
+      },
+    )
 
   return (
     <SafeAreaView edges={['bottom']} style={[styles.flex, { backgroundColor: theme.background }]}>
       <ScrollView
         contentContainerStyle={styles.content}
         keyboardShouldPersistTaps="handled"
-        automaticallyAdjustKeyboardInsets>
+        automaticallyAdjustKeyboardInsets
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refresh} />}>
         <View style={styles.header}>
           <AppText variant="title">{title}</AppText>
           <AppText variant="muted">
@@ -296,6 +331,7 @@ export default function SplitScreen() {
               <View style={styles.flex}>
                 <AppText>{nameOf(person)}</AppText>
                 {person.is_payer && people.length > 1 && <AppText variant="muted">Paid the bill</AppText>}
+                {person.guest_key && <AppText variant="muted">Picked through your link</AppText>}
               </View>
               <AppText style={styles.amount}>{money(totalOf(person))}</AppText>
               {payer && !person.is_payer && (
@@ -364,6 +400,24 @@ export default function SplitScreen() {
           </Card>
         )}
 
+        {friendLinksAvailable && (
+          <Card>
+            <AppText variant="heading">Let friends pick</AppText>
+            <AppText variant="muted">
+              {receipt.link_enabled
+                ? 'Your link is on. Anyone with it can add their name and tick what they had. Pull down to see their picks.'
+                : 'Send a link and friends tick their own items on the SlipShare website. They don\'t need the app or an account.'}
+            </AppText>
+            <Button
+              title={receipt.link_enabled ? 'Share the link again' : 'Share a link'}
+              variant="secondary"
+              onPress={shareLink}
+              loading={linkBusy}
+            />
+            {receipt.link_enabled && <TextLink title="Turn off the link" onPress={turnOffLink} />}
+          </Card>
+        )}
+
         {hasTranslation && (
           <Card style={styles.toggle}>
             <AppText variant="label" style={styles.flex}>
@@ -425,35 +479,6 @@ export default function SplitScreen() {
   )
 }
 
-function Chip({
-  label,
-  selected = false,
-  onPress,
-  role = 'checkbox',
-  accessibilityLabel,
-}: {
-  label: string
-  selected?: boolean
-  onPress: () => void
-  role?: 'checkbox' | 'radio'
-  accessibilityLabel?: string
-}) {
-  const theme = useTheme()
-  return (
-    <Pressable
-      onPress={onPress}
-      hitSlop={4}
-      accessibilityRole={role}
-      accessibilityLabel={accessibilityLabel ?? label}
-      accessibilityState={role === 'radio' ? { selected } : { checked: selected }}
-      style={[styles.chip, { borderColor: theme.primary, backgroundColor: selected ? theme.primary : 'transparent' }]}>
-      <AppText variant="label" style={{ color: selected ? theme.onPrimary : theme.primary }}>
-        {label}
-      </AppText>
-    </Pressable>
-  )
-}
-
 const styles = StyleSheet.create({
   flex: { flex: 1 },
   centered: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: Spacing.four },
@@ -466,14 +491,6 @@ const styles = StyleSheet.create({
   addRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
   input: { flex: 1, borderWidth: 1, borderRadius: 12, paddingHorizontal: Spacing.three, minHeight: 48, fontSize: 16 },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.two },
-  chip: {
-    borderWidth: 1,
-    borderRadius: 999,
-    paddingHorizontal: Spacing.three,
-    paddingVertical: Spacing.one,
-    minHeight: 32,
-    justifyContent: 'center',
-  },
   summary: {
     padding: Spacing.three,
     gap: Spacing.two,

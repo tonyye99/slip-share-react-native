@@ -28,6 +28,7 @@ function RootStack() {
       </Stack.Protected>
       {/* Links from outside the app work signed in or out. */}
       <Stack.Screen name="auth/callback" />
+      <Stack.Screen name="pick/[token]" />
       <Stack.Screen name="reset-password" />
     </Stack>
   )

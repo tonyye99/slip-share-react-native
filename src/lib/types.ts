@@ -16,6 +16,10 @@ export interface Receipt {
   total: number
   /** 'payer' when you paid. Follows receipt_people.is_payer; the web app reads it. */
   user_type: UserType
+  /** Token in the friend link, https://<site>/pick/<share_token>. New each time the link is turned on. */
+  share_token: string
+  /** The friend link only works while this is on. */
+  link_enabled: boolean
   created_at: string
   updated_at: string
 }
@@ -41,6 +45,8 @@ export interface ReceiptPerson {
   is_payer: boolean
   /** When they paid the payer back. */
   paid_at: string | null
+  /** Set when they picked this name through the friend link. */
+  guest_key: string | null
   created_at: string
 }
 
