@@ -1,4 +1,4 @@
-import { useLocalSearchParams } from 'expo-router'
+import { router, useLocalSearchParams } from 'expo-router'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { ActivityIndicator, Pressable, RefreshControl, ScrollView, StyleSheet, View } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
@@ -6,7 +6,7 @@ import { SafeAreaView } from 'react-native-safe-area-context'
 import { Avatar, Chip, PersonChip, personColor } from '@/components/chip'
 import { LinkIcon, ShareIcon } from '@/components/icons'
 import { ScreenHeader } from '@/components/screen-header'
-import { AppText, Button, Card, Divider, Input, ProgressBar, Segmented, Tabs, Tag } from '@/components/ui'
+import { AppText, Button, Card, Divider, Input, ProgressBar, Segmented, Tabs, Tag, TextLink } from '@/components/ui'
 import { MaxContentWidth, Radius, Spacing } from '@/constants/theme'
 import { useTheme } from '@/hooks/use-theme'
 import { confirmDestructive, showAlert } from '@/lib/alert'
@@ -15,6 +15,7 @@ import { bothNames, originalLabel } from '@/lib/names'
 import {
   addItemPeople,
   addPerson,
+  deleteReceipt,
   getRecentNames,
   getReceipt,
   removeItemPeople,
@@ -49,6 +50,7 @@ export default function SplitScreen() {
   const [adding, setAdding] = useState(false)
   const [showEnglish, setShowEnglish] = useState(false)
   const [linkBusy, setLinkBusy] = useState(false)
+  const [deleting, setDeleting] = useState(false)
   const [refreshing, setRefreshing] = useState(false)
   const [tab, setTab] = useState<'items' | 'payments'>('items')
   // Once people are added, the "Who was there?" card folds away until "+ People" opens it.
@@ -301,6 +303,27 @@ export default function SplitScreen() {
           showAlert('Could not turn off the link', 'Check your connection and try again.')
         } finally {
           setLinkBusy(false)
+        }
+      },
+    )
+
+  const confirmDelete = () =>
+    confirmDestructive(
+      'Delete this receipt?',
+      "It's removed for good, with the names, picks and payments on it, and its friend link stops working.",
+      'Delete',
+      async () => {
+        setDeleting(true)
+        try {
+          // Let changes still saving finish first.
+          await saves.current
+          await deleteReceipt(receipt.id)
+          if (router.canGoBack()) router.back()
+          else router.replace('/')
+        } catch (e) {
+          console.error('Delete receipt failed', e)
+          setDeleting(false)
+          showAlert('Could not delete this receipt', 'Check your connection and try again.')
         }
       },
     )
@@ -674,6 +697,13 @@ export default function SplitScreen() {
         automaticallyAdjustKeyboardInsets
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refresh} />}>
         {tab === 'items' ? itemsTab : paymentsTab}
+        <View style={styles.deleteRow}>
+          <TextLink
+            title={deleting ? 'Deleting…' : 'Delete receipt'}
+            color={theme.danger}
+            onPress={() => !deleting && confirmDelete()}
+          />
+        </View>
       </ScrollView>
 
       <SafeAreaView edges={['bottom']} style={[styles.footerBar, { backgroundColor: theme.surface, borderColor: theme.hairline }]}>
@@ -715,6 +745,7 @@ export default function SplitScreen() {
 const styles = StyleSheet.create({
   flex: { flex: 1 },
   centered: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: Spacing.four },
+  deleteRow: { paddingVertical: Spacing.two },
   content: {
     padding: Spacing.three,
     gap: Spacing.three,

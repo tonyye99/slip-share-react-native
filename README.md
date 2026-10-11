@@ -27,7 +27,7 @@ Built with Expo (SDK 57, Expo Router) and TypeScript. It uses the same Supabase 
 | `(app)/account` | Your email, sign out, turn receipt scanning off, the privacy policy, and delete your account (asks you to confirm first) |
 | `(app)/scan` | Asks once for permission to send photos to OpenAI. Then camera or photo library, optional English translation, sends a resized JPEG to the parser |
 | `(app)/review` | Parsed items and totals. Fix, add or remove misread items (warns when they don't add up to the printed total), save |
-| `(app)/receipts/[id]` | Add who was there, tap who had each item (or split everything evenly), pick who paid, mark who has paid back, and send everyone their total. Or share a link so friends pick their own items (pull down to see them). Saves as you tap |
+| `(app)/receipts/[id]` | Add who was there, tap who had each item (or split everything evenly), pick who paid, mark who has paid back, and send everyone their total. Or share a link so friends pick their own items (pull down to see them). Saves as you tap. Delete receipt (asks first) is at the bottom |
 | `pick/[token]` | The friend link, usually opened on the website: type or tap your name, tick what you had, see your share. No sign-in |
 
 ## Setup

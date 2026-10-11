@@ -147,6 +147,13 @@ export async function getRecentNames(): Promise<string[]> {
   return names
 }
 
+/** Deletes a receipt for good, with its items, people and picks. */
+export async function deleteReceipt(receiptId: string): Promise<void> {
+  const { data, error } = await supabase.from('receipts').delete().eq('id', receiptId).select('id')
+  if (error) throw error
+  if (!data.length) throw new Error('Receipt not found')
+}
+
 /**
  * Turns the friend link on or off and returns the receipt's link token.
  * Turning it on after it was off makes a new token, so old links stop working.
