@@ -13,7 +13,7 @@ import { useAuth } from '@/lib/auth'
 import { getAiConsent, giveAiConsent, openPrivacyPolicy } from '@/lib/consent'
 import { receiptDraft } from '@/lib/draft'
 import { ConsentRequiredError, parseReceipt, prepareImage, ScanLimitError } from '@/lib/parse'
-import { dropIncludedCharges, receiptSubtotal } from '@/lib/split'
+import { checkScan } from '@/lib/split'
 
 export default function ScanScreen() {
   const theme = useTheme()
@@ -79,7 +79,7 @@ export default function ScanScreen() {
         setError("This doesn't look like a receipt. Try a clearer photo of the bill.")
         return
       }
-      receiptDraft.set(dropIncludedCharges(parsed, receiptSubtotal(parsed.items)))
+      receiptDraft.set(checkScan(parsed))
       router.replace('/review')
     } catch (e) {
       // Turned off on another device since this screen opened.

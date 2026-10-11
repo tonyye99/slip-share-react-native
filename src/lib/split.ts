@@ -115,6 +115,29 @@ export function dropIncludedCharges<T extends Omit<SplitReceipt, 'subtotal'> & {
   return withoutCharges.find(matchesTotal) ?? receipt
 }
 
+type ScannedReceipt = Omit<SplitReceipt, 'subtotal'> & { total: number; items: Omit<SplitItem, 'id'>[] }
+
+/**
+ * Checks a scan against the total printed on the receipt. Lines like
+ * "2  Ramen  320" print what the whole line costs, but scans sometimes read 320
+ * as the price of one. If the items as read can't reach the printed total and
+ * reading those prices as line totals can, they're divided by the quantity.
+ * Charges already included in the prices are dropped as in dropIncludedCharges.
+ */
+export function checkScan<T extends ScannedReceipt>(receipt: T): T {
+  const settle = (r: T) => dropIncludedCharges(r, receiptSubtotal(r.items))
+  const matchesTotal = (r: T) => Math.abs(billTotal(r, receiptSubtotal(r.items)) - r.total) < 0.5
+  const asRead = settle(receipt)
+  if (receipt.total <= 0 || matchesTotal(asRead) || !receipt.items.some((item) => item.qty > 1)) return asRead
+  const asLineTotals = settle({
+    ...receipt,
+    items: receipt.items.map((item) =>
+      item.qty > 1 ? { ...item, unit_price: Math.round((item.unit_price / item.qty) * 100) / 100 } : item,
+    ),
+  })
+  return matchesTotal(asLineTotals) ? asLineTotals : asRead
+}
+
 export function formatMoney(amount: number, currency: string): string {
   try {
     // narrowSymbol shows ฿1,005.16 rather than THB 1,005.16.

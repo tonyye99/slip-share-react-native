@@ -3,7 +3,7 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
 
-import { calculateSplit, dropIncludedCharges, receiptSubtotal } from './split.ts'
+import { calculateSplit, checkScan, dropIncludedCharges, receiptSubtotal } from './split.ts'
 
 // The example receipt from slip-share's CLAUDE.md.
 const items = [
@@ -72,4 +72,37 @@ test('charges are kept when nothing matches or the total is missing', () => {
   assert.equal(dropIncludedCharges(noMatch, 579), noMatch)
   const noTotal = { tax_percent: 7, service_percent: 0, rounding: 0, total: 0 }
   assert.equal(dropIncludedCharges(noTotal, 579), noTotal)
+})
+
+// The ramen receipt: "2 ราเมงข้อสอบ 320" was read as 2 × 320, and VAT 7% is included.
+const ramen = {
+  tax_percent: 7,
+  service_percent: 0,
+  rounding: 0,
+  total: 579,
+  items: [
+    { qty: 2, unit_price: 320 },
+    { qty: 1, unit_price: 220 },
+    { qty: 1, unit_price: 20 },
+    { qty: 1, unit_price: 19 },
+  ],
+}
+
+test('a line total read as the price of one is divided by the quantity', () => {
+  const checked = checkScan(ramen)
+  assert.deepEqual(checked.items[0], { qty: 2, unit_price: 160 })
+  assert.equal(receiptSubtotal(checked.items), 579)
+  assert.equal(checked.tax_percent, 0)
+})
+
+test('prices that already reach the total are left alone', () => {
+  const read = { ...ramen, items: [{ qty: 2, unit_price: 160 }, ...ramen.items.slice(1)] }
+  assert.deepEqual(checkScan(read), { ...read, tax_percent: 0 })
+  const onTop = { ...read, total: 619.53 }
+  assert.equal(checkScan(onTop), onTop)
+})
+
+test('prices are kept when dividing them does not match either', () => {
+  const noMatch = { ...ramen, total: 1000 }
+  assert.equal(checkScan(noMatch), noMatch)
 })
