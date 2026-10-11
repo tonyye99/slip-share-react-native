@@ -2,16 +2,14 @@ import * as AppleAuthentication from 'expo-apple-authentication'
 import { useEffect, useState } from 'react'
 import { Platform, StyleSheet, useColorScheme, View } from 'react-native'
 
-import { AppText, Button } from '@/components/ui'
+import { Button, Divider } from '@/components/ui'
 import { Spacing } from '@/constants/theme'
-import { useTheme } from '@/hooks/use-theme'
 import { signInWithApple, signInWithProvider } from '@/lib/auth-links'
 
 type Provider = 'apple' | 'google' | 'github'
 
 /** "Continue with Apple / Google / GitHub". The session change moves the app on. */
 export function SocialSignIn({ onError }: { onError: (message: string | null) => void }) {
-  const theme = useTheme()
   const isDark = useColorScheme() === 'dark'
   const [appleAvailable, setAppleAvailable] = useState(false)
   const [pendingProvider, setPendingProvider] = useState<Provider | null>(null)
@@ -36,11 +34,7 @@ export function SocialSignIn({ onError }: { onError: (message: string | null) =>
 
   return (
     <View style={styles.container}>
-      <View style={styles.divider}>
-        <View style={[styles.line, { backgroundColor: theme.border }]} />
-        <AppText variant="muted">or</AppText>
-        <View style={[styles.line, { backgroundColor: theme.border }]} />
-      </View>
+      <Divider label="or" />
       {appleAvailable && (
         <AppleAuthentication.AppleAuthenticationButton
           buttonType={AppleAuthentication.AppleAuthenticationButtonType.CONTINUE}
@@ -74,7 +68,5 @@ export function SocialSignIn({ onError }: { onError: (message: string | null) =>
 
 const styles = StyleSheet.create({
   container: { gap: Spacing.two },
-  divider: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two, marginVertical: Spacing.two },
-  line: { flex: 1, height: StyleSheet.hairlineWidth },
   apple: { height: 50 },
 })

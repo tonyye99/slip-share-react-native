@@ -117,7 +117,8 @@ export function dropIncludedCharges<T extends Omit<SplitReceipt, 'subtotal'> & {
 
 export function formatMoney(amount: number, currency: string): string {
   try {
-    return new Intl.NumberFormat('en-US', { style: 'currency', currency }).format(amount)
+    // narrowSymbol shows ฿1,005.16 rather than THB 1,005.16.
+    return new Intl.NumberFormat('en-US', { style: 'currency', currency, currencyDisplay: 'narrowSymbol' }).format(amount)
   } catch {
     return `${currency} ${amount.toFixed(2)}`
   }

@@ -1,11 +1,14 @@
-import { router, Stack, useFocusEffect } from 'expo-router'
+import { router, useFocusEffect } from 'expo-router'
 import { useCallback, useState } from 'react'
 import { ActivityIndicator, FlatList, Pressable, RefreshControl, StyleSheet, View } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 
+import { Avatar } from '@/components/chip'
+import { ScreenHeader } from '@/components/screen-header'
 import { AppText, Button, Card } from '@/components/ui'
 import { MaxContentWidth, Spacing } from '@/constants/theme'
 import { useTheme } from '@/hooks/use-theme'
+import { useAuth } from '@/lib/auth'
 import { listReceipts, type ReceiptSummary } from '@/lib/receipts'
 import { formatMoney } from '@/lib/split'
 
@@ -13,6 +16,7 @@ const PAGE_SIZE = 20
 
 export default function HomeScreen() {
   const theme = useTheme()
+  const { session } = useAuth()
   const [receipts, setReceipts] = useState<ReceiptSummary[]>([])
   const [total, setTotal] = useState(0)
   const [loading, setLoading] = useState(true)
@@ -55,16 +59,22 @@ export default function HomeScreen() {
 
   return (
     <SafeAreaView edges={['bottom']} style={[styles.flex, { backgroundColor: theme.background }]}>
-      <Stack.Screen
-        options={{
-          headerRight: () => (
-            <Pressable onPress={() => router.push('/account')} hitSlop={8} accessibilityRole="button">
-              <AppText variant="label" style={{ color: theme.primary }}>
-                Account
-              </AppText>
-            </Pressable>
-          ),
-        }}
+      <ScreenHeader
+        brand
+        back={false}
+        right={
+          <Pressable
+            onPress={() => router.push('/account')}
+            hitSlop={8}
+            accessibilityRole="button"
+            accessibilityLabel="Account"
+            style={styles.account}>
+            <AppText variant="label" style={{ color: theme.primary }}>
+              Account
+            </AppText>
+            <Avatar name={session?.user.email ?? '?'} color={theme.primary} size={30} soft />
+          </Pressable>
+        }
       />
       <FlatList
         data={receipts}
@@ -75,7 +85,11 @@ export default function HomeScreen() {
         onEndReachedThreshold={0.5}
         ListHeaderComponent={
           <View style={styles.header}>
-            <Button title="Scan a receipt" onPress={() => router.push('/scan')} />
+            <Card style={styles.hero}>
+              <AppText variant="title">Split a bill</AppText>
+              <AppText variant="muted">Take a photo of the receipt. SlipShare reads the items so you can tap who had what.</AppText>
+              <Button title="Scan a receipt" onPress={() => router.push('/scan')} style={styles.heroButton} />
+            </Card>
             {error && <AppText variant="error">{error}</AppText>}
             {receipts.length > 0 && <AppText variant="heading">Your receipts</AppText>}
           </View>
@@ -84,9 +98,11 @@ export default function HomeScreen() {
           loading ? (
             <ActivityIndicator />
           ) : (
-            <Card style={styles.empty}>
+            <Card dashed style={styles.empty}>
               <AppText variant="heading">No receipts yet</AppText>
-              <AppText variant="muted">Scan a bill to work out who owes what.</AppText>
+              <AppText variant="muted" style={styles.center}>
+                Bills you scan show up here, with who owes what.
+              </AppText>
             </Card>
           )
         }
@@ -98,21 +114,24 @@ export default function HomeScreen() {
 }
 
 function ReceiptRow({ receipt }: { receipt: ReceiptSummary }) {
+  const theme = useTheme()
   const itemCount = receipt.receipts_items[0]?.count ?? 0
   return (
     <Pressable onPress={() => router.push(`/receipts/${receipt.id}`)} accessibilityRole="button">
       {({ pressed }) => (
-        <Card style={[styles.row, { opacity: pressed ? 0.7 : 1 }]}>
+        <Card style={[styles.row, { backgroundColor: pressed ? theme.primaryTint : theme.surface }]}>
           <View style={styles.flex}>
-            <AppText variant="label" numberOfLines={1}>
+            <AppText variant="heading" numberOfLines={1}>
               {receipt.merchant_name || receipt.merchant_name_en || 'Receipt'}
             </AppText>
-            <AppText variant="muted">
+            <AppText variant="caption">
               {new Date(receipt.created_at).toLocaleDateString()} · {itemCount} item{itemCount === 1 ? '' : 's'} ·{' '}
               {receipt.user_type === 'payer' ? 'You paid' : 'Someone else paid'}
             </AppText>
           </View>
-          <AppText variant="label">{formatMoney(receipt.total, receipt.currency)}</AppText>
+          <AppText variant="heading" style={styles.amount}>
+            {formatMoney(receipt.total, receipt.currency)}
+          </AppText>
         </Card>
       )}
     </Pressable>
@@ -128,8 +147,13 @@ const styles = StyleSheet.create({
     maxWidth: MaxContentWidth,
     alignSelf: 'center',
   },
-  header: { gap: Spacing.three, marginBottom: Spacing.two },
+  header: { gap: Spacing.three, marginBottom: Spacing.one },
+  hero: { gap: Spacing.two, padding: Spacing.four - 4 },
+  heroButton: { marginTop: Spacing.two },
+  account: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
   empty: { alignItems: 'center', paddingVertical: Spacing.five },
+  center: { textAlign: 'center' },
   row: { flexDirection: 'row', alignItems: 'center', gap: Spacing.three },
+  amount: { fontVariant: ['tabular-nums'] },
   footer: { marginVertical: Spacing.three },
 })

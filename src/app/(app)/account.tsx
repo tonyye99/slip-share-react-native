@@ -1,7 +1,9 @@
 import { useEffect, useState } from 'react'
-import { ScrollView, StyleSheet } from 'react-native'
+import { ScrollView, StyleSheet, View } from 'react-native'
 
-import { AppText, Button, Card, TextLink } from '@/components/ui'
+import { Avatar } from '@/components/chip'
+import { ScreenHeader } from '@/components/screen-header'
+import { AppText, Button, Card, Tag, TextLink } from '@/components/ui'
 import { MaxContentWidth, Spacing } from '@/constants/theme'
 import { useTheme } from '@/hooks/use-theme'
 import { deleteAccount } from '@/lib/account'
@@ -59,15 +61,31 @@ export default function AccountScreen() {
     )
 
   return (
-    <ScrollView style={{ backgroundColor: theme.background }} contentContainerStyle={styles.content}>
+    <View style={[styles.flex, { backgroundColor: theme.background }]}>
+    <ScreenHeader title="Account" />
+    <ScrollView style={styles.flex} contentContainerStyle={styles.content}>
       <Card>
-        <AppText variant="muted">Signed in as</AppText>
-        <AppText variant="heading">{session?.user.email ?? 'Unknown'}</AppText>
+        <View style={styles.who}>
+          <Avatar name={session?.user.email ?? '?'} color={theme.primary} size={44} />
+          <View style={styles.flex}>
+            <AppText variant="caption">Signed in as</AppText>
+            <AppText variant="heading" numberOfLines={1}>
+              {session?.user.email ?? 'Unknown'}
+            </AppText>
+          </View>
+        </View>
         <Button title="Sign out" variant="secondary" onPress={() => supabase.auth.signOut()} disabled={deleting} />
       </Card>
 
       <Card>
-        <AppText variant="heading">Privacy</AppText>
+        <View style={styles.titleRow}>
+          <AppText variant="heading" style={styles.flex}>
+            Privacy
+          </AppText>
+          {consentedAt !== undefined && (
+            <Tag label={consentedAt ? 'Scanning on' : 'Scanning off'} tone={consentedAt ? 'success' : 'neutral'} />
+          )}
+        </View>
         {consentedAt && (
           <>
             <AppText variant="muted">
@@ -94,9 +112,13 @@ export default function AccountScreen() {
         <Button title="Delete account" variant="danger" onPress={confirmDelete} loading={deleting} />
       </Card>
     </ScrollView>
+    </View>
   )
 }
 
 const styles = StyleSheet.create({
+  flex: { flex: 1 },
+  who: { flexDirection: 'row', alignItems: 'center', gap: Spacing.three - 4, marginBottom: Spacing.one },
+  titleRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
   content: { padding: Spacing.three, gap: Spacing.three, width: '100%', maxWidth: MaxContentWidth, alignSelf: 'center' },
 })

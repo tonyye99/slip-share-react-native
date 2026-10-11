@@ -3,9 +3,10 @@ import { useState, type ReactNode } from 'react'
 import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, View } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 
+import { Logo } from '@/components/icons'
 import { SocialSignIn } from '@/components/social-sign-in'
-import { AppText, Button, TextField } from '@/components/ui'
-import { MaxContentWidth, Spacing } from '@/constants/theme'
+import { AppText, Button, Card, TextField } from '@/components/ui'
+import { Spacing } from '@/constants/theme'
 import { useTheme } from '@/hooks/use-theme'
 import { openPrivacyPolicy } from '@/lib/consent'
 
@@ -27,10 +28,13 @@ export function AuthLayout({ subtitle, children }: { subtitle: string; children:
       <KeyboardAvoidingView style={styles.safe} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
           <View style={styles.header}>
-            <AppText variant="title">SlipShare</AppText>
+            <View style={styles.brand}>
+              <Logo size={36} />
+              <AppText variant="title">SlipShare</AppText>
+            </View>
             <AppText variant="muted">{subtitle}</AppText>
           </View>
-          {children}
+          <Card style={styles.card}>{children}</Card>
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
@@ -121,12 +125,16 @@ const styles = StyleSheet.create({
   content: {
     flexGrow: 1,
     justifyContent: 'center',
-    padding: Spacing.four,
+    padding: Spacing.three,
+    paddingVertical: Spacing.five,
     gap: Spacing.three,
     width: '100%',
-    maxWidth: MaxContentWidth,
+    // Forms read best narrow, even on a wide browser window.
+    maxWidth: 440,
     alignSelf: 'center',
   },
-  header: { gap: Spacing.one, marginBottom: Spacing.three },
+  header: { gap: Spacing.two, alignItems: 'center', marginBottom: Spacing.one },
+  brand: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two + 2 },
+  card: { gap: Spacing.three, padding: Spacing.four - 4 },
   center: { textAlign: 'center' },
 })

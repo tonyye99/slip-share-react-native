@@ -4,8 +4,9 @@ import { router } from 'expo-router'
 import { useEffect, useState } from 'react'
 import { ActivityIndicator, ScrollView, StyleSheet, Switch, View } from 'react-native'
 
+import { ScreenHeader } from '@/components/screen-header'
 import { AppText, Button, Card, TextLink } from '@/components/ui'
-import { MaxContentWidth, Spacing } from '@/constants/theme'
+import { MaxContentWidth, Radius, Spacing } from '@/constants/theme'
 import { useTheme } from '@/hooks/use-theme'
 import { showAlert } from '@/lib/alert'
 import { useAuth } from '@/lib/auth'
@@ -97,17 +98,23 @@ export default function ScanScreen() {
 
   if (consent === 'checking') {
     return (
-      <View style={[styles.centered, { backgroundColor: theme.background }]}>
-        <ActivityIndicator />
+      <View style={[styles.flex, { backgroundColor: theme.background }]}>
+        <ScreenHeader title="Scan receipt" />
+        <View style={styles.centered}>
+          <ActivityIndicator />
+        </View>
       </View>
     )
   }
 
   if (consent === 'needed') {
     return (
-      <ScrollView style={{ backgroundColor: theme.background }} contentContainerStyle={styles.content}>
+      <View style={[styles.flex, { backgroundColor: theme.background }]}>
+      <ScreenHeader title="Scan receipt" />
+      <ScrollView style={styles.flex} contentContainerStyle={styles.content}>
         <Card>
-          <AppText variant="heading">Before you scan</AppText>
+          <AppText variant="overline">Once only</AppText>
+          <AppText variant="title">Before you scan</AppText>
           <AppText>
             SlipShare uses OpenAI to read receipts. When you tap Read receipt, your photo is sent to OpenAI to pick out
             the shop name, items and prices.
@@ -128,16 +135,23 @@ export default function ScanScreen() {
         <Button title="Allow and continue" onPress={allowScanning} loading={allowing} />
         <Button title="Not now" variant="secondary" onPress={() => router.back()} disabled={allowing} />
       </ScrollView>
+      </View>
     )
   }
 
   return (
-    <ScrollView style={{ backgroundColor: theme.background }} contentContainerStyle={styles.content}>
+    <View style={[styles.flex, { backgroundColor: theme.background }]}>
+    <ScreenHeader title="Scan receipt" />
+    <ScrollView style={styles.flex} contentContainerStyle={styles.content}>
       {asset ? (
-        <Image source={{ uri: asset.uri }} style={[styles.preview, { aspectRatio: asset.width / asset.height }]} contentFit="contain" />
+        <Image
+          source={{ uri: asset.uri }}
+          style={[styles.preview, { aspectRatio: asset.width / asset.height, backgroundColor: theme.surface }]}
+          contentFit="contain"
+        />
       ) : (
-        <Card style={styles.placeholder}>
-          <AppText variant="heading">Take a photo of the bill</AppText>
+        <Card dashed style={styles.placeholder}>
+          <AppText variant="title">Take a photo of the bill</AppText>
           <AppText variant="muted" style={styles.center}>
             Keep the whole receipt in frame, flat and well lit.
           </AppText>
@@ -158,13 +172,18 @@ export default function ScanScreen() {
           <AppText variant="label">Translate to English</AppText>
           <AppText variant="muted">For receipts in other languages.</AppText>
         </View>
-        <Switch value={translateToEnglish} onValueChange={setTranslateToEnglish} />
+        <Switch
+          value={translateToEnglish}
+          onValueChange={setTranslateToEnglish}
+          trackColor={{ true: theme.primary }}
+        />
       </Card>
 
       {error && <AppText variant="error">{error}</AppText>}
 
       {asset && <Button title={parsing ? 'Reading receipt…' : 'Read receipt'} onPress={readReceipt} loading={parsing} />}
     </ScrollView>
+    </View>
   )
 }
 
@@ -174,7 +193,7 @@ const styles = StyleSheet.create({
   centered: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   points: { gap: Spacing.one },
   center: { textAlign: 'center' },
-  preview: { width: '100%', maxHeight: 420, borderRadius: 12 },
+  preview: { width: '100%', maxHeight: 420, borderRadius: Radius.large },
   placeholder: { alignItems: 'center', paddingVertical: Spacing.six },
   buttons: { flexDirection: 'row', gap: Spacing.two },
   toggle: { flexDirection: 'row', alignItems: 'center', gap: Spacing.three },
