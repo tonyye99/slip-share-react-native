@@ -214,6 +214,52 @@ export function ProgressBar({ value, color }: { value: number; color?: string })
   )
 }
 
+/** − 1 + for a small count, like how many of a 2 × item someone had. */
+export function Stepper({
+  value,
+  min = 1,
+  max,
+  onChange,
+  label,
+}: {
+  value: number
+  min?: number
+  max: number
+  onChange: (value: number) => void
+  /** What is being counted, for screen readers ("Egg Kim Bab"). */
+  label: string
+}) {
+  const theme = useTheme()
+  const step = (by: number) => {
+    const next = Math.min(max, Math.max(min, value + by))
+    if (next !== value) onChange(next)
+  }
+  const button = (by: number, text: string, disabled: boolean) => (
+    <Pressable
+      onPress={() => step(by)}
+      disabled={disabled}
+      hitSlop={6}
+      accessibilityRole="button"
+      accessibilityLabel={`${by > 0 ? 'One more' : 'One fewer'} ${label}`}
+      accessibilityState={{ disabled }}
+      style={({ pressed }) => [
+        styles.stepButton,
+        { borderColor: theme.border, backgroundColor: theme.surface, opacity: disabled ? 0.35 : pressed ? 0.7 : 1 },
+      ]}>
+      <Text style={[styles.stepSign, { color: theme.primary }]}>{text}</Text>
+    </Pressable>
+  )
+  return (
+    <View style={styles.stepper}>
+      {button(-1, '−', value <= min)}
+      <AppText variant="label" style={[styles.amount, styles.stepValue]} accessibilityLabel={`${value} ${label}`}>
+        {value}
+      </AppText>
+      {button(1, '+', value >= max)}
+    </View>
+  )
+}
+
 /** Two or three options side by side, like ไทย | EN. */
 export function Segmented<T extends string>({
   options,
@@ -309,6 +355,10 @@ const styles = StyleSheet.create({
   tag: { borderRadius: Radius.small - 2, paddingHorizontal: Spacing.two, paddingVertical: 3, alignSelf: 'flex-start' },
   track: { height: 6, borderRadius: Radius.pill, overflow: 'hidden' },
   fill: { height: '100%', borderRadius: Radius.pill },
+  stepper: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
+  stepButton: { width: 32, height: 32, borderRadius: 16, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
+  stepSign: { fontSize: 20, lineHeight: 22, fontWeight: '600' },
+  stepValue: { minWidth: 20, textAlign: 'center' },
   segmented: { flexDirection: 'row', borderRadius: Radius.small + 2, borderWidth: 1, padding: 2 },
   segment: { borderRadius: Radius.small, paddingHorizontal: Spacing.two + 2, paddingVertical: Spacing.one + 1 },
   tabs: { flexDirection: 'row', gap: Spacing.four, borderBottomWidth: StyleSheet.hairlineWidth },

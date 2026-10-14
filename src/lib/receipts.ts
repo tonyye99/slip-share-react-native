@@ -26,7 +26,7 @@ export async function listReceipts(offset: number, limit: number) {
 export async function getReceipt(id: string): Promise<ReceiptWithPeople> {
   const { data, error } = await supabase
     .from('receipts')
-    .select('*, receipts_items(*, receipt_item_people(person_id)), receipt_people(*)')
+    .select('*, receipts_items(*, receipt_item_people(person_id, units)), receipt_people(*)')
     .eq('id', id)
     .single()
   if (error) throw error
@@ -96,12 +96,10 @@ export async function removePerson(personId: string) {
   if (error) throw error
 }
 
-/** Ticks people on items. Rows that are already there are left alone. */
-export async function addItemPeople(rows: { item_id: string; person_id: string }[]) {
+/** Ticks people on items, or changes how many of an item they had. */
+export async function addItemPeople(rows: { item_id: string; person_id: string; units: number }[]) {
   if (rows.length === 0) return
-  const { error } = await supabase
-    .from('receipt_item_people')
-    .upsert(rows, { onConflict: 'item_id,person_id', ignoreDuplicates: true })
+  const { error } = await supabase.from('receipt_item_people').upsert(rows, { onConflict: 'item_id,person_id' })
   if (error) throw error
 }
 

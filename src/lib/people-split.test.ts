@@ -3,7 +3,7 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
 
-import { splitByPerson, totalsMessage } from './split.ts'
+import { evenCount, splitByPerson, totalsMessage } from './split.ts'
 
 // The example receipt from slip-share's CLAUDE.md.
 const items = [
@@ -38,6 +38,57 @@ test('splitting everything evenly adds up to the bill', () => {
   const split = splitByPerson(receipt, items, everyone, Object.fromEntries(items.map((item) => [item.id, everyone])))
   assert.ok(Math.abs(split.people.bob.total - 929.13 / 3) < 0.01)
   assert.equal(split.unassigned.total, 0)
+})
+
+// "2 × Egg Kim Bab" at 199 each.
+const kimbab = [{ id: 'k', qty: 2, unit_price: 199 }]
+const kimbabReceipt = { subtotal: 398, tax_percent: 0, service_percent: 0, rounding: 0 }
+
+test('on a 2× line each person pays for how many they had', () => {
+  const split = splitByPerson(kimbabReceipt, kimbab, ['htet', 'tony'], { k: ['htet', 'tony'] }, { k: { htet: 1, tony: 1 } })
+  assert.equal(split.people.htet.subtotal, 199)
+  assert.equal(split.people.tony.subtotal, 199)
+  assert.equal(split.unassigned.subtotal, 0)
+})
+
+test('the rest of a 2× line stays unassigned until someone has it', () => {
+  const split = splitByPerson(kimbabReceipt, kimbab, ['htet', 'tony'], { k: ['htet'] }, { k: { htet: 1 } })
+  assert.equal(split.people.htet.subtotal, 199)
+  assert.equal(split.unassigned.subtotal, 199)
+})
+
+test('someone can have the whole 2× line', () => {
+  const split = splitByPerson(kimbabReceipt, kimbab, ['htet'], { k: ['htet'] }, { k: { htet: 2 } })
+  assert.equal(split.people.htet.subtotal, 398)
+  assert.equal(split.unassigned.subtotal, 0)
+})
+
+test('more counted than the line has is shared in proportion', () => {
+  // Three people each say 1 of the 2: they shared them.
+  const split = splitByPerson(kimbabReceipt, kimbab, ['a', 'b', 'c'], { k: ['a', 'b', 'c'] }, { k: { a: 1, b: 1, c: 1 } })
+  assert.ok(Math.abs(split.people.a.subtotal - 398 / 3) < 1e-9)
+  assert.equal(split.unassigned.subtotal, 0)
+  // Picks from before counts were saved as the whole line, so two people still split it evenly.
+  const old = splitByPerson(kimbabReceipt, kimbab, ['a', 'b'], { k: ['a', 'b'] }, { k: { a: 2, b: 2 } })
+  assert.equal(old.people.a.subtotal, 199)
+})
+
+test('even counts share a line with nothing left over', () => {
+  const beer = [{ id: 'b', qty: 3, unit_price: 90 }]
+  const each = evenCount(beer[0], 2)
+  assert.equal(each, 2)
+  const split = splitByPerson({ ...kimbabReceipt, subtotal: 270 }, beer, ['a', 'b'], { b: ['a', 'b'] }, { b: { a: each, b: each } })
+  assert.equal(split.people.a.subtotal, 135)
+  assert.equal(split.people.b.subtotal, 135)
+  assert.equal(split.unassigned.subtotal, 0)
+  assert.equal(evenCount({ qty: 1.5 }, 2), 1)
+})
+
+test('a line that is not a whole count of 2 or more is shared evenly', () => {
+  const weighed = [{ id: 'w', qty: 1.5, unit_price: 100 }]
+  const split = splitByPerson({ ...kimbabReceipt, subtotal: 150 }, weighed, ['a', 'b'], { w: ['a', 'b'] }, { w: { a: 1 } })
+  assert.equal(split.people.a.subtotal, 75)
+  assert.equal(split.unassigned.subtotal, 0)
 })
 
 test('totals message lists everyone, who paid and the charges', () => {

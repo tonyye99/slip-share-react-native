@@ -50,9 +50,9 @@ export interface ReceiptPerson {
   created_at: string
 }
 
-/** A receipt with its items, who had each item, and everyone on it. */
+/** A receipt with its items, who had each item (and how many of it), and everyone on it. */
 export interface ReceiptWithPeople extends Receipt {
-  receipts_items: (ReceiptItem & { receipt_item_people: { person_id: string }[] })[]
+  receipts_items: (ReceiptItem & { receipt_item_people: { person_id: string; units: number }[] })[]
   receipt_people: ReceiptPerson[]
 }
 

@@ -1,7 +1,8 @@
 // Bill-splitting math, ported from slip-share's cost-calculator and selections API.
 // Tax and service apply to the person's share of items; rounding is split
 // in proportion to their share of the receipt subtotal. An item several
-// people had is divided evenly between them.
+// people had is divided evenly between them, unless they say how many of a
+// line they each had (see itemShares).
 
 export interface SplitItem {
   id: string
@@ -41,6 +42,11 @@ export function calculateSplit(
     .filter((item) => selected.has(item.id))
     .reduce((sum, item) => sum + itemCostPerPerson(item, shareCounts[item.id]), 0)
 
+  return chargesOn(receipt, subtotal)
+}
+
+/** Someone's items plus their part of tax, service and rounding. */
+function chargesOn(receipt: SplitReceipt, subtotal: number): SplitResult {
   const proportion = receipt.subtotal > 0 ? subtotal / receipt.subtotal : 0
   const tax = (receipt.tax_percent / 100) * subtotal
   const service = (receipt.service_percent / 100) * subtotal
@@ -59,6 +65,40 @@ export function calculateSplit(
 /** Who had each item: item id -> ids of the people who shared it. */
 export type Assignments = Record<string, string[]>
 
+/** How many of a line each person had: item id -> person id -> count. A missing count is 1. */
+export type Counts = Record<string, Record<string, number>>
+
+/** Lines like "2 × Egg Kim Bab" can be split by how many each person had. */
+export const isCountable = (item: Pick<SplitItem, 'qty'>) => Number.isInteger(item.qty) && item.qty >= 2
+
+/** Everyone's count when people share a line evenly: enough each that none is left over. */
+export const evenCount = (item: Pick<SplitItem, 'qty'>, people: number) =>
+  isCountable(item) && people > 0 ? Math.ceil(item.qty / people) : 1
+
+/**
+ * What one line costs each person on it, and how many of it nobody has
+ * claimed. On a countable line each person pays for as many as they had; if
+ * that adds up to more than the line, as when people share a dish, the line is
+ * divided in proportion instead. Other lines are shared evenly.
+ */
+export function itemShares(
+  item: SplitItem,
+  personIds: string[],
+  counts: Record<string, number> = {},
+): { shares: Record<string, number>; left: number } {
+  const countOf = (personId: string) => (isCountable(item) ? (counts[personId] ?? 1) : 1)
+  const claimed = personIds.reduce((sum, personId) => sum + countOf(personId), 0)
+  const lineTotal = item.qty * item.unit_price
+  const left = isCountable(item) ? Math.max(0, item.qty - claimed) : personIds.length > 0 ? 0 : item.qty
+  const paidFor = item.qty - left
+  return {
+    shares: Object.fromEntries(
+      personIds.map((personId) => [personId, claimed > 0 ? (lineTotal * (paidFor / item.qty) * countOf(personId)) / claimed : 0]),
+    ),
+    left,
+  }
+}
+
 export interface PeopleSplit {
   /** Person id -> their items plus their part of service, tax and rounding. */
   people: Record<string, SplitResult>
@@ -71,19 +111,21 @@ export function splitByPerson(
   items: SplitItem[],
   personIds: string[],
   assignments: Assignments,
+  counts: Counts = {},
 ): PeopleSplit {
-  const shareCounts = Object.fromEntries(items.map((item) => [item.id, assignments[item.id]?.length ?? 0]))
-  const itemIdsWhere = (keep: (people: string[]) => boolean) =>
-    items.filter((item) => keep(assignments[item.id] ?? [])).map((item) => item.id)
+  const subtotals: Record<string, number> = Object.fromEntries(personIds.map((personId) => [personId, 0]))
+  let unassigned = 0
+  for (const item of items) {
+    const { shares, left } = itemShares(item, assignments[item.id] ?? [], counts[item.id])
+    for (const [personId, share] of Object.entries(shares)) {
+      if (personId in subtotals) subtotals[personId] += share
+    }
+    unassigned += left * item.unit_price
+  }
 
   return {
-    people: Object.fromEntries(
-      personIds.map((personId) => [
-        personId,
-        calculateSplit(receipt, items, itemIdsWhere((people) => people.includes(personId)), shareCounts),
-      ]),
-    ),
-    unassigned: calculateSplit(receipt, items, itemIdsWhere((people) => people.length === 0), {}),
+    people: Object.fromEntries(personIds.map((personId) => [personId, chargesOn(receipt, subtotals[personId])])),
+    unassigned: chargesOn(receipt, unassigned),
   }
 }
 

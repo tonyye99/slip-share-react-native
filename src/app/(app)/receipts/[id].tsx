@@ -6,7 +6,7 @@ import { SafeAreaView } from 'react-native-safe-area-context'
 import { Avatar, Chip, PersonChip, personColor } from '@/components/chip'
 import { LinkIcon, ShareIcon } from '@/components/icons'
 import { ScreenHeader } from '@/components/screen-header'
-import { AppText, Button, Card, Divider, Input, ProgressBar, Segmented, Tabs, Tag, TextLink } from '@/components/ui'
+import { AppText, Button, Card, Divider, Input, ProgressBar, Segmented, Stepper, Tabs, Tag, TextLink } from '@/components/ui'
 import { MaxContentWidth, Radius, Spacing } from '@/constants/theme'
 import { useTheme } from '@/hooks/use-theme'
 import { confirmDestructive, showAlert } from '@/lib/alert'
@@ -26,17 +26,25 @@ import {
   setReceiptLink,
 } from '@/lib/receipts'
 import { shareText } from '@/lib/share-text'
-import { formatMoney, splitByPerson, totalsMessage, type Assignments } from '@/lib/split'
+import { evenCount, formatMoney, isCountable, itemShares, splitByPerson, totalsMessage, type Counts } from '@/lib/split'
 import type { ReceiptPerson, ReceiptWithPeople } from '@/lib/types'
 
 const MAX_NAME_LENGTH = 40
 const MAX_SUGGESTIONS = 6
 
+type Item = ReceiptWithPeople['receipts_items'][number]
+
 /** Your own line reads "You" on screen. */
 const nameOf = (person: ReceiptPerson) => (person.is_me ? 'You' : person.name)
 
-const assignmentsOf = (receipt: ReceiptWithPeople): Assignments =>
-  Object.fromEntries(receipt.receipts_items.map((item) => [item.id, item.receipt_item_people.map((row) => row.person_id)]))
+/** Who had each item and how many of it: item id -> person id -> count. */
+const picksOf = (receipt: ReceiptWithPeople): Counts =>
+  Object.fromEntries(
+    receipt.receipts_items.map((item) => [
+      item.id,
+      Object.fromEntries(item.receipt_item_people.map((row) => [row.person_id, row.units])),
+    ]),
+  )
 
 // The person who scanned the bill splits it: they add who was there, tick who
 // had each item and send everyone their total. Friends don't need the app.
@@ -45,7 +53,7 @@ export default function SplitScreen() {
   const theme = useTheme()
   const [receipt, setReceipt] = useState<ReceiptWithPeople | null>(null)
   const [people, setPeople] = useState<ReceiptPerson[]>([])
-  const [assignments, setAssignments] = useState<Assignments>({})
+  const [picks, setPicks] = useState<Counts>({})
   const [recentNames, setRecentNames] = useState<string[]>([])
   const [newName, setNewName] = useState('')
   const [adding, setAdding] = useState(false)
@@ -64,7 +72,7 @@ export default function SplitScreen() {
   const show = useCallback((receipt: ReceiptWithPeople) => {
     setReceipt(receipt)
     setPeople(receipt.receipt_people)
-    setAssignments(assignmentsOf(receipt))
+    setPicks(picksOf(receipt))
   }, [])
 
   useEffect(() => {
@@ -86,10 +94,11 @@ export default function SplitScreen() {
             receipt,
             receipt.receipts_items,
             people.map((person) => person.id),
-            assignments,
+            Object.fromEntries(Object.entries(picks).map(([itemId, had]) => [itemId, Object.keys(had)])),
+            picks,
           )
         : null,
-    [receipt, people, assignments],
+    [receipt, people, picks],
   )
 
   if (error || !receipt || !split) {
@@ -131,44 +140,50 @@ export default function SplitScreen() {
     )
   }
 
-  const setItemPeople = (itemId: string, personIds: string[]) =>
-    setAssignments((prev) => ({ ...prev, [itemId]: personIds }))
+  const peopleOn = (itemId: string) => Object.keys(picks[itemId] ?? {})
+  const setItemPicks = (itemId: string, had: Record<string, number>) => setPicks((prev) => ({ ...prev, [itemId]: had }))
+  // Everyone on the item, each with an even part of it.
+  const evenly = (item: Item) =>
+    Object.fromEntries(everyoneIds.map((personId) => [personId, evenCount(item, everyoneIds.length)]))
+  const rowsFor = (itemId: string, had: Record<string, number>) =>
+    Object.entries(had).map(([person_id, units]) => ({ item_id: itemId, person_id, units }))
 
+  // A new tap is for one of the item; on lines like 2 × Egg Kim Bab, − 1 + changes it.
   const togglePerson = (itemId: string, personId: string) => {
-    const had = assignments[itemId] ?? []
-    if (had.includes(personId)) {
-      setItemPeople(
-        itemId,
-        had.filter((id) => id !== personId),
-      )
+    const had = picks[itemId] ?? {}
+    if (personId in had) {
+      setItemPicks(itemId, Object.fromEntries(Object.entries(had).filter(([id]) => id !== personId)))
       save(() => removeItemPeople(itemId, [personId]))
     } else {
-      setItemPeople(itemId, [...had, personId])
-      save(() => addItemPeople([{ item_id: itemId, person_id: personId }]))
+      setItemPicks(itemId, { ...had, [personId]: 1 })
+      save(() => addItemPeople([{ item_id: itemId, person_id: personId, units: 1 }]))
     }
   }
 
-  const toggleEveryone = (itemId: string) => {
-    const had = assignments[itemId] ?? []
+  const setUnits = (itemId: string, personId: string, units: number) => {
+    setItemPicks(itemId, { ...picks[itemId], [personId]: units })
+    save(() => addItemPeople([{ item_id: itemId, person_id: personId, units }]))
+  }
+
+  const toggleEveryone = (item: Item) => {
+    const had = peopleOn(item.id)
     if (everyoneIds.every((personId) => had.includes(personId))) {
-      setItemPeople(itemId, [])
-      save(() => removeItemPeople(itemId, everyoneIds))
+      setItemPicks(item.id, {})
+      save(() => removeItemPeople(item.id, everyoneIds))
     } else {
-      setItemPeople(itemId, everyoneIds)
-      save(() => addItemPeople(everyoneIds.map((person_id) => ({ item_id: itemId, person_id }))))
+      const even = evenly(item)
+      setItemPicks(item.id, even)
+      save(() => addItemPeople(rowsFor(item.id, even)))
     }
   }
 
   const splitEvenly = () => {
     const run = () => {
-      setAssignments(Object.fromEntries(receipt.receipts_items.map((item) => [item.id, everyoneIds])))
-      save(() =>
-        addItemPeople(
-          receipt.receipts_items.flatMap((item) => everyoneIds.map((person_id) => ({ item_id: item.id, person_id }))),
-        ),
-      )
+      const even = Object.fromEntries(receipt.receipts_items.map((item) => [item.id, evenly(item)]))
+      setPicks(even)
+      save(() => addItemPeople(Object.entries(even).flatMap(([itemId, had]) => rowsFor(itemId, had))))
     }
-    if (!Object.values(assignments).some((had) => had.length > 0)) return run()
+    if (!Object.values(picks).some((had) => Object.keys(had).length > 0)) return run()
     confirmDestructive(
       'Split everything evenly?',
       'Everyone will share every item, including the ones you already ticked.',
@@ -205,12 +220,17 @@ export default function SplitScreen() {
   const confirmRemove = (person: ReceiptPerson) => {
     const remove = () => {
       setPeople((prev) => prev.filter((other) => other.id !== person.id))
-      setAssignments((prev) =>
-        Object.fromEntries(Object.entries(prev).map(([itemId, had]) => [itemId, had.filter((id) => id !== person.id)])),
+      setPicks((prev) =>
+        Object.fromEntries(
+          Object.entries(prev).map(([itemId, had]) => [
+            itemId,
+            Object.fromEntries(Object.entries(had).filter(([id]) => id !== person.id)),
+          ]),
+        ),
       )
       save(() => removePerson(person.id))
     }
-    if (!Object.values(assignments).some((had) => had.includes(person.id))) return remove()
+    if (!Object.values(picks).some((had) => person.id in had)) return remove()
     confirmDestructive(
       `Remove ${person.name}?`,
       'Items they shared will be split between the others who had them. Items only they had will be unassigned.',
@@ -326,7 +346,9 @@ export default function SplitScreen() {
 
   const colorOf = (person: ReceiptPerson) => personColor(people.indexOf(person))
   const personById = (personId: string) => people.find((person) => person.id === personId)
-  const unassignedCount = receipt.receipts_items.filter((item) => (assignments[item.id] ?? []).length === 0).length
+  const sharesOf = (item: Item) =>
+    itemShares(item, peopleOn(item.id), picks[item.id])
+  const unassignedCount = receipt.receipts_items.filter((item) => sharesOf(item).left > 0).length
   const assignedTotal = people.reduce((sum, person) => sum + totalOf(person), 0)
   const assignedShare = assignedTotal / (assignedTotal + split.unassigned.total || 1)
   const charges = [
@@ -337,9 +359,15 @@ export default function SplitScreen() {
   const showPeopleStep = alone || editingPeople
 
   // What an item's price line says about who had it.
-  const itemStatus = (had: string[], lineTotal: number) => {
+  const itemStatus = (item: Item, had: string[]) => {
+    const { shares, left } = sharesOf(item)
     if (had.length === 0) return { text: 'Not assigned', warn: true }
-    if (had.length > 1) return { text: `${money(lineTotal / had.length)} each`, warn: false }
+    if (left > 0) return { text: `${left} of ${item.qty} not assigned`, warn: true }
+    if (had.length > 1) {
+      const first = shares[had[0]]
+      const even = had.every((personId) => Math.abs(shares[personId] - first) < 0.005)
+      return { text: even ? `${money(first)} each` : 'Shared', warn: false }
+    }
     const only = personById(had[0])
     return { text: !only || only.is_me ? 'All yours' : `All ${only.name}'s`, warn: false }
   }
@@ -456,10 +484,11 @@ export default function SplitScreen() {
       )}
 
       {receipt.receipts_items.map((item) => {
-        const had = assignments[item.id] ?? []
+        const had = peopleOn(item.id)
         const lineTotal = item.qty * item.unit_price
         const names = bothNames(item.name, item.name_en, showEnglish)
-        const status = itemStatus(had, lineTotal)
+        const status = itemStatus(item, had)
+        const { shares } = sharesOf(item)
         return (
           <Card key={item.id} style={styles.itemCard}>
             <View style={styles.itemRow}>
@@ -497,9 +526,33 @@ export default function SplitScreen() {
                     label="Everyone"
                     dashed
                     selected={everyoneIds.every((personId) => had.includes(personId))}
-                    onPress={() => toggleEveryone(item.id)}
+                    onPress={() => toggleEveryone(item)}
                   />
                 )}
+              </View>
+            )}
+            {!alone && isCountable(item) && had.length > 0 && (
+              <View style={[styles.counts, { borderTopColor: theme.hairline }]}>
+                <AppText variant="caption">How many each had</AppText>
+                {people
+                  .filter((person) => had.includes(person.id))
+                  .map((person) => (
+                    <View key={person.id} style={styles.countRow}>
+                      <Avatar name={nameOf(person)} color={colorOf(person)} size={24} />
+                      <AppText variant="label" numberOfLines={1} style={styles.flex}>
+                        {nameOf(person)}
+                      </AppText>
+                      <AppText variant="caption" style={styles.amount}>
+                        {money(shares[person.id] ?? 0)}
+                      </AppText>
+                      <Stepper
+                        value={picks[item.id]?.[person.id] ?? 1}
+                        max={item.qty}
+                        onChange={(units) => setUnits(item.id, person.id, units)}
+                        label={`${names.main} for ${nameOf(person)}`}
+                      />
+                    </View>
+                  ))}
               </View>
             )}
           </Card>
@@ -776,6 +829,8 @@ const styles = StyleSheet.create({
   linkIcon: { width: 36, height: 36, borderRadius: Radius.small + 2, alignItems: 'center', justifyContent: 'center' },
   sectionRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.three, marginTop: Spacing.one },
   itemCard: { gap: Spacing.three - 4 },
+  counts: { gap: Spacing.two, borderTopWidth: StyleSheet.hairlineWidth, paddingTop: Spacing.three - 4 },
+  countRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
   itemRow: { flexDirection: 'row', alignItems: 'flex-start', gap: Spacing.three },
   priceColumn: { alignItems: 'flex-end' },
   footnote: { textAlign: 'center', marginTop: Spacing.one },
