@@ -44,7 +44,7 @@ Built with Expo (SDK 57, Expo Router) and TypeScript. It uses the same Supabase 
    npx supabase functions deploy delete-account
    ```
 4. Set up sign-in in the Supabase dashboard (see below).
-5. `npx expo start`, then open it in Expo Go or a development build. To install the app on your phone instead, see [Install on your phone](#install-on-your-phone-eas-build).
+5. `npm start`, then scan the QR code with Expo Go. For a development build, run `npm run start:dev` instead. To install the app on your phone instead, see [Install on your phone](#install-on-your-phone-eas-build).
 
 ## Sign-in setup (Supabase dashboard)
 
@@ -62,7 +62,7 @@ EAS builds the app in Expo's cloud, so you don't need Xcode or Android Studio. `
 | Profile | What you get |
 |---|---|
 | `preview` | The app as users will see it, installed from a link. Android gets an APK. |
-| `development` | A dev build that loads code from `npx expo start` on your computer, with live reload. Needed for native modules Expo Go lacks. |
+| `development` | A dev build that loads code from `npm run start:dev` on your computer, with live reload. Needed for native modules Expo Go lacks. |
 | `production` | Store builds. The build number goes up on each build. |
 
 Builds need a free [Expo account](https://expo.dev/signup). An iPhone also needs a paid Apple Developer account, because builds outside the App Store must be signed for your device. Android needs nothing extra.
