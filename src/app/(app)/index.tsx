@@ -5,11 +5,13 @@ import { SafeAreaView } from 'react-native-safe-area-context'
 
 import { Avatar } from '@/components/chip'
 import { ScreenHeader } from '@/components/screen-header'
+import { SwipeToDelete } from '@/components/swipe-to-delete'
 import { AppText, Button, Card } from '@/components/ui'
 import { MaxContentWidth, Spacing } from '@/constants/theme'
 import { useTheme } from '@/hooks/use-theme'
+import { showAlert } from '@/lib/alert'
 import { useAuth } from '@/lib/auth'
-import { listReceipts, type ReceiptSummary } from '@/lib/receipts'
+import { confirmDeleteReceipt, deleteReceipt, listReceipts, type ReceiptSummary } from '@/lib/receipts'
 import { formatMoney } from '@/lib/split'
 
 const PAGE_SIZE = 20
@@ -56,6 +58,18 @@ export default function HomeScreen() {
       setLoadingMore(false)
     }
   }
+
+  const remove = (receipt: ReceiptSummary) =>
+    confirmDeleteReceipt(async () => {
+      try {
+        await deleteReceipt(receipt.id)
+        setReceipts((prev) => prev.filter((other) => other.id !== receipt.id))
+        setTotal((prev) => prev - 1)
+      } catch (e) {
+        console.error('Delete receipt failed', e)
+        showAlert('Could not delete this receipt', 'Check your connection and try again.')
+      }
+    })
 
   return (
     <SafeAreaView edges={['bottom']} style={[styles.flex, { backgroundColor: theme.background }]}>
@@ -107,18 +121,22 @@ export default function HomeScreen() {
           )
         }
         ListFooterComponent={loadingMore ? <ActivityIndicator style={styles.footer} /> : null}
-        renderItem={({ item }) => <ReceiptRow receipt={item} />}
+        renderItem={({ item }) => <ReceiptRow receipt={item} onDelete={() => remove(item)} />}
       />
     </SafeAreaView>
   )
 }
 
-function ReceiptRow({ receipt }: { receipt: ReceiptSummary }) {
+// Swipe a receipt left to delete it.
+function ReceiptRow({ receipt, onDelete }: { receipt: ReceiptSummary; onDelete: () => void }) {
   const theme = useTheme()
   const itemCount = receipt.receipts_items[0]?.count ?? 0
   return (
-    <Pressable onPress={() => router.push(`/receipts/${receipt.id}`)} accessibilityRole="button">
-      {({ pressed }) => (
+    <SwipeToDelete
+      onPress={() => router.push(`/receipts/${receipt.id}`)}
+      onDelete={onDelete}
+      deleteLabel="Delete receipt">
+      {(pressed) => (
         <Card style={[styles.row, { backgroundColor: pressed ? theme.primaryTint : theme.surface }]}>
           <View style={styles.flex}>
             <AppText variant="heading" numberOfLines={1}>
@@ -134,7 +152,7 @@ function ReceiptRow({ receipt }: { receipt: ReceiptSummary }) {
           </AppText>
         </Card>
       )}
-    </Pressable>
+    </SwipeToDelete>
   )
 }
 

@@ -97,6 +97,44 @@ export function CheckBoxIcon({ color, size = 16 }: { color: string; size?: numbe
   )
 }
 
+/** A bin with its lid, for deleting. */
+export function TrashIcon({ color, size = 22 }: { color: string; size?: number }) {
+  const stroke = 2
+  return (
+    <View style={{ width: size, height: size, alignItems: 'center' }}>
+      <View
+        style={{
+          width: size * 0.32,
+          height: size * 0.14,
+          borderWidth: stroke,
+          borderBottomWidth: 0,
+          borderColor: color,
+          borderTopLeftRadius: 2,
+          borderTopRightRadius: 2,
+        }}
+      />
+      <View style={{ width: size * 0.9, height: stroke, borderRadius: 1, backgroundColor: color }} />
+      <View
+        style={{
+          flex: 1,
+          width: size * 0.66,
+          marginTop: size * 0.06,
+          paddingVertical: size * 0.12,
+          borderWidth: stroke,
+          borderTopWidth: 0,
+          borderColor: color,
+          borderBottomLeftRadius: 3,
+          borderBottomRightRadius: 3,
+          flexDirection: 'row',
+          justifyContent: 'space-evenly',
+        }}>
+        <View style={{ width: 1.5, backgroundColor: color }} />
+        <View style={{ width: 1.5, backgroundColor: color }} />
+      </View>
+    </View>
+  )
+}
+
 /** The SlipShare mark: a receipt on a blue tile. */
 export function Logo({ size = 28 }: { size?: number }) {
   const theme = useTheme()

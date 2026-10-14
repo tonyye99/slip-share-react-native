@@ -23,7 +23,7 @@ Built with Expo (SDK 57, Expo Router) and TypeScript. It uses the same Supabase 
 | `sign-in`, `sign-up` | Email and password, plus Continue with Apple (iOS app only), Google and GitHub |
 | `forgot-password`, `reset-password` | Emails a reset link; the link opens the app to choose a new password |
 | `auth/callback` | Where email confirmation and OAuth links land |
-| `(app)/index` | Your receipts (pull to refresh, infinite scroll) and "Scan a receipt" |
+| `(app)/index` | Your receipts (pull to refresh, infinite scroll, swipe one left to delete it) and "Scan a receipt" |
 | `(app)/account` | Your email, sign out, turn receipt scanning off, the privacy policy, and delete your account (asks you to confirm first) |
 | `(app)/scan` | Asks once for permission to send photos to OpenAI. Then camera or photo library, optional English translation, sends a resized JPEG to the parser |
 | `(app)/review` | Parsed items and totals. Fix, add or remove misread items (warns when they don't add up to the printed total), save |

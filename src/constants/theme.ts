@@ -25,6 +25,8 @@ export const Colors = {
     warningSoft: '#FDF1E4',
     danger: '#B3261E',
     dangerSoft: '#FCECEB',
+    /** Solid red behind a white icon, like the swipe-to-delete button. */
+    destructive: '#D92D20',
   },
   dark: {
     text: '#ECEEF0',
@@ -45,6 +47,7 @@ export const Colors = {
     warningSoft: '#3A2814',
     danger: '#FF7A6E',
     dangerSoft: '#3D1D1A',
+    destructive: '#D92D20',
   },
 } as const
 

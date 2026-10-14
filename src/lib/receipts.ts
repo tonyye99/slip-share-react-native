@@ -1,3 +1,4 @@
+import { confirmDestructive } from '@/lib/alert'
 import { billTotal, receiptSubtotal } from '@/lib/split'
 import { supabase } from '@/lib/supabase'
 import type { ParsedReceipt, Receipt, ReceiptPerson, ReceiptWithPeople } from '@/lib/types'
@@ -145,6 +146,16 @@ export async function getRecentNames(): Promise<string[]> {
     }
   }
   return names
+}
+
+/** Asks before deleting a receipt; `onConfirm` runs only if the person agrees. */
+export function confirmDeleteReceipt(onConfirm: () => void) {
+  confirmDestructive(
+    'Delete this receipt?',
+    "It's removed for good, with the names, picks and payments on it, and its friend link stops working.",
+    'Delete',
+    onConfirm,
+  )
 }
 
 /** Deletes a receipt for good, with its items, people and picks. */

@@ -57,7 +57,7 @@ You don't need an account. When you type your name and tick items, they're saved
 
 - See and edit your receipts in the app.
 - Turn a receipt's friend link on and off on that receipt.
-- Delete a receipt with **Delete receipt** at the bottom of it.
+- Delete a receipt by swiping it left in your list, or with **Delete receipt** at the bottom of it.
 - Turn receipt scanning off and on in **Account > Privacy**.
 - Delete your account and all your data in **Account**.
 - Ask us a question about your data using the contact details below.

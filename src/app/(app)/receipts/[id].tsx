@@ -15,6 +15,7 @@ import { bothNames, originalLabel } from '@/lib/names'
 import {
   addItemPeople,
   addPerson,
+  confirmDeleteReceipt,
   deleteReceipt,
   getRecentNames,
   getReceipt,
@@ -308,25 +309,20 @@ export default function SplitScreen() {
     )
 
   const confirmDelete = () =>
-    confirmDestructive(
-      'Delete this receipt?',
-      "It's removed for good, with the names, picks and payments on it, and its friend link stops working.",
-      'Delete',
-      async () => {
-        setDeleting(true)
-        try {
-          // Let changes still saving finish first.
-          await saves.current
-          await deleteReceipt(receipt.id)
-          if (router.canGoBack()) router.back()
-          else router.replace('/')
-        } catch (e) {
-          console.error('Delete receipt failed', e)
-          setDeleting(false)
-          showAlert('Could not delete this receipt', 'Check your connection and try again.')
-        }
-      },
-    )
+    confirmDeleteReceipt(async () => {
+      setDeleting(true)
+      try {
+        // Let changes still saving finish first.
+        await saves.current
+        await deleteReceipt(receipt.id)
+        if (router.canGoBack()) router.back()
+        else router.replace('/')
+      } catch (e) {
+        console.error('Delete receipt failed', e)
+        setDeleting(false)
+        showAlert('Could not delete this receipt', 'Check your connection and try again.')
+      }
+    })
 
   const colorOf = (person: ReceiptPerson) => personColor(people.indexOf(person))
   const personById = (personId: string) => people.find((person) => person.id === personId)
