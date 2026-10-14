@@ -135,6 +135,95 @@ export function TrashIcon({ color, size = 22 }: { color: string; size?: number }
   )
 }
 
+/** A camera, for taking (or retaking) a photo. */
+export function CameraIcon({ color, size = 18 }: { color: string; size?: number }) {
+  return (
+    <View style={{ width: size, height: size, justifyContent: 'flex-end' }}>
+      <View
+        style={{
+          position: 'absolute',
+          top: size * 0.08,
+          left: size * 0.32,
+          width: size * 0.36,
+          height: size * 0.2,
+          borderWidth: 2,
+          borderBottomWidth: 0,
+          borderColor: color,
+          borderTopLeftRadius: 2,
+          borderTopRightRadius: 2,
+        }}
+      />
+      <View style={[styles.round, { height: size * 0.72, borderWidth: 2, borderRadius: 3, borderColor: color }]}>
+        <View style={{ width: size * 0.34, height: size * 0.34, borderRadius: size, borderWidth: 2, borderColor: color }} />
+      </View>
+    </View>
+  )
+}
+
+/** A picture with a sun and a hill, for the photo library. */
+export function ImageIcon({ color, size = 18 }: { color: string; size?: number }) {
+  return (
+    <View style={{ width: size, height: size, borderWidth: 2, borderRadius: 3, borderColor: color, overflow: 'hidden' }}>
+      <View
+        style={{
+          position: 'absolute',
+          top: size * 0.14,
+          right: size * 0.14,
+          width: size * 0.2,
+          height: size * 0.2,
+          borderRadius: size,
+          backgroundColor: color,
+        }}
+      />
+      <View
+        style={{
+          position: 'absolute',
+          bottom: -size * 0.36,
+          left: size * 0.02,
+          width: size * 0.62,
+          height: size * 0.62,
+          borderWidth: 2,
+          borderColor: color,
+          transform: [{ rotate: '45deg' }],
+        }}
+      />
+    </View>
+  )
+}
+
+/** Four corners around a line, for reading a receipt. */
+export function ScanIcon({ color, size = 18 }: { color: string; size?: number }) {
+  const corner = { position: 'absolute', width: size * 0.32, height: size * 0.32, borderColor: color } as const
+  return (
+    <View style={{ width: size, height: size, justifyContent: 'center', alignItems: 'center' }}>
+      <View style={[corner, { top: 0, left: 0, borderTopWidth: 2, borderLeftWidth: 2, borderTopLeftRadius: 3 }]} />
+      <View style={[corner, { top: 0, right: 0, borderTopWidth: 2, borderRightWidth: 2, borderTopRightRadius: 3 }]} />
+      <View style={[corner, { bottom: 0, left: 0, borderBottomWidth: 2, borderLeftWidth: 2, borderBottomLeftRadius: 3 }]} />
+      <View style={[corner, { bottom: 0, right: 0, borderBottomWidth: 2, borderRightWidth: 2, borderBottomRightRadius: 3 }]} />
+      <View style={{ width: size * 0.56, height: 2, borderRadius: 1, backgroundColor: color }} />
+    </View>
+  )
+}
+
+/** A cog, for settings. `background` fills its middle so the teeth read as an outline. */
+export function GearIcon({ color, background, size = 22 }: { color: string; background: string; size?: number }) {
+  const tooth = { position: 'absolute', width: size * 0.24, height: size * 0.92, borderRadius: 2, backgroundColor: color } as const
+  return (
+    <View style={{ width: size, height: size, alignItems: 'center', justifyContent: 'center' }}>
+      {[0, 60, 120].map((angle) => (
+        <View key={angle} style={[tooth, { transform: [{ rotate: `${angle}deg` }] }]} />
+      ))}
+      <View
+        style={[
+          styles.round,
+          { width: size * 0.7, height: size * 0.7, borderRadius: size, borderWidth: 2, borderColor: color, backgroundColor: background },
+        ]}>
+        <View style={{ width: size * 0.28, height: size * 0.28, borderRadius: size, borderWidth: 2, borderColor: color }} />
+      </View>
+    </View>
+  )
+}
+
 /** The SlipShare mark: a receipt on a blue tile. */
 export function Logo({ size = 28 }: { size?: number }) {
   const theme = useTheme()
