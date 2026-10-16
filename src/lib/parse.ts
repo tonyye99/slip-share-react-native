@@ -31,9 +31,15 @@ export class ConsentRequiredError extends Error {
   }
 }
 
-export async function parseReceipt(imageBase64: string, enableTranslation: boolean): Promise<ParsedReceipt> {
+/** Reads the receipt in one go. `signal` lets the scan screen cancel it. */
+export async function parseReceipt(
+  imageBase64: string,
+  enableTranslation: boolean,
+  signal?: AbortSignal,
+): Promise<ParsedReceipt> {
   const { data, error } = await supabase.functions.invoke<ParsedReceipt>('parse-receipt', {
     body: { imageBase64, enableTranslation },
+    signal,
   })
   if (error instanceof FunctionsHttpError && error.context.status === 429) throw new ScanLimitError()
   if (error instanceof FunctionsHttpError && error.context.status === 403) throw new ConsentRequiredError()

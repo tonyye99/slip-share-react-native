@@ -26,6 +26,8 @@ export interface LinkItem {
   qty: number
   unit_price: number
   person_ids: string[]
+  /** Person id -> how many of this line they had. */
+  counts: Record<string, number>
 }
 
 export interface LinkReceipt {
@@ -81,13 +83,15 @@ export async function joinLink(token: string, choice: { personId: string } | { n
   return identity
 }
 
-export async function setLinkPick(token: string, identity: LinkIdentity, itemId: string, had: boolean) {
+/** Ticks or unticks an item, with how many of it you had (the database keeps it between 1 and the line's quantity). */
+export async function setLinkPick(token: string, identity: LinkIdentity, itemId: string, had: boolean, units = 1) {
   const { error } = await supabase.rpc('set_link_pick', {
     p_token: token,
     p_person_id: identity.person_id,
     p_guest_key: identity.guest_key,
     p_item_id: itemId,
     p_had: had,
+    p_units: units,
   })
   if (error) throw error
 }

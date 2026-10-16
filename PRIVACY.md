@@ -45,18 +45,19 @@ All data travels over encrypted connections (HTTPS). Your sign-in session is kep
 
 ## How long we keep it
 
-We keep your account and receipts until you delete your account.
+We keep your account and receipts until you delete them or your account.
 
 To delete your account, open **Account** in the app and tap **Delete account**. This permanently deletes your account, every receipt you scanned with the names and payments on it, your scan counts and your permission for receipt scanning. Your SlipShare account also works on the SlipShare website, so this deletes it there too.
 
 ## If a friend sent you a link
 
-You don't need an account. When you type your name and tick items, they're saved as part of your friend's receipt, and everyone with the link can see them. Your browser keeps a random key, so only your browser can change your picks. Your friend can see and change everything on their receipt, and it's deleted when they delete their account. To have your name removed, ask your friend or contact us.
+You don't need an account. When you type your name and tick items, they're saved as part of your friend's receipt, and everyone with the link can see them. Your browser keeps a random key, so only your browser can change your picks. Your friend can see and change everything on their receipt, and it's deleted when they delete that receipt or their account. To have your name removed, ask your friend or contact us.
 
 ## Your choices
 
 - See and edit your receipts in the app.
 - Turn a receipt's friend link on and off on that receipt.
+- Delete a receipt by swiping it left in your list, or with **Delete receipt** at the bottom of it.
 - Turn receipt scanning off and on in **Account > Privacy**.
 - Delete your account and all your data in **Account**.
 - Ask us a question about your data using the contact details below.

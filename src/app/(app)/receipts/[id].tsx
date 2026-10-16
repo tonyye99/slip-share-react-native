@@ -1,17 +1,22 @@
-import { useLocalSearchParams } from 'expo-router'
+import { router, useLocalSearchParams } from 'expo-router'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { ActivityIndicator, Pressable, RefreshControl, ScrollView, StyleSheet, Switch, TextInput, View } from 'react-native'
+import { ActivityIndicator, Pressable, RefreshControl, ScrollView, StyleSheet, View } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 
-import { Chip } from '@/components/chip'
-import { AppText, Button, Card, Row, TextLink } from '@/components/ui'
-import { MaxContentWidth, Spacing } from '@/constants/theme'
+import { Avatar, Chip, PersonChip, personColor } from '@/components/chip'
+import { LinkIcon, ShareIcon } from '@/components/icons'
+import { ScreenHeader } from '@/components/screen-header'
+import { AppText, Button, Card, Divider, Input, ProgressBar, Segmented, Stepper, Tabs, Tag, TextLink } from '@/components/ui'
+import { MaxContentWidth, Radius, Spacing } from '@/constants/theme'
 import { useTheme } from '@/hooks/use-theme'
 import { confirmDestructive, showAlert } from '@/lib/alert'
 import { friendLinksAvailable, friendLinkUrl } from '@/lib/link-picks'
+import { bothNames, originalLabel } from '@/lib/names'
 import {
   addItemPeople,
   addPerson,
+  confirmDeleteReceipt,
+  deleteReceipt,
   getRecentNames,
   getReceipt,
   removeItemPeople,
@@ -21,17 +26,25 @@ import {
   setReceiptLink,
 } from '@/lib/receipts'
 import { shareText } from '@/lib/share-text'
-import { formatMoney, splitByPerson, totalsMessage, type Assignments } from '@/lib/split'
+import { evenCount, formatMoney, isCountable, itemShares, splitByPerson, totalsMessage, type Counts } from '@/lib/split'
 import type { ReceiptPerson, ReceiptWithPeople } from '@/lib/types'
 
 const MAX_NAME_LENGTH = 40
 const MAX_SUGGESTIONS = 6
 
+type Item = ReceiptWithPeople['receipts_items'][number]
+
 /** Your own line reads "You" on screen. */
 const nameOf = (person: ReceiptPerson) => (person.is_me ? 'You' : person.name)
 
-const assignmentsOf = (receipt: ReceiptWithPeople): Assignments =>
-  Object.fromEntries(receipt.receipts_items.map((item) => [item.id, item.receipt_item_people.map((row) => row.person_id)]))
+/** Who had each item and how many of it: item id -> person id -> count. */
+const picksOf = (receipt: ReceiptWithPeople): Counts =>
+  Object.fromEntries(
+    receipt.receipts_items.map((item) => [
+      item.id,
+      Object.fromEntries(item.receipt_item_people.map((row) => [row.person_id, row.units])),
+    ]),
+  )
 
 // The person who scanned the bill splits it: they add who was there, tick who
 // had each item and send everyone their total. Friends don't need the app.
@@ -40,13 +53,17 @@ export default function SplitScreen() {
   const theme = useTheme()
   const [receipt, setReceipt] = useState<ReceiptWithPeople | null>(null)
   const [people, setPeople] = useState<ReceiptPerson[]>([])
-  const [assignments, setAssignments] = useState<Assignments>({})
+  const [picks, setPicks] = useState<Counts>({})
   const [recentNames, setRecentNames] = useState<string[]>([])
   const [newName, setNewName] = useState('')
   const [adding, setAdding] = useState(false)
   const [showEnglish, setShowEnglish] = useState(false)
   const [linkBusy, setLinkBusy] = useState(false)
+  const [deleting, setDeleting] = useState(false)
   const [refreshing, setRefreshing] = useState(false)
+  const [tab, setTab] = useState<'items' | 'payments'>('items')
+  // Once people are added, the "Who was there?" card folds away until "+ People" opens it.
+  const [editingPeople, setEditingPeople] = useState(false)
   const [error, setError] = useState<string | null>(null)
   // Changes save as you tap. They reach the database one at a time and in
   // order, so quick taps on the same name can't land out of order.
@@ -55,7 +72,7 @@ export default function SplitScreen() {
   const show = useCallback((receipt: ReceiptWithPeople) => {
     setReceipt(receipt)
     setPeople(receipt.receipt_people)
-    setAssignments(assignmentsOf(receipt))
+    setPicks(picksOf(receipt))
   }, [])
 
   useEffect(() => {
@@ -77,23 +94,18 @@ export default function SplitScreen() {
             receipt,
             receipt.receipts_items,
             people.map((person) => person.id),
-            assignments,
+            Object.fromEntries(Object.entries(picks).map(([itemId, had]) => [itemId, Object.keys(had)])),
+            picks,
           )
         : null,
-    [receipt, people, assignments],
+    [receipt, people, picks],
   )
 
-  if (error) {
+  if (error || !receipt || !split) {
     return (
-      <View style={[styles.centered, { backgroundColor: theme.background }]}>
-        <AppText variant="error">{error}</AppText>
-      </View>
-    )
-  }
-  if (!receipt || !split) {
-    return (
-      <View style={[styles.centered, { backgroundColor: theme.background }]}>
-        <ActivityIndicator />
+      <View style={[styles.flex, { backgroundColor: theme.background }]}>
+        <ScreenHeader title="Split bill" />
+        <View style={styles.centered}>{error ? <AppText variant="error">{error}</AppText> : <ActivityIndicator />}</View>
       </View>
     )
   }
@@ -103,9 +115,8 @@ export default function SplitScreen() {
   const payer = people.find((person) => person.is_payer) ?? null
   const payerName = payer?.is_me ? 'you' : payer?.name
   const hasTranslation = !!receipt.merchant_name_en || receipt.receipts_items.some((item) => item.name_en)
-  const localizedName = (original: string | null, english: string | null) =>
-    showEnglish && english ? english : original || english || ''
-  const title = localizedName(receipt.merchant_name, receipt.merchant_name_en) || 'Receipt'
+  const originalLanguage = originalLabel([receipt.merchant_name, ...receipt.receipts_items.map((item) => item.name)])
+  const title = bothNames(receipt.merchant_name, receipt.merchant_name_en, showEnglish).main || 'Receipt'
   const everyoneIds = people.map((person) => person.id)
   const hasUnassigned = Math.abs(split.unassigned.total) >= 0.005
   const onBill = new Set(people.map((person) => person.name.toLowerCase()))
@@ -129,44 +140,50 @@ export default function SplitScreen() {
     )
   }
 
-  const setItemPeople = (itemId: string, personIds: string[]) =>
-    setAssignments((prev) => ({ ...prev, [itemId]: personIds }))
+  const peopleOn = (itemId: string) => Object.keys(picks[itemId] ?? {})
+  const setItemPicks = (itemId: string, had: Record<string, number>) => setPicks((prev) => ({ ...prev, [itemId]: had }))
+  // Everyone on the item, each with an even part of it.
+  const evenly = (item: Item) =>
+    Object.fromEntries(everyoneIds.map((personId) => [personId, evenCount(item, everyoneIds.length)]))
+  const rowsFor = (itemId: string, had: Record<string, number>) =>
+    Object.entries(had).map(([person_id, units]) => ({ item_id: itemId, person_id, units }))
 
+  // A new tap is for one of the item; on lines like 2 × Egg Kim Bab, − 1 + changes it.
   const togglePerson = (itemId: string, personId: string) => {
-    const had = assignments[itemId] ?? []
-    if (had.includes(personId)) {
-      setItemPeople(
-        itemId,
-        had.filter((id) => id !== personId),
-      )
+    const had = picks[itemId] ?? {}
+    if (personId in had) {
+      setItemPicks(itemId, Object.fromEntries(Object.entries(had).filter(([id]) => id !== personId)))
       save(() => removeItemPeople(itemId, [personId]))
     } else {
-      setItemPeople(itemId, [...had, personId])
-      save(() => addItemPeople([{ item_id: itemId, person_id: personId }]))
+      setItemPicks(itemId, { ...had, [personId]: 1 })
+      save(() => addItemPeople([{ item_id: itemId, person_id: personId, units: 1 }]))
     }
   }
 
-  const toggleEveryone = (itemId: string) => {
-    const had = assignments[itemId] ?? []
+  const setUnits = (itemId: string, personId: string, units: number) => {
+    setItemPicks(itemId, { ...picks[itemId], [personId]: units })
+    save(() => addItemPeople([{ item_id: itemId, person_id: personId, units }]))
+  }
+
+  const toggleEveryone = (item: Item) => {
+    const had = peopleOn(item.id)
     if (everyoneIds.every((personId) => had.includes(personId))) {
-      setItemPeople(itemId, [])
-      save(() => removeItemPeople(itemId, everyoneIds))
+      setItemPicks(item.id, {})
+      save(() => removeItemPeople(item.id, everyoneIds))
     } else {
-      setItemPeople(itemId, everyoneIds)
-      save(() => addItemPeople(everyoneIds.map((person_id) => ({ item_id: itemId, person_id }))))
+      const even = evenly(item)
+      setItemPicks(item.id, even)
+      save(() => addItemPeople(rowsFor(item.id, even)))
     }
   }
 
   const splitEvenly = () => {
     const run = () => {
-      setAssignments(Object.fromEntries(receipt.receipts_items.map((item) => [item.id, everyoneIds])))
-      save(() =>
-        addItemPeople(
-          receipt.receipts_items.flatMap((item) => everyoneIds.map((person_id) => ({ item_id: item.id, person_id }))),
-        ),
-      )
+      const even = Object.fromEntries(receipt.receipts_items.map((item) => [item.id, evenly(item)]))
+      setPicks(even)
+      save(() => addItemPeople(Object.entries(even).flatMap(([itemId, had]) => rowsFor(itemId, had))))
     }
-    if (!Object.values(assignments).some((had) => had.length > 0)) return run()
+    if (!Object.values(picks).some((had) => Object.keys(had).length > 0)) return run()
     confirmDestructive(
       'Split everything evenly?',
       'Everyone will share every item, including the ones you already ticked.',
@@ -203,12 +220,17 @@ export default function SplitScreen() {
   const confirmRemove = (person: ReceiptPerson) => {
     const remove = () => {
       setPeople((prev) => prev.filter((other) => other.id !== person.id))
-      setAssignments((prev) =>
-        Object.fromEntries(Object.entries(prev).map(([itemId, had]) => [itemId, had.filter((id) => id !== person.id)])),
+      setPicks((prev) =>
+        Object.fromEntries(
+          Object.entries(prev).map(([itemId, had]) => [
+            itemId,
+            Object.fromEntries(Object.entries(had).filter(([id]) => id !== person.id)),
+          ]),
+        ),
       )
       save(() => removePerson(person.id))
     }
-    if (!Object.values(assignments).some((had) => had.includes(person.id))) return remove()
+    if (!Object.values(picks).some((had) => person.id in had)) return remove()
     confirmDestructive(
       `Remove ${person.name}?`,
       'Items they shared will be split between the others who had them. Items only they had will be unassigned.',
@@ -306,150 +328,195 @@ export default function SplitScreen() {
       },
     )
 
-  return (
-    <SafeAreaView edges={['bottom']} style={[styles.flex, { backgroundColor: theme.background }]}>
-      <ScrollView
-        contentContainerStyle={styles.content}
-        keyboardShouldPersistTaps="handled"
-        automaticallyAdjustKeyboardInsets
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refresh} />}>
-        <View style={styles.header}>
-          <AppText variant="title">{title}</AppText>
-          <AppText variant="muted">
-            Total {money(receipt.total)}
-            {payer && people.length > 1 ? ` · Paid by ${payerName}` : ''}
+  const confirmDelete = () =>
+    confirmDeleteReceipt(async () => {
+      setDeleting(true)
+      try {
+        // Let changes still saving finish first.
+        await saves.current
+        await deleteReceipt(receipt.id)
+        if (router.canGoBack()) router.back()
+        else router.replace('/')
+      } catch (e) {
+        console.error('Delete receipt failed', e)
+        setDeleting(false)
+        showAlert('Could not delete this receipt', 'Check your connection and try again.')
+      }
+    })
+
+  const colorOf = (person: ReceiptPerson) => personColor(people.indexOf(person))
+  const personById = (personId: string) => people.find((person) => person.id === personId)
+  const sharesOf = (item: Item) =>
+    itemShares(item, peopleOn(item.id), picks[item.id])
+  const unassignedCount = receipt.receipts_items.filter((item) => sharesOf(item).left > 0).length
+  const assignedTotal = people.reduce((sum, person) => sum + totalOf(person), 0)
+  const assignedShare = assignedTotal / (assignedTotal + split.unassigned.total || 1)
+  const charges = [
+    receipt.service_percent > 0 ? `${receipt.service_percent}% service` : null,
+    receipt.tax_percent > 0 ? `${receipt.tax_percent}% VAT` : null,
+  ].filter(Boolean)
+  const alone = people.length === 1
+  const showPeopleStep = alone || editingPeople
+
+  // What an item's price line says about who had it.
+  const itemStatus = (item: Item, had: string[]) => {
+    const { shares, left } = sharesOf(item)
+    if (had.length === 0) return { text: 'Not assigned', warn: true }
+    if (left > 0) return { text: `${left} of ${item.qty} not assigned`, warn: true }
+    if (had.length > 1) {
+      const first = shares[had[0]]
+      const even = had.every((personId) => Math.abs(shares[personId] - first) < 0.005)
+      return { text: even ? `${money(first)} each` : 'Shared', warn: false }
+    }
+    const only = personById(had[0])
+    return { text: !only || only.is_me ? 'All yours' : `All ${only.name}'s`, warn: false }
+  }
+
+  const shareLinkTile = (
+    <Pressable
+      onPress={shareLink}
+      disabled={linkBusy}
+      accessibilityRole="button"
+      style={({ pressed }) => [
+        styles.linkTile,
+        { backgroundColor: theme.primaryTint, borderColor: theme.primarySoft, opacity: linkBusy ? 0.5 : pressed ? 0.8 : 1 },
+      ]}>
+      <View style={[styles.linkIcon, { backgroundColor: theme.primary }]}>
+        {linkBusy ? <ActivityIndicator color={theme.onPrimary} /> : <LinkIcon color={theme.onPrimary} />}
+      </View>
+      <View style={styles.flex}>
+        <AppText variant="label">Share a link</AppText>
+        <AppText variant="caption">Friends tick their own items. No app or sign-up.</AppText>
+      </View>
+    </Pressable>
+  )
+
+  const peopleStep = (
+    <Card style={styles.stepCard}>
+      <View style={styles.stepHeader}>
+        <View style={styles.flex}>
+          {alone && <AppText variant="overline">Step 1 of 2</AppText>}
+          <AppText variant="title">Who was there?</AppText>
+        </View>
+        {!alone && <Button title="Done" size="small" variant="secondary" onPress={() => setEditingPeople(false)} />}
+      </View>
+      <AppText variant="muted">
+        {alone
+          ? "Add everyone sharing this bill. Next, you'll tap who had each item."
+          : 'Add or remove people. Items only a removed person had become unassigned.'}
+      </AppText>
+      <View style={styles.chips}>
+        {people.map((person) => (
+          <View
+            key={person.id}
+            style={[styles.personPill, { backgroundColor: person.is_me ? theme.primarySoft : theme.backgroundElement }]}>
+            <Avatar name={nameOf(person)} color={colorOf(person)} size={26} />
+            <AppText variant="label">{nameOf(person)}</AppText>
+            {!person.is_me && (
+              <Pressable
+                onPress={() => confirmRemove(person)}
+                hitSlop={8}
+                accessibilityRole="button"
+                accessibilityLabel={`Remove ${person.name}`}>
+                <AppText variant="muted">✕</AppText>
+              </Pressable>
+            )}
+          </View>
+        ))}
+      </View>
+      <View style={styles.addRow}>
+        <Input
+          value={newName}
+          onChangeText={setNewName}
+          onSubmitEditing={() => add(newName)}
+          placeholder="Friend's name"
+          maxLength={MAX_NAME_LENGTH}
+          autoCapitalize="words"
+          autoCorrect={false}
+          returnKeyType="done"
+          submitBehavior="submit"
+          editable={!adding}
+          accessibilityLabel="Name of someone to add"
+          style={styles.flex}
+        />
+        <Button title="Add" onPress={() => add(newName)} loading={adding} disabled={!newName.trim()} />
+      </View>
+      {suggestions.length > 0 && (
+        <View style={styles.suggestions}>
+          <AppText variant="caption">From recent bills</AppText>
+          <View style={styles.chips}>
+            {suggestions.map((name) => (
+              <Chip key={name} role="button" label={`+  ${name}`} onPress={() => add(name)} accessibilityLabel={`Add ${name}`} />
+            ))}
+          </View>
+        </View>
+      )}
+      {friendLinksAvailable && !receipt.link_enabled && (
+        <>
+          <Divider label="or let them add themselves" />
+          {shareLinkTile}
+        </>
+      )}
+    </Card>
+  )
+
+  const itemsTab = (
+    <>
+      {showPeopleStep && peopleStep}
+
+      {alone ? (
+        <View style={styles.sectionRow}>
+          <AppText variant="heading" style={styles.flex}>
+            Step 2 · Who had what
+          </AppText>
+          <AppText variant="caption">
+            {receipt.receipts_items.length} item{receipt.receipts_items.length === 1 ? '' : 's'}
           </AppText>
         </View>
-
-        <Card>
-          <AppText variant="heading">Who&apos;s splitting</AppText>
-          {people.length === 1 && (
-            <AppText variant="muted">Add the people you ate with, then tap who had each item.</AppText>
-          )}
-          {people.map((person) => (
-            <View key={person.id} style={styles.personRow}>
-              <View style={styles.flex}>
-                <AppText>{nameOf(person)}</AppText>
-                {person.is_payer && people.length > 1 && <AppText variant="muted">Paid the bill</AppText>}
-                {person.guest_key && <AppText variant="muted">Picked through your link</AppText>}
-              </View>
-              <AppText style={styles.amount}>{money(totalOf(person))}</AppText>
-              {payer && !person.is_payer && (
-                <Chip
-                  label={person.paid_at ? '✓ Paid' : 'Mark paid'}
-                  selected={!!person.paid_at}
-                  onPress={() => togglePaid(person)}
-                  accessibilityLabel={`${nameOf(person)} paid ${payerName} back`}
-                />
-              )}
-              {!person.is_me && (
-                <Pressable
-                  onPress={() => confirmRemove(person)}
-                  hitSlop={8}
-                  accessibilityRole="button"
-                  accessibilityLabel={`Remove ${person.name}`}>
-                  <AppText variant="muted">✕</AppText>
-                </Pressable>
-              )}
-            </View>
-          ))}
-          {owesPayer.length > 0 && (
-            <Row label={`Paid back to ${payerName}`} value={`${money(paidBack)} of ${money(owedBack)}`} />
-          )}
-          <View style={styles.addRow}>
-            <TextInput
-              value={newName}
-              onChangeText={setNewName}
-              onSubmitEditing={() => add(newName)}
-              placeholder="Add a name"
-              placeholderTextColor={theme.textSecondary}
-              maxLength={MAX_NAME_LENGTH}
-              autoCapitalize="words"
-              autoCorrect={false}
-              returnKeyType="done"
-              submitBehavior="submit"
-              editable={!adding}
-              accessibilityLabel="Name of someone to add"
-              style={[styles.input, { color: theme.text, borderColor: theme.border, backgroundColor: theme.background }]}
-            />
-            <Button title="Add" variant="secondary" onPress={() => add(newName)} loading={adding} disabled={!newName.trim()} />
+      ) : (
+        <View style={styles.sectionRow}>
+          <View style={styles.flex}>
+            <AppText variant="title">Who had what?</AppText>
+            <AppText variant="muted">Tap names on each item. Shared items split evenly.</AppText>
           </View>
-          {suggestions.length > 0 && (
-            <View style={styles.chips}>
-              {suggestions.map((name) => (
-                <Chip key={name} label={`+ ${name}`} onPress={() => add(name)} accessibilityLabel={`Add ${name}`} />
-              ))}
-            </View>
-          )}
-        </Card>
+          <Button title="Split all evenly" size="small" variant="secondary" onPress={splitEvenly} />
+        </View>
+      )}
 
-        {people.length > 1 && (
-          <Card>
-            <AppText variant="heading">Who paid?</AppText>
-            <View style={styles.chips}>
-              {people.map((person) => (
-                <Chip
-                  key={person.id}
-                  role="radio"
-                  label={nameOf(person)}
-                  selected={person.is_payer}
-                  onPress={() => choosePayer(person)}
-                />
-              ))}
-            </View>
-          </Card>
-        )}
-
-        {friendLinksAvailable && (
-          <Card>
-            <AppText variant="heading">Let friends pick</AppText>
-            <AppText variant="muted">
-              {receipt.link_enabled
-                ? 'Your link is on. Anyone with it can add their name and tick what they had. Pull down to see their picks.'
-                : 'Send a link and friends tick their own items on the SlipShare website. They don\'t need the app or an account.'}
-            </AppText>
-            <Button
-              title={receipt.link_enabled ? 'Share the link again' : 'Share a link'}
-              variant="secondary"
-              onPress={shareLink}
-              loading={linkBusy}
-            />
-            {receipt.link_enabled && <TextLink title="Turn off the link" onPress={turnOffLink} />}
-          </Card>
-        )}
-
-        {hasTranslation && (
-          <Card style={styles.toggle}>
-            <AppText variant="label" style={styles.flex}>
-              Show English names
-            </AppText>
-            <Switch value={showEnglish} onValueChange={setShowEnglish} />
-          </Card>
-        )}
-
-        <AppText variant="muted">Tap who had each item. Shared items are split evenly.</AppText>
-        {people.length > 1 && <Button title="Split everything evenly" variant="secondary" onPress={splitEvenly} />}
-
-        {receipt.receipts_items.map((item) => {
-          const had = assignments[item.id] ?? []
-          const lineTotal = item.qty * item.unit_price
-          return (
-            <Card key={item.id}>
-              <View style={styles.itemRow}>
-                <View style={styles.flex}>
-                  <AppText>{localizedName(item.name, item.name_en)}</AppText>
-                  <AppText variant="muted">
-                    {item.qty} × {money(item.unit_price)}
-                    {had.length > 1 ? ` · ${money(lineTotal / had.length)} each` : ''}
-                  </AppText>
-                </View>
-                <AppText style={styles.amount}>{money(lineTotal)}</AppText>
+      {receipt.receipts_items.map((item) => {
+        const had = peopleOn(item.id)
+        const lineTotal = item.qty * item.unit_price
+        const names = bothNames(item.name, item.name_en, showEnglish)
+        const status = itemStatus(item, had)
+        const { shares } = sharesOf(item)
+        return (
+          <Card key={item.id} style={styles.itemCard}>
+            <View style={styles.itemRow}>
+              <View style={styles.flex}>
+                <AppText variant="heading">{names.main}</AppText>
+                <AppText variant="caption">
+                  {names.other ? `${names.other} · ` : ''}
+                  {item.qty} × {money(item.unit_price)}
+                </AppText>
               </View>
+              <View style={styles.priceColumn}>
+                <AppText variant="heading" style={styles.amount}>
+                  {money(lineTotal)}
+                </AppText>
+                {!alone && (
+                  <AppText variant="caption" style={status.warn && { color: theme.warning, fontWeight: '600' }}>
+                    {status.text}
+                  </AppText>
+                )}
+              </View>
+            </View>
+            {!alone && (
               <View style={styles.chips}>
                 {people.map((person) => (
-                  <Chip
+                  <PersonChip
                     key={person.id}
-                    label={nameOf(person)}
+                    name={nameOf(person)}
+                    color={colorOf(person)}
                     selected={had.includes(person.id)}
                     onPress={() => togglePerson(item.id, person.id)}
                   />
@@ -457,46 +524,353 @@ export default function SplitScreen() {
                 {people.length > 2 && (
                   <Chip
                     label="Everyone"
+                    dashed
                     selected={everyoneIds.every((personId) => had.includes(personId))}
-                    onPress={() => toggleEveryone(item.id)}
+                    onPress={() => toggleEveryone(item)}
                   />
                 )}
               </View>
-            </Card>
-          )
-        })}
+            )}
+            {!alone && isCountable(item) && had.length > 0 && (
+              <View style={[styles.counts, { borderTopColor: theme.hairline }]}>
+                <AppText variant="caption">How many each had</AppText>
+                {people
+                  .filter((person) => had.includes(person.id))
+                  .map((person) => (
+                    <View key={person.id} style={styles.countRow}>
+                      <Avatar name={nameOf(person)} color={colorOf(person)} size={24} />
+                      <AppText variant="label" numberOfLines={1} style={styles.flex}>
+                        {nameOf(person)}
+                      </AppText>
+                      <AppText variant="caption" style={styles.amount}>
+                        {money(shares[person.id] ?? 0)}
+                      </AppText>
+                      <Stepper
+                        value={picks[item.id]?.[person.id] ?? 1}
+                        max={item.qty}
+                        onChange={(units) => setUnits(item.id, person.id, units)}
+                        label={`${names.main} for ${nameOf(person)}`}
+                      />
+                    </View>
+                  ))}
+              </View>
+            )}
+          </Card>
+        )
+      })}
+
+      {charges.length > 0 && (
+        <AppText variant="caption" style={styles.footnote}>
+          Totals include {charges.join(' and ')}, shared in proportion.
+        </AppText>
+      )}
+    </>
+  )
+
+  const paymentsTab = alone ? (
+    <Card>
+      <AppText variant="heading">Nothing to track yet</AppText>
+      <AppText variant="muted">Add who was there on the Items tab. Then pick who paid and mark people as they pay back.</AppText>
+      <Button title="Add people" variant="secondary" onPress={() => setTab('items')} />
+    </Card>
+  ) : (
+    <>
+      <Card>
+        <AppText variant="heading">Who paid the bill?</AppText>
+        <AppText variant="caption">Everyone else pays them back.</AppText>
+        <View style={[styles.chips, styles.spaced]}>
+          {people.map((person) => (
+            <PersonChip
+              key={person.id}
+              role="radio"
+              name={nameOf(person)}
+              color={colorOf(person)}
+              selected={person.is_payer}
+              onPress={() => choosePayer(person)}
+            />
+          ))}
+        </View>
+      </Card>
+
+      {payer && (
+        <Card style={styles.paidCard}>
+          <AppText variant="muted">Paid back to {payerName}</AppText>
+          <View style={styles.paidTotal}>
+            <AppText variant="display">{money(paidBack)}</AppText>
+            <AppText variant="muted"> of {money(owedBack)}</AppText>
+          </View>
+          <ProgressBar value={owedBack > 0 ? paidBack / owedBack : 0} color={theme.success} />
+          <View style={styles.paidRows}>
+            {people.map((person, index) => (
+              <View key={person.id} style={[styles.paidRow, index > 0 && { borderTopColor: theme.hairline, borderTopWidth: StyleSheet.hairlineWidth }]}>
+                <Avatar name={nameOf(person)} color={colorOf(person)} size={36} />
+                <View style={styles.flex}>
+                  <AppText variant="label">{nameOf(person)}</AppText>
+                  <AppText variant="caption">
+                    {person.is_payer
+                      ? `Share ${money(totalOf(person))}`
+                      : person.paid_at
+                        ? `Paid ${money(totalOf(person))} back`
+                        : `Owes ${money(totalOf(person))} to ${payerName}`}
+                    {person.guest_key ? ' · picked via link' : ''}
+                  </AppText>
+                </View>
+                {person.is_payer ? (
+                  <Tag label="Paid the bill" />
+                ) : (
+                  <Pressable
+                    onPress={() => togglePaid(person)}
+                    hitSlop={4}
+                    accessibilityRole="checkbox"
+                    accessibilityState={{ checked: !!person.paid_at }}
+                    accessibilityLabel={`${nameOf(person)} paid ${payerName} back`}
+                    style={({ pressed }) => [
+                      styles.paidButton,
+                      person.paid_at
+                        ? { backgroundColor: theme.successSoft, borderColor: theme.success }
+                        : { backgroundColor: theme.surface, borderColor: theme.primary },
+                      { opacity: pressed ? 0.8 : 1 },
+                    ]}>
+                    <AppText variant="label" style={{ color: person.paid_at ? theme.success : theme.primary }}>
+                      {person.paid_at ? '✓ Paid' : 'Mark paid'}
+                    </AppText>
+                  </Pressable>
+                )}
+              </View>
+            ))}
+          </View>
+        </Card>
+      )}
+
+      {friendLinksAvailable &&
+        (receipt.link_enabled ? (
+          <Card>
+            <View style={styles.linkStatus}>
+              <View style={[styles.dot, { backgroundColor: theme.success }]} />
+              <AppText variant="heading">Friend link is on</AppText>
+            </View>
+            <AppText variant="caption">
+              {people.some((person) => person.guest_key)
+                ? `${people
+                    .filter((person) => person.guest_key)
+                    .map((person) => person.name)
+                    .join(', ')} picked their own items. Pull down to see new picks.`
+                : 'Anyone with it can add their name and tick what they had. Pull down to see their picks.'}
+            </AppText>
+            <View style={[styles.buttons, styles.spaced]}>
+              <Button title="Share again" variant="secondary" onPress={shareLink} loading={linkBusy} style={styles.flex} />
+              <Button title="Turn off link" variant="danger" onPress={turnOffLink} disabled={linkBusy} style={styles.flex} />
+            </View>
+          </Card>
+        ) : (
+          <Card>
+            <AppText variant="heading">Let friends pick</AppText>
+            <AppText variant="caption">Send a link and friends tick their own items on the SlipShare website.</AppText>
+            {shareLinkTile}
+          </Card>
+        ))}
+    </>
+  )
+
+  return (
+    <View style={[styles.flex, { backgroundColor: theme.background }]}>
+      <ScreenHeader
+        title={title}
+        subtitle={`Total ${money(receipt.total)}${payer && !alone ? ` · Paid by ${payerName}` : ''}`}
+        right={
+          hasTranslation ? (
+            <Segmented
+              accessibilityLabel="Item names"
+              options={[
+                { value: 'original', label: originalLanguage },
+                { value: 'en', label: 'EN' },
+              ]}
+              value={showEnglish ? 'en' : 'original'}
+              onChange={(value) => setShowEnglish(value === 'en')}
+            />
+          ) : null
+        }>
+        <Tabs
+          tabs={[
+            { value: 'items', label: 'Items' },
+            { value: 'payments', label: 'Payments' },
+          ]}
+          value={tab}
+          onChange={setTab}
+        />
+      </ScreenHeader>
+
+      {tab === 'items' && !alone && (
+        <View style={[styles.strip, { backgroundColor: theme.surface, borderColor: theme.hairline }]}>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            style={styles.stripScroll}
+            contentContainerStyle={styles.stripContent}>
+            {people.map((person) => (
+              <View key={person.id} style={[styles.stripCard, { borderColor: theme.hairline, backgroundColor: theme.surface }]}>
+                <Avatar name={nameOf(person)} color={colorOf(person)} size={30} />
+                <View>
+                  <AppText variant="caption" numberOfLines={1}>
+                    {nameOf(person)}
+                  </AppText>
+                  <AppText variant="label" style={styles.amount}>
+                    {money(totalOf(person))}
+                  </AppText>
+                </View>
+              </View>
+            ))}
+            {!editingPeople && (
+              <Pressable
+                onPress={() => setEditingPeople(true)}
+                accessibilityRole="button"
+                accessibilityLabel="Add or remove people"
+                style={({ pressed }) => [
+                  styles.stripCard,
+                  styles.stripAdd,
+                  { borderColor: theme.border, opacity: pressed ? 0.7 : 1 },
+                ]}>
+                <AppText variant="label" style={{ color: theme.primary }}>
+                  + People
+                </AppText>
+              </Pressable>
+            )}
+          </ScrollView>
+        </View>
+      )}
+
+      <ScrollView
+        style={styles.flex}
+        contentContainerStyle={styles.content}
+        keyboardShouldPersistTaps="handled"
+        automaticallyAdjustKeyboardInsets
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refresh} />}>
+        {tab === 'items' ? itemsTab : paymentsTab}
+        <View style={styles.deleteRow}>
+          <TextLink
+            title={deleting ? 'Deleting…' : 'Delete receipt'}
+            color={theme.danger}
+            onPress={() => !deleting && confirmDelete()}
+          />
+        </View>
       </ScrollView>
 
-      <View style={[styles.summary, { backgroundColor: theme.background, borderColor: theme.border }]}>
-        {hasUnassigned ? (
-          <Row label="Not assigned yet" value={money(split.unassigned.total)} bold />
-        ) : (
-          <AppText variant="muted">Every item is assigned.</AppText>
-        )}
-        <Button title="Send totals" onPress={sendTotals} />
-      </View>
-    </SafeAreaView>
+      <SafeAreaView edges={['bottom']} style={[styles.footerBar, { backgroundColor: theme.surface, borderColor: theme.hairline }]}>
+        <View style={styles.footer}>
+          {tab === 'items' &&
+            (alone ? (
+              <View style={styles.footerRow}>
+                <AppText variant="muted" style={styles.flex}>
+                  Just you so far
+                </AppText>
+                <AppText variant="label" style={styles.amount}>
+                  You {money(totalOf(people[0]))}
+                </AppText>
+              </View>
+            ) : hasUnassigned ? (
+              <View style={styles.footerProgress}>
+                <View style={styles.footerRow}>
+                  <AppText variant="label" style={[styles.flex, { color: theme.warning }]}>
+                    {unassignedCount} item{unassignedCount === 1 ? '' : 's'} not assigned yet
+                  </AppText>
+                  <AppText variant="label" style={[styles.amount, { color: theme.warning }]}>
+                    {money(split.unassigned.total)}
+                  </AppText>
+                </View>
+                <ProgressBar value={assignedShare} />
+              </View>
+            ) : (
+              <AppText variant="label" style={{ color: theme.success }}>
+                ✓ Every item is assigned
+              </AppText>
+            ))}
+          <Button title="Send totals" onPress={sendTotals} icon={<ShareIcon color={theme.onPrimary} />} />
+        </View>
+      </SafeAreaView>
+    </View>
   )
 }
 
 const styles = StyleSheet.create({
   flex: { flex: 1 },
   centered: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: Spacing.four },
-  content: { padding: Spacing.three, gap: Spacing.two, width: '100%', maxWidth: MaxContentWidth, alignSelf: 'center' },
-  header: { gap: Spacing.one, marginBottom: Spacing.two },
-  toggle: { flexDirection: 'row', alignItems: 'center' },
-  itemRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.three },
-  amount: { fontVariant: ['tabular-nums'] },
-  personRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two, minHeight: 36 },
-  addRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
-  input: { flex: 1, borderWidth: 1, borderRadius: 12, paddingHorizontal: Spacing.three, minHeight: 48, fontSize: 16 },
-  chips: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.two },
-  summary: {
+  deleteRow: { paddingVertical: Spacing.two },
+  content: {
     padding: Spacing.three,
-    gap: Spacing.two,
-    borderTopWidth: StyleSheet.hairlineWidth,
+    gap: Spacing.three,
     width: '100%',
     maxWidth: MaxContentWidth,
     alignSelf: 'center',
   },
+  amount: { fontVariant: ['tabular-nums'] },
+  stepCard: { gap: Spacing.three - 4 },
+  stepHeader: { flexDirection: 'row', alignItems: 'flex-start', gap: Spacing.two },
+  chips: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.two },
+  spaced: { marginTop: Spacing.one },
+  personPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.two,
+    borderRadius: Radius.pill,
+    paddingLeft: Spacing.one + 2,
+    paddingRight: Spacing.three,
+    minHeight: 40,
+  },
+  addRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
+  suggestions: { gap: Spacing.two },
+  linkTile: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.three - 4,
+    borderWidth: 1,
+    borderRadius: Radius.medium,
+    padding: Spacing.three - 4,
+  },
+  linkIcon: { width: 36, height: 36, borderRadius: Radius.small + 2, alignItems: 'center', justifyContent: 'center' },
+  sectionRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.three, marginTop: Spacing.one },
+  itemCard: { gap: Spacing.three - 4 },
+  counts: { gap: Spacing.two, borderTopWidth: StyleSheet.hairlineWidth, paddingTop: Spacing.three - 4 },
+  countRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
+  itemRow: { flexDirection: 'row', alignItems: 'flex-start', gap: Spacing.three },
+  priceColumn: { alignItems: 'flex-end' },
+  footnote: { textAlign: 'center', marginTop: Spacing.one },
+  paidCard: { gap: Spacing.two },
+  paidTotal: { flexDirection: 'row', alignItems: 'baseline' },
+  paidRows: { marginTop: Spacing.two },
+  paidRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.three - 4, paddingVertical: Spacing.three - 4 },
+  paidButton: {
+    borderWidth: 1,
+    borderRadius: Radius.medium,
+    paddingHorizontal: Spacing.three - 2,
+    minHeight: 38,
+    justifyContent: 'center',
+  },
+  linkStatus: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
+  dot: { width: 8, height: 8, borderRadius: 4 },
+  buttons: { flexDirection: 'row', gap: Spacing.two },
+  strip: { borderBottomWidth: StyleSheet.hairlineWidth },
+  stripScroll: { width: '100%', maxWidth: MaxContentWidth, alignSelf: 'center' },
+  stripContent: { gap: Spacing.two, paddingHorizontal: Spacing.three, paddingVertical: Spacing.two + 2 },
+  stripCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.two,
+    borderWidth: 1,
+    borderRadius: Radius.medium,
+    paddingVertical: Spacing.two,
+    paddingHorizontal: Spacing.two + 2,
+    minWidth: 120,
+  },
+  stripAdd: { minWidth: 0, borderStyle: 'dashed', justifyContent: 'center' },
+  footerBar: { borderTopWidth: StyleSheet.hairlineWidth },
+  footer: {
+    padding: Spacing.three,
+    paddingBottom: Spacing.three,
+    gap: Spacing.three - 4,
+    width: '100%',
+    maxWidth: MaxContentWidth,
+    alignSelf: 'center',
+  },
+  footerRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
+  footerProgress: { gap: Spacing.two },
 })

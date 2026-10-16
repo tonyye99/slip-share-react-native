@@ -34,9 +34,11 @@ function schema(enableTranslation: boolean) {
     id: { type: 'string' },
     name: { type: 'string', description: 'Item name in original language' },
     qty: { type: 'integer' },
-    unit_price: { type: 'number' },
+    // Receipts print what the whole line costs ("2  Ramen  320"), and asked
+    // for a unit price the model sometimes gave that line total instead.
+    line_total: { type: 'number', description: 'The amount printed for this whole line, for all of its quantity' },
   }
-  const itemRequired = ['id', 'name', 'qty', 'unit_price']
+  const itemRequired = ['id', 'name', 'qty', 'line_total']
   const properties: Record<string, unknown> = {
     is_receipt: {
       type: 'boolean',
@@ -160,7 +162,12 @@ Deno.serve(async (req) => {
         format: { type: 'json_schema', name: 'parse_bill', schema: schema(enableTranslation), strict: true },
       },
     })
-    return json(JSON.parse(result.output_text))
+    const parsed = JSON.parse(result.output_text)
+    parsed.items = parsed.items.map(({ line_total, ...item }: { qty: number; line_total: number }) => {
+      const qty = Math.max(1, item.qty)
+      return { ...item, qty, unit_price: Math.round((line_total / qty) * 100) / 100 }
+    })
+    return json(parsed)
   } catch (error) {
     console.error('parse-receipt failed:', error)
     return json({ error: 'Failed to parse receipt' }, 500)

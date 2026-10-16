@@ -1,3 +1,4 @@
+import { confirmDestructive } from '@/lib/alert'
 import { billTotal, receiptSubtotal } from '@/lib/split'
 import { supabase } from '@/lib/supabase'
 import type { ParsedReceipt, Receipt, ReceiptPerson, ReceiptWithPeople } from '@/lib/types'
@@ -25,7 +26,7 @@ export async function listReceipts(offset: number, limit: number) {
 export async function getReceipt(id: string): Promise<ReceiptWithPeople> {
   const { data, error } = await supabase
     .from('receipts')
-    .select('*, receipts_items(*, receipt_item_people(person_id)), receipt_people(*)')
+    .select('*, receipts_items(*, receipt_item_people(person_id, units)), receipt_people(*)')
     .eq('id', id)
     .single()
   if (error) throw error
@@ -95,12 +96,10 @@ export async function removePerson(personId: string) {
   if (error) throw error
 }
 
-/** Ticks people on items. Rows that are already there are left alone. */
-export async function addItemPeople(rows: { item_id: string; person_id: string }[]) {
+/** Ticks people on items, or changes how many of an item they had. */
+export async function addItemPeople(rows: { item_id: string; person_id: string; units: number }[]) {
   if (rows.length === 0) return
-  const { error } = await supabase
-    .from('receipt_item_people')
-    .upsert(rows, { onConflict: 'item_id,person_id', ignoreDuplicates: true })
+  const { error } = await supabase.from('receipt_item_people').upsert(rows, { onConflict: 'item_id,person_id' })
   if (error) throw error
 }
 
@@ -145,6 +144,23 @@ export async function getRecentNames(): Promise<string[]> {
     }
   }
   return names
+}
+
+/** Asks before deleting a receipt; `onConfirm` runs only if the person agrees. */
+export function confirmDeleteReceipt(onConfirm: () => void) {
+  confirmDestructive(
+    'Delete this receipt?',
+    "It's removed for good, with the names, picks and payments on it, and its friend link stops working.",
+    'Delete',
+    onConfirm,
+  )
+}
+
+/** Deletes a receipt for good, with its items, people and picks. */
+export async function deleteReceipt(receiptId: string): Promise<void> {
+  const { data, error } = await supabase.from('receipts').delete().eq('id', receiptId).select('id')
+  if (error) throw error
+  if (!data.length) throw new Error('Receipt not found')
 }
 
 /**

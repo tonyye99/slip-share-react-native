@@ -2,7 +2,8 @@ import { Redirect, router } from 'expo-router'
 import { useState } from 'react'
 import { Platform, Pressable, ScrollView, StyleSheet, View } from 'react-native'
 
-import { AppText, Button, Card, Row, TextField } from '@/components/ui'
+import { ScreenHeader } from '@/components/screen-header'
+import { AppText, Button, Card, Divider, Row, TextField } from '@/components/ui'
 import { MaxContentWidth, Spacing } from '@/constants/theme'
 import { useTheme } from '@/hooks/use-theme'
 import { useUserId } from '@/lib/auth'
@@ -94,18 +95,27 @@ export default function ReviewScreen() {
   }
 
   return (
+    <View style={[styles.flex, { backgroundColor: theme.background }]}>
+    <ScreenHeader
+      title={draft.merchant_name || 'Receipt'}
+      subtitle={[
+        showEnglish && draft.merchant_name_en ? draft.merchant_name_en : null,
+        `${items.length} item${items.length === 1 ? '' : 's'}`,
+        draft.currency,
+        draft.original_language ? draft.original_language.toUpperCase() : null,
+      ]
+        .filter(Boolean)
+        .join(' · ')}
+    />
     <ScrollView
-      style={{ backgroundColor: theme.background }}
+      style={styles.flex}
       contentContainerStyle={styles.content}
       keyboardShouldPersistTaps="handled"
       automaticallyAdjustKeyboardInsets>
       <View style={styles.header}>
-        <AppText variant="title">{draft.merchant_name || 'Receipt'}</AppText>
-        {showEnglish && draft.merchant_name_en ? <AppText variant="muted">{draft.merchant_name_en}</AppText> : null}
-        <AppText variant="muted">
-          {items.length} item{items.length === 1 ? '' : 's'} · {draft.currency}
-          {draft.original_language ? ` · ${draft.original_language.toUpperCase()}` : ''}
-        </AppText>
+        <AppText variant="overline">Check the items</AppText>
+        <AppText variant="title">Did we read it right?</AppText>
+        <AppText variant="muted">Fix anything misread before you split the bill.</AppText>
       </View>
 
       <Card>
@@ -113,11 +123,12 @@ export default function ReviewScreen() {
           <AppText variant="heading" style={styles.flex}>
             Items
           </AppText>
-          <Pressable onPress={editing ? finishEditing : () => setEditing(true)} hitSlop={8} accessibilityRole="button">
-            <AppText variant="label" style={{ color: theme.primary }}>
-              {editing ? 'Done' : 'Edit'}
-            </AppText>
-          </Pressable>
+          <Button
+            title={editing ? 'Done' : 'Edit'}
+            size="small"
+            variant="secondary"
+            onPress={editing ? finishEditing : () => setEditing(true)}
+          />
         </View>
         {items.map((item) => {
           const { qty, unit_price } = amountsOf(item)
@@ -125,15 +136,15 @@ export default function ReviewScreen() {
             return (
               <View key={item.key} style={styles.item}>
                 <View style={styles.flex}>
-                  <AppText>{item.name}</AppText>
-                  {showEnglish && item.name_en && item.name_en !== item.name ? (
-                    <AppText variant="muted">{item.name_en}</AppText>
-                  ) : null}
-                  <AppText variant="muted">
+                  <AppText variant="label">{item.name}</AppText>
+                  <AppText variant="caption">
+                    {showEnglish && item.name_en && item.name_en !== item.name ? `${item.name_en} · ` : ''}
                     {qty} × {money(unit_price)}
                   </AppText>
                 </View>
-                <AppText style={styles.amount}>{money(qty * unit_price)}</AppText>
+                <AppText variant="label" style={styles.amount}>
+                  {money(qty * unit_price)}
+                </AppText>
               </View>
             )
           }
@@ -182,12 +193,13 @@ export default function ReviewScreen() {
 
       <Card>
         <Row label="Subtotal" value={money(subtotal)} />
-        {service > 0 && <Row label={`Service (${draft.service_percent}%)`} value={money(service)} />}
-        {tax > 0 && <Row label={`Tax (${draft.tax_percent}%)`} value={money(tax)} />}
+        {service > 0 && <Row label={`Service ${draft.service_percent}%`} value={money(service)} />}
+        {tax > 0 && <Row label={`VAT ${draft.tax_percent}%`} value={money(tax)} />}
         {draft.rounding !== 0 && <Row label="Rounding" value={money(draft.rounding)} />}
+        <Divider />
         <Row label="Total" value={money(total)} bold />
         {doesNotAddUp && (
-          <AppText variant="muted">
+          <AppText variant="caption" style={{ color: theme.warning }}>
             {edited
               ? `The receipt's printed total is ${money(draft.total)}. ` +
                 `Saving uses ${money(itemsTotal)}, the total of these items.`
@@ -202,6 +214,7 @@ export default function ReviewScreen() {
       <Button title="Continue" onPress={save} loading={saving} />
       <Button title="Start over" variant="secondary" onPress={() => router.replace('/scan')} disabled={saving} />
     </ScrollView>
+    </View>
   )
 }
 
@@ -211,7 +224,7 @@ const styles = StyleSheet.create({
   flex: { flex: 1 },
   item: { flexDirection: 'row', gap: Spacing.three, paddingVertical: Spacing.one },
   cardHeader: { flexDirection: 'row', alignItems: 'center' },
-  editItem: { gap: Spacing.two, paddingBottom: Spacing.three, borderBottomWidth: StyleSheet.hairlineWidth },
+  editItem: { gap: Spacing.two, paddingVertical: Spacing.three - 4, borderBottomWidth: StyleSheet.hairlineWidth },
   editRow: { flexDirection: 'row', gap: Spacing.two },
   qtyField: { width: 88 },
   amount: { fontVariant: ['tabular-nums'] },

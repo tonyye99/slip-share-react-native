@@ -23,11 +23,11 @@ Built with Expo (SDK 57, Expo Router) and TypeScript. It uses the same Supabase 
 | `sign-in`, `sign-up` | Email and password, plus Continue with Apple (iOS app only), Google and GitHub |
 | `forgot-password`, `reset-password` | Emails a reset link; the link opens the app to choose a new password |
 | `auth/callback` | Where email confirmation and OAuth links land |
-| `(app)/index` | Your receipts (pull to refresh, infinite scroll) and "Scan a receipt" |
+| `(app)/index` | Your receipts (pull to refresh, infinite scroll, swipe one left to delete it) and "Scan a receipt" |
 | `(app)/account` | Your email, sign out, turn receipt scanning off, the privacy policy, and delete your account (asks you to confirm first) |
 | `(app)/scan` | Asks once for permission to send photos to OpenAI. Then camera or photo library, optional English translation, sends a resized JPEG to the parser |
 | `(app)/review` | Parsed items and totals. Fix, add or remove misread items (warns when they don't add up to the printed total), save |
-| `(app)/receipts/[id]` | Add who was there, tap who had each item (or split everything evenly), pick who paid, mark who has paid back, and send everyone their total. Or share a link so friends pick their own items (pull down to see them). Saves as you tap |
+| `(app)/receipts/[id]` | Add who was there, tap who had each item (or split everything evenly), pick who paid, mark who has paid back, and send everyone their total. Or share a link so friends pick their own items (pull down to see them). Saves as you tap. Delete receipt (asks first) is at the bottom |
 | `pick/[token]` | The friend link, usually opened on the website: type or tap your name, tick what you had, see your share. No sign-in |
 
 ## Setup
@@ -44,7 +44,7 @@ Built with Expo (SDK 57, Expo Router) and TypeScript. It uses the same Supabase 
    npx supabase functions deploy delete-account
    ```
 4. Set up sign-in in the Supabase dashboard (see below).
-5. `npx expo start`, then open it in Expo Go or a development build. To install the app on your phone instead, see [Install on your phone](#install-on-your-phone-eas-build).
+5. `npm start`, then scan the QR code with Expo Go. For a development build, run `npm run start:dev` instead. To install the app on your phone instead, see [Install on your phone](#install-on-your-phone-eas-build).
 
 ## Sign-in setup (Supabase dashboard)
 
@@ -62,7 +62,7 @@ EAS builds the app in Expo's cloud, so you don't need Xcode or Android Studio. `
 | Profile | What you get |
 |---|---|
 | `preview` | The app as users will see it, installed from a link. Android gets an APK. |
-| `development` | A dev build that loads code from `npx expo start` on your computer, with live reload. Needed for native modules Expo Go lacks. |
+| `development` | A dev build that loads code from `npm run start:dev` on your computer, with live reload. Needed for native modules Expo Go lacks. |
 | `production` | Store builds. The build number goes up on each build. |
 
 Builds need a free [Expo account](https://expo.dev/signup). An iPhone also needs a paid Apple Developer account, because builds outside the App Store must be signed for your device. Android needs nothing extra.

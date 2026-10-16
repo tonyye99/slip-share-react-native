@@ -3,6 +3,7 @@ import * as SplashScreen from 'expo-splash-screen'
 import { useEffect } from 'react'
 import { useColorScheme } from 'react-native'
 
+import { Colors } from '@/constants/theme'
 import { AuthProvider, useAuth } from '@/lib/auth'
 
 SplashScreen.preventAutoHideAsync()
@@ -34,10 +35,36 @@ function RootStack() {
   )
 }
 
+// Screen backgrounds behind transitions follow the app's own colours.
+const navigationThemes = {
+  light: {
+    ...DefaultTheme,
+    colors: {
+      ...DefaultTheme.colors,
+      primary: Colors.light.primary,
+      background: Colors.light.background,
+      card: Colors.light.surface,
+      text: Colors.light.text,
+      border: Colors.light.hairline,
+    },
+  },
+  dark: {
+    ...DarkTheme,
+    colors: {
+      ...DarkTheme.colors,
+      primary: Colors.dark.primary,
+      background: Colors.dark.background,
+      card: Colors.dark.surface,
+      text: Colors.dark.text,
+      border: Colors.dark.hairline,
+    },
+  },
+}
+
 export default function RootLayout() {
   const colorScheme = useColorScheme()
   return (
-    <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
+    <ThemeProvider value={colorScheme === 'dark' ? navigationThemes.dark : navigationThemes.light}>
       <AuthProvider>
         <RootStack />
       </AuthProvider>
