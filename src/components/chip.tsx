@@ -1,7 +1,7 @@
 import { Pressable, StyleSheet, View } from 'react-native'
 
 import { AppText } from '@/components/ui'
-import { Colors, PersonColors, Radius, Spacing } from '@/constants/theme'
+import { Colors, PersonColors, PersonColorsDark, Radius, Spacing } from '@/constants/theme'
 import { useTheme } from '@/hooks/use-theme'
 
 type Role = 'checkbox' | 'radio' | 'button'
@@ -9,8 +9,11 @@ type Role = 'checkbox' | 'radio' | 'button'
 const stateFor = (role: Role, selected: boolean, disabled?: boolean) =>
   role === 'radio' ? { selected, disabled } : role === 'checkbox' ? { checked: selected, disabled } : { disabled }
 
-/** Each person keeps one colour, picked by their place on the bill. */
-export const personColor = (index: number) => PersonColors[Math.max(0, index) % PersonColors.length]
+/** Each person keeps one colour, picked by their place on the bill, and a lighter one in dark mode. */
+export function usePersonColor() {
+  const palette = useTheme() === Colors.dark ? PersonColorsDark : PersonColors
+  return (index: number) => palette[Math.max(0, index) % palette.length]
+}
 
 const initialOf = (name: string) => (Array.from(name.trim())[0] ?? '?').toUpperCase()
 
@@ -25,7 +28,7 @@ export function Avatar({ name, color, size = 28, soft }: { name: string; color: 
         styles.avatar,
         { width: size, height: size, borderRadius: size / 2, backgroundColor: pale ? `${color}1F` : color },
       ]}>
-      <AppText style={{ color: pale ? color : '#FFFFFF', fontSize: size * 0.46, lineHeight: size * 0.6, fontWeight: '600' }}>
+      <AppText style={{ color: pale ? color : theme.onPerson, fontSize: size * 0.46, lineHeight: size * 0.6, fontWeight: '600' }}>
         {initialOf(name)}
       </AppText>
     </View>
@@ -68,13 +71,47 @@ export function PersonChip({
       ]}>
       {selected ? (
         <View style={[styles.tick, { backgroundColor: 'rgba(255,255,255,0.25)' }]}>
-          <AppText style={styles.tickText}>✓</AppText>
+          <AppText style={[styles.tickText, { color: theme.onPerson }]}>✓</AppText>
         </View>
       ) : (
         <Avatar name={name} color={color} size={26} soft />
       )}
-      <AppText variant="label" style={{ color: selected ? '#FFFFFF' : theme.text }}>
+      <AppText variant="label" style={{ color: selected ? theme.onPerson : theme.text }}>
         {name}
+      </AppText>
+    </Pressable>
+  )
+}
+
+/** A round initial you tap on or off, for picking who had an item. Off, it's a dashed outline. */
+export function InitialChip({
+  name,
+  color,
+  selected = false,
+  onPress,
+  accessibilityLabel,
+}: {
+  name: string
+  color: string
+  selected?: boolean
+  onPress: () => void
+  accessibilityLabel?: string
+}) {
+  const theme = useTheme()
+  return (
+    <Pressable
+      onPress={onPress}
+      hitSlop={2}
+      accessibilityRole="checkbox"
+      accessibilityLabel={accessibilityLabel ?? name}
+      accessibilityState={{ checked: selected }}
+      style={({ pressed }) => [
+        styles.initial,
+        selected ? { backgroundColor: color, borderColor: color } : { borderColor: theme.border, borderStyle: 'dashed' },
+        { opacity: pressed ? 0.8 : 1 },
+      ]}>
+      <AppText variant="label" style={{ color: selected ? theme.onPerson : theme.textSecondary }}>
+        {initialOf(name)}
       </AppText>
     </Pressable>
   )
@@ -135,7 +172,8 @@ const styles = StyleSheet.create({
     minHeight: 40,
   },
   tick: { width: 26, height: 26, borderRadius: 13, alignItems: 'center', justifyContent: 'center' },
-  tickText: { color: '#FFFFFF', fontSize: 14, lineHeight: 18, fontWeight: '700' },
+  tickText: { fontSize: 14, lineHeight: 18, fontWeight: '700' },
+  initial: { width: 40, height: 40, borderRadius: 20, borderWidth: 1.5, alignItems: 'center', justifyContent: 'center' },
   chip: {
     borderWidth: 1,
     borderRadius: Radius.pill,

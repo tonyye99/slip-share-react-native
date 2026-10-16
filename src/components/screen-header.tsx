@@ -21,6 +21,7 @@ export function ScreenHeader({
   subtitle,
   back = true,
   brand,
+  plain,
   right,
   children,
 }: {
@@ -30,12 +31,21 @@ export function ScreenHeader({
   back?: boolean
   /** Show the SlipShare mark and name instead of a title. */
   brand?: boolean
+  /** Sit on the grey page with no bar or line, like the split screen. */
+  plain?: boolean
   right?: ReactNode
   children?: ReactNode
 }) {
   const theme = useTheme()
   return (
-    <SafeAreaView edges={['top']} style={[styles.bar, { backgroundColor: theme.surface, borderColor: theme.hairline }]}>
+    <SafeAreaView
+      edges={['top']}
+      style={[
+        styles.bar,
+        plain
+          ? { backgroundColor: theme.background, borderBottomWidth: 0 }
+          : { backgroundColor: theme.surface, borderColor: theme.hairline },
+      ]}>
       <View style={styles.inner}>
         <View style={styles.row}>
           {back && (

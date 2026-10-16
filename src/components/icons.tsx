@@ -224,6 +224,98 @@ export function GearIcon({ color, background, size = 22 }: { color: string; back
   )
 }
 
+/** Three dots in a row, for a "more" menu. */
+export function DotsIcon({ color, size = 20 }: { color: string; size?: number }) {
+  const dot = { width: size * 0.18, height: size * 0.18, borderRadius: size, backgroundColor: color }
+  return (
+    <View style={{ width: size, height: size, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+      <View style={dot} />
+      <View style={dot} />
+      <View style={dot} />
+    </View>
+  )
+}
+
+/** A head and shoulders, for one person. */
+export function PersonIcon({ color, size = 20 }: { color: string; size?: number }) {
+  return (
+    <View style={{ width: size, height: size, alignItems: 'center', justifyContent: 'space-between' }}>
+      <View style={{ width: size * 0.42, height: size * 0.42, borderRadius: size, borderWidth: 2, borderColor: color }} />
+      <View
+        style={{
+          width: size * 0.8,
+          height: size * 0.42,
+          borderWidth: 2,
+          borderBottomWidth: 0,
+          borderColor: color,
+          borderTopLeftRadius: size,
+          borderTopRightRadius: size,
+        }}
+      />
+    </View>
+  )
+}
+
+/** Two people side by side, for "everyone". */
+export function PeopleIcon({ color, size = 22 }: { color: string; size?: number }) {
+  return (
+    <View style={{ width: size * 1.3, height: size, flexDirection: 'row', alignItems: 'flex-end' }}>
+      <PersonIcon color={color} size={size * 0.85} />
+      <View style={{ marginLeft: -size * 0.3 }}>
+        <PersonIcon color={color} size={size} />
+      </View>
+    </View>
+  )
+}
+
+/** An X, for closing. */
+export function CloseIcon({ color, size = 16 }: { color: string; size?: number }) {
+  const bar = { position: 'absolute', width: size * 1.2, height: 2, borderRadius: 1, backgroundColor: color } as const
+  return (
+    <View style={{ width: size, height: size, alignItems: 'center', justifyContent: 'center' }}>
+      <View style={[bar, { transform: [{ rotate: '45deg' }] }]} />
+      <View style={[bar, { transform: [{ rotate: '-45deg' }] }]} />
+    </View>
+  )
+}
+
+/** A tick mark. */
+export function CheckIcon({ color, size = 20, weight = 3 }: { color: string; size?: number; weight?: number }) {
+  return (
+    <View style={{ width: size, height: size, alignItems: 'center', justifyContent: 'center' }}>
+      <View
+        style={{
+          width: size * 0.7,
+          height: size * 0.38,
+          borderLeftWidth: weight,
+          borderBottomWidth: weight,
+          borderColor: color,
+          borderBottomLeftRadius: 1,
+          transform: [{ rotate: '-45deg' }],
+          marginTop: -size * 0.12,
+        }}
+      />
+    </View>
+  )
+}
+
+/** A chevron pointing down, or up when `up`. */
+export function ChevronDownIcon({ color, size = 10, up }: { color: string; size?: number; up?: boolean }) {
+  return (
+    <View
+      style={{
+        width: size,
+        height: size,
+        borderRightWidth: 2,
+        borderBottomWidth: 2,
+        borderColor: color,
+        transform: [{ rotate: up ? '-135deg' : '45deg' }],
+        marginTop: up ? size * 0.3 : -size * 0.3,
+      }}
+    />
+  )
+}
+
 /** The SlipShare mark: a receipt on a blue tile. */
 export function Logo({ size = 28 }: { size?: number }) {
   const theme = useTheme()
