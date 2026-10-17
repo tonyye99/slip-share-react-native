@@ -26,15 +26,13 @@ export function Sheet({
 }) {
   const theme = useTheme()
   const insets = useSafeAreaInsets()
-  // The dimmed page fades in while the panel slides up over it.
+  // The dimmed page fades in or out while the panel slides up or back down.
   const [slide] = useState(() => new Animated.Value(0))
   useEffect(() => {
-    if (!visible) return
-    slide.setValue(0)
     Animated.timing(slide, {
-      toValue: 1,
-      duration: 280,
-      easing: Easing.out(Easing.cubic),
+      toValue: visible ? 1 : 0,
+      duration: visible ? 280 : 220,
+      easing: visible ? Easing.out(Easing.cubic) : Easing.in(Easing.cubic),
       useNativeDriver: Platform.OS !== 'web',
     }).start()
   }, [visible, slide])
