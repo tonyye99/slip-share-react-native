@@ -19,7 +19,7 @@ import { Avatar, Chip, InitialChip, usePersonColor } from '@/components/chip'
 import { CheckIcon, DotsIcon, LinkIcon, PeopleIcon, PersonIcon, ShareIcon, TrashIcon } from '@/components/icons'
 import { ScreenHeader } from '@/components/screen-header'
 import { Sheet, SheetOption } from '@/components/sheet'
-import { SwipeActions } from '@/components/swipe-actions'
+import { justSwiped, SwipeActions } from '@/components/swipe-actions'
 import { AppText, Button, Card, Divider, Input, ProgressBar, Stepper, TextLink } from '@/components/ui'
 import { MaxContentWidth, Radius, Spacing } from '@/constants/theme'
 import { useTheme } from '@/hooks/use-theme'
@@ -111,7 +111,7 @@ export default function SplitScreen() {
   const [editingPeople, setEditingPeople] = useState(false)
   // The person card that is open, showing what they owe.
   const [detailFor, setDetailFor] = useState<string | null>(null)
-  // The item a right swipe asked "Who had it?" about.
+  // The item open in the "Who had this?" sheet, from a tap or a right swipe.
   const [pickFor, setPickFor] = useState<string | null>(null)
   const [pickOpen, setPickOpen] = useState(false)
   const [menuOpen, setMenuOpen] = useState(false)
@@ -248,15 +248,10 @@ export default function SplitScreen() {
     }
   }
 
-  // The whole item goes to one person, all of it on lines like 2 × Egg Kim Bab.
-  const giveTo = (item: Item, personId: string) => {
-    const others = peopleOn(item.id).filter((other) => other !== personId)
-    const units = isCountable(item) ? item.qty : 1
-    setItemPicks(item.id, { [personId]: units })
-    save(async () => {
-      if (others.length > 0) await removeItemPeople(item.id, others)
-      await addItemPeople([{ item_id: item.id, person_id: personId, units }])
-    })
+  // On lines like 2 × Egg Kim Bab, how many someone had; 0 takes them off it.
+  const setCount = (item: Item, personId: string, units: number) => {
+    if (units > 0) return setUnits(item.id, personId, units)
+    if (personId in (picks[item.id] ?? {})) togglePerson(item.id, personId)
   }
 
   const splitEvenly = () => {
@@ -585,11 +580,9 @@ export default function SplitScreen() {
             <AppText variant="caption" style={[styles.flex, styles.assignedText, { color: hasUnassigned ? theme.text : theme.success }]}>
               {hasUnassigned ? `${assignedItems} of ${itemCount} items assigned` : `All ${itemCount} items assigned`}
             </AppText>
-            {hasUnassigned && (
-              <AppText variant="caption" style={styles.amount}>
-                {money(split.unassigned.total)} left
-              </AppText>
-            )}
+            <AppText variant="caption" style={styles.amount}>
+              {hasUnassigned ? `${money(split.unassigned.total)} left` : 'Ready to send'}
+            </AppText>
           </View>
           <ProgressBar value={assignedShare} color={hasUnassigned ? theme.primary : theme.success} />
         </View>
@@ -743,12 +736,16 @@ export default function SplitScreen() {
     )
   })()
 
+  const openItem = (itemId: string) => {
+    setPickFor(itemId)
+    setPickOpen(true)
+  }
+
   const itemRow = (item: Item, index: number) => {
     const had = peopleOn(item.id)
     const lineTotal = item.qty * item.unit_price
     const names = bothNames(item.name, item.name_en, showEnglish)
     const status = itemStatus(item, had)
-    const { shares } = sharesOf(item)
     const everyoneOn = everyoneIds.every((personId) => had.includes(personId))
     const caption = [names.other, item.qty !== 1 ? `${item.qty} × ${money(item.unit_price)}` : null]
       .filter(Boolean)
@@ -760,7 +757,13 @@ export default function SplitScreen() {
           { backgroundColor: theme.surface },
           index > 0 && { borderTopColor: theme.hairline, borderTopWidth: StyleSheet.hairlineWidth },
         ]}>
-        <View style={styles.itemTop}>
+        <Pressable
+          onPress={() => !justSwiped() && openItem(item.id)}
+          disabled={alone}
+          accessibilityRole="button"
+          accessibilityLabel={`${names.main}, ${money(lineTotal)}`}
+          accessibilityHint={alone ? undefined : 'Choose who had it'}
+          style={styles.itemTop}>
           <View style={styles.flex}>
             <AppText variant="heading">{names.main}</AppText>
             {caption ? <AppText variant="caption">{caption}</AppText> : null}
@@ -768,7 +771,7 @@ export default function SplitScreen() {
           <AppText variant="heading" style={styles.amount}>
             {money(lineTotal)}
           </AppText>
-        </View>
+        </Pressable>
         {!alone && (
           <View style={styles.chipRow}>
             <View style={styles.initials}>
@@ -778,12 +781,12 @@ export default function SplitScreen() {
                   name={nameOf(person)}
                   color={colorOf(person)}
                   selected={had.includes(person.id)}
-                  onPress={() => togglePerson(item.id, person.id)}
+                  onPress={() => !justSwiped() && togglePerson(item.id, person.id)}
                   accessibilityLabel={`${nameOf(person)} had ${names.main}`}
                 />
               ))}
               <Pressable
-                onPress={() => toggleEveryone(item)}
+                onPress={() => !justSwiped() && toggleEveryone(item)}
                 hitSlop={2}
                 accessibilityRole="checkbox"
                 accessibilityState={{ checked: everyoneOn }}
@@ -797,33 +800,11 @@ export default function SplitScreen() {
                 </AppText>
               </Pressable>
             </View>
-            <AppText variant="caption" style={[styles.status, status.warn && { color: theme.warning, fontWeight: '600' }]}>
-              {status.text}
-            </AppText>
-          </View>
-        )}
-        {!alone && isCountable(item) && had.length > 0 && (
-          <View style={[styles.counts, { borderTopColor: theme.hairline }]}>
-            <AppText variant="caption">How many each had</AppText>
-            {people
-              .filter((person) => had.includes(person.id))
-              .map((person) => (
-                <View key={person.id} style={styles.countRow}>
-                  <Avatar name={nameOf(person)} color={colorOf(person)} size={24} />
-                  <AppText variant="label" numberOfLines={1} style={styles.flex}>
-                    {nameOf(person)}
-                  </AppText>
-                  <AppText variant="caption" style={styles.amount}>
-                    {money(shares[person.id] ?? 0)}
-                  </AppText>
-                  <Stepper
-                    value={picks[item.id]?.[person.id] ?? 1}
-                    max={item.qty}
-                    onChange={(units) => setUnits(item.id, person.id, units)}
-                    label={`${names.main} for ${nameOf(person)}`}
-                  />
-                </View>
-              ))}
+            <Pressable onPress={() => !justSwiped() && openItem(item.id)} hitSlop={8} style={styles.status} accessibilityElementsHidden>
+              <AppText variant="caption" style={[styles.statusText, status.warn && { color: theme.warning, fontWeight: '600' }]}>
+                {status.text}
+              </AppText>
+            </Pressable>
           </View>
         )}
       </View>
@@ -837,10 +818,7 @@ export default function SplitScreen() {
           color: theme.primary,
           textColor: theme.onPrimary,
           icon: <PersonIcon color={theme.onPrimary} size={18} />,
-          onAction: () => {
-            setPickFor(item.id)
-            setPickOpen(true)
-          },
+          onAction: () => openItem(item.id),
         }}>
         {row}
       </SwipeActions>
@@ -848,6 +826,26 @@ export default function SplitScreen() {
   }
 
   const pickItem = receipt.receipts_items.find((item) => item.id === pickFor)
+  // What the "Who had this?" sheet shows for that item.
+  const pickSheet = pickItem
+    ? (() => {
+        const had = peopleOn(pickItem.id)
+        const status = itemStatus(pickItem, had)
+        const names = bothNames(pickItem.name, pickItem.name_en, showEnglish)
+        return {
+          names,
+          subtitle: [names.other, `${pickItem.qty} × ${money(pickItem.unit_price)}`].filter(Boolean).join(' · '),
+          status,
+          shares: sharesOf(pickItem).shares,
+          everyoneOn: everyoneIds.every((personId) => had.includes(personId)),
+          // "Split between 2 · ฿144.50 each"
+          summary:
+            had.length > 1 && !status.warn
+              ? `Split between ${had.length}${status.text.endsWith(' each') ? ` · ${status.text}` : ''}`
+              : status.text,
+        }
+      })()
+    : null
   const menuIcon = (icon: ReactNode) => <View style={styles.menuIcon}>{icon}</View>
 
   return (
@@ -902,7 +900,7 @@ export default function SplitScreen() {
         {!alone && hasUnassigned && (
           <View style={[styles.hint, { backgroundColor: theme.primarySoft }]}>
             <AppText variant="caption" style={{ color: theme.primary, fontWeight: '600' }}>
-              →  Swipe an item right to pick who had it
+              Tap an item, or swipe it right, to pick who had it
             </AppText>
           </View>
         )}
@@ -989,34 +987,99 @@ export default function SplitScreen() {
       <Sheet
         visible={pickOpen && !!pickItem}
         onClose={() => setPickOpen(false)}
-        title={pickItem ? `Who had ${nameOfItem(pickItem)}?` : undefined}
-        right={pickItem ? <AppText variant="muted">{money(pickItem.qty * pickItem.unit_price)}</AppText> : null}>
-        <AppText variant="muted" style={styles.sheetNote}>
-          It all goes to who you pick. To share it between a few people, tap their initials on the item.
-        </AppText>
-        {pickItem &&
-          people.map((person) => (
-            <SheetOption
-              key={person.id}
-              label={nameOf(person)}
-              icon={<Avatar name={nameOf(person)} color={colorOf(person)} size={32} />}
-              selected={peopleOn(pickItem.id).includes(person.id)}
-              onPress={() => {
-                giveTo(pickItem, person.id)
-                setPickOpen(false)
-              }}
-            />
-          ))}
-        {pickItem && (
-          <SheetOption
-            label="Everyone"
-            detail="Split it evenly"
-            icon={menuIcon(<PeopleIcon color={theme.text} size={18} />)}
-            onPress={() => {
-              shareWithEveryone(pickItem)
-              setPickOpen(false)
-            }}
-          />
+        title={pickSheet?.names.main}
+        subtitle={pickSheet?.subtitle}
+        right={
+          pickItem ? (
+            <AppText variant="title" style={[styles.amount, styles.sheetPrice]}>
+              {money(pickItem.qty * pickItem.unit_price)}
+            </AppText>
+          ) : null
+        }
+        footer={
+          <View style={styles.sheetFooter}>
+            <AppText variant="caption" style={[styles.flex, pickSheet?.status.warn && { color: theme.warning, fontWeight: '600' }]}>
+              {pickSheet?.summary}
+            </AppText>
+            <Button title="Done" onPress={() => setPickOpen(false)} style={styles.doneButton} />
+          </View>
+        }>
+        {pickItem && pickSheet && (
+          <>
+            <View style={styles.whoHad}>
+              <AppText variant="label" style={styles.flex}>
+                Who had this?
+              </AppText>
+              <Pressable
+                onPress={() => toggleEveryone(pickItem)}
+                accessibilityRole="checkbox"
+                accessibilityState={{ checked: pickSheet.everyoneOn }}
+                accessibilityLabel="Everyone"
+                style={({ pressed }) => [
+                  styles.everyone,
+                  { backgroundColor: pickSheet.everyoneOn ? theme.text : theme.backgroundElement, opacity: pressed ? 0.8 : 1 },
+                ]}>
+                <AppText variant="label" style={{ color: pickSheet.everyoneOn ? theme.background : theme.text }}>
+                  Everyone
+                </AppText>
+              </Pressable>
+            </View>
+            {people.map((person) => {
+              const color = colorOf(person)
+              const units = picks[pickItem.id]?.[person.id] ?? 0
+              const on = person.id in (picks[pickItem.id] ?? {})
+              const rowStyle = [
+                styles.pickRow,
+                on ? { backgroundColor: `${color}1F`, borderColor: color } : { backgroundColor: theme.backgroundElement, borderColor: 'transparent' },
+              ]
+              const share = on ? (
+                <AppText variant="label" style={styles.amount}>
+                  {money(pickSheet.shares[person.id] ?? 0)}
+                </AppText>
+              ) : null
+              // On lines like 2 × Egg Kim Bab, − 1 + says how many each person had.
+              if (isCountable(pickItem)) {
+                return (
+                  <View key={person.id} style={rowStyle}>
+                    <Avatar name={nameOf(person)} color={color} size={32} />
+                    <AppText variant="label" numberOfLines={1} style={styles.flex}>
+                      {nameOf(person)}
+                    </AppText>
+                    {share}
+                    <Stepper
+                      value={units}
+                      min={0}
+                      max={pickItem.qty}
+                      onChange={(next) => setCount(pickItem, person.id, next)}
+                      label={`${pickSheet.names.main} for ${nameOf(person)}`}
+                    />
+                  </View>
+                )
+              }
+              return (
+                <Pressable
+                  key={person.id}
+                  onPress={() => togglePerson(pickItem.id, person.id)}
+                  accessibilityRole="checkbox"
+                  accessibilityState={{ checked: on }}
+                  accessibilityLabel={`${nameOf(person)} had ${pickSheet.names.main}`}
+                  style={({ pressed }) => [rowStyle, { opacity: pressed ? 0.85 : 1 }]}>
+                  <Avatar name={nameOf(person)} color={color} size={32} />
+                  <AppText variant="label" numberOfLines={1} style={styles.flex}>
+                    {nameOf(person)}
+                  </AppText>
+                  {share}
+                  <View
+                    style={[
+                      styles.checkbox,
+                      on ? { backgroundColor: color, borderColor: color } : { backgroundColor: theme.surface, borderColor: theme.border },
+                    ]}>
+                    {on && <CheckIcon color={theme.onPerson} size={14} weight={2} />}
+                  </View>
+                </Pressable>
+              )
+            })}
+          </>
         )}
       </Sheet>
 
@@ -1211,9 +1274,23 @@ const styles = StyleSheet.create({
   chipRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
   initials: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.two + 2, flexShrink: 1 },
   allPill: { minWidth: 44, height: 40, borderRadius: 20, paddingHorizontal: Spacing.three - 4, alignItems: 'center', justifyContent: 'center' },
-  status: { marginLeft: 'auto', textAlign: 'right', maxWidth: 130 },
-  counts: { gap: Spacing.two, borderTopWidth: StyleSheet.hairlineWidth, paddingTop: Spacing.three - 4 },
-  countRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
+  status: { marginLeft: 'auto', maxWidth: 130 },
+  statusText: { textAlign: 'right' },
+  sheetPrice: { fontSize: 22, lineHeight: 28 },
+  whoHad: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two, paddingHorizontal: Spacing.one, marginBottom: Spacing.one },
+  everyone: { borderRadius: Radius.pill, paddingHorizontal: Spacing.three, minHeight: 36, justifyContent: 'center' },
+  pickRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.three - 4,
+    minHeight: 56,
+    paddingHorizontal: Spacing.three - 4,
+    borderWidth: 1.5,
+    borderRadius: Radius.medium + 2,
+  },
+  checkbox: { width: 24, height: 24, borderRadius: 6, borderWidth: 1.5, alignItems: 'center', justifyContent: 'center' },
+  sheetFooter: { flexDirection: 'row', alignItems: 'center', gap: Spacing.three },
+  doneButton: { paddingHorizontal: Spacing.five },
   footnote: { textAlign: 'center', marginTop: Spacing.one },
   footerWrap: { position: 'absolute', left: 0, right: 0, bottom: 0, paddingHorizontal: Spacing.three - 4 },
   footer: {

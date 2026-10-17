@@ -17,6 +17,11 @@ const COMMIT_DISTANCE = 96
 // Dragging with a mouse would otherwise select the row's text.
 const noSelect = Platform.OS === 'web' ? ({ userSelect: 'none' } as unknown as ViewStyle) : null
 
+// A browser still sends a click when the mouse comes up after a drag. Taps inside
+// a swipe row check this, so letting go of a drag doesn't also count as a tap.
+let lastDragEnd = 0
+export const justSwiped = () => Date.now() - lastDragEnd < 400
+
 /**
  * A row you can drag sideways to do something: `start` shows behind it when
  * dragged to the right, `end` when dragged to the left. Letting go far enough
@@ -53,9 +58,13 @@ export function SwipeActions({
         const { start, end } = actions
         if (start && (moved >= COMMIT_DISTANCE || (moved > 24 && g.vx > 0.8))) start.onAction()
         else if (end && (moved <= -COMMIT_DISTANCE || (moved < -24 && g.vx < -0.8))) end.onAction()
+        lastDragEnd = Date.now()
         settle()
       },
-      onPanResponderTerminate: settle,
+      onPanResponderTerminate: () => {
+        lastDragEnd = Date.now()
+        settle()
+      },
     })
     return {
       x,
@@ -79,7 +88,9 @@ export function SwipeActions({
       }>
       {start && <Behind action={start} side="start" x={swipe.x} />}
       {end && <Behind action={end} side="end" x={swipe.x} />}
-      <Animated.View style={[{ transform: [{ translateX: swipe.x }] }, noSelect]} {...swipe.responder.panHandlers}>
+      <Animated.View
+        style={[{ transform: [{ translateX: swipe.x }] }, noSelect]}
+        {...swipe.responder.panHandlers}>
         {children}
       </Animated.View>
     </View>

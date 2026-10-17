@@ -11,6 +11,7 @@ export function Sheet({
   visible,
   onClose,
   title,
+  subtitle,
   right,
   footer,
   children,
@@ -18,6 +19,8 @@ export function Sheet({
   visible: boolean
   onClose: () => void
   title?: string
+  /** A quieter line under the title. */
+  subtitle?: string
   /** Shown at the end of the title row, like the bill total. */
   right?: ReactNode
   /** Stays under the scrolling part, like a Send totals button. */
@@ -57,6 +60,11 @@ export function Sheet({
               </AppText>
               {right}
             </View>
+          ) : null}
+          {subtitle ? (
+            <AppText variant="caption" style={styles.subtitle}>
+              {subtitle}
+            </AppText>
           ) : null}
           <ScrollView style={styles.scroll} contentContainerStyle={styles.content}>
             {children}
@@ -129,6 +137,7 @@ const styles = StyleSheet.create({
     paddingBottom: Spacing.two,
   },
   title: { flex: 1, fontSize: 22, lineHeight: 28 },
+  subtitle: { paddingHorizontal: Spacing.three + 4, marginTop: -Spacing.one, marginBottom: Spacing.two },
   scroll: { flexGrow: 0 },
   content: { paddingHorizontal: Spacing.three, paddingBottom: Spacing.two, gap: Spacing.two },
   footer: { paddingHorizontal: Spacing.three, paddingTop: Spacing.two },
