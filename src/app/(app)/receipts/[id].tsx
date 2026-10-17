@@ -1,26 +1,23 @@
 import { router, useLocalSearchParams } from 'expo-router'
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
-import {
-  ActivityIndicator,
-  PanResponder,
-  Platform,
-  Pressable,
-  RefreshControl,
-  ScrollView,
-  StyleSheet,
-  View,
-  type ViewStyle,
-} from 'react-native'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { ActivityIndicator, RefreshControl, ScrollView, StyleSheet, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import { AllSettled } from '@/components/all-settled'
 import { BreakdownSheet } from '@/components/breakdown-sheet'
-import { Avatar, Chip, InitialChip, usePersonColor } from '@/components/chip'
-import { CheckIcon, DotsIcon, LinkIcon, PeopleIcon, PersonIcon, ShareIcon, TrashIcon } from '@/components/icons'
+import { usePersonColor } from '@/components/chip'
+import { ShareIcon } from '@/components/icons'
 import { ScreenHeader } from '@/components/screen-header'
-import { Sheet, SheetOption } from '@/components/sheet'
-import { justSwiped, SwipeActions } from '@/components/swipe-actions'
-import { AppText, Button, Card, Divider, Input, ProgressBar, Stepper, TextLink } from '@/components/ui'
+import { BillSummary } from '@/components/split/bill-summary'
+import { FriendLinkCard, ShareLinkTile } from '@/components/split/friend-link'
+import { ItemRow } from '@/components/split/item-row'
+import { MAX_NAME_LENGTH, PeopleStep } from '@/components/split/people-step'
+import { PersonCards } from '@/components/split/person-cards'
+import { PersonDetail } from '@/components/split/person-detail'
+import { SplitFooter } from '@/components/split/split-footer'
+import { MenuButton, PayerSheet, SplitMenu } from '@/components/split/split-menu'
+import { WhoHadSheet } from '@/components/split/who-had-sheet'
+import { AppText, Button, Card, TextLink } from '@/components/ui'
 import { MaxContentWidth, Radius, Spacing } from '@/constants/theme'
 import { useTheme } from '@/hooks/use-theme'
 import { confirmDestructive, showAlert } from '@/lib/alert'
@@ -40,53 +37,13 @@ import {
   setReceiptLink,
 } from '@/lib/receipts'
 import { shareText } from '@/lib/share-text'
-import {
-  evenCount,
-  formatMoney,
-  isCountable,
-  itemShares,
-  splitByPerson,
-  totalsMessage,
-  type Counts,
-  type SplitResult,
-} from '@/lib/split'
+import { evenCount, formatMoney, itemShares, splitByPerson, totalsMessage, type Counts, type SplitResult } from '@/lib/split'
+import { afterSheet, countLabel, itemStatus, nameOf, partOf, picksOf, type Item } from '@/lib/split-view'
 import type { ReceiptPerson, ReceiptWithPeople } from '@/lib/types'
 
-const MAX_NAME_LENGTH = 40
 const MAX_SUGGESTIONS = 6
 const NOTHING: SplitResult = { subtotal: 0, tax: 0, service: 0, rounding: 0, total: 0, proportion: 0 }
-const FRACTIONS: Record<number, string> = { 2: '½', 3: '⅓', 4: '¼', 5: '⅕', 6: '⅙', 8: '⅛' }
-// The footer is see-through; browsers can also blur the list behind it.
-const glassBlur = Platform.OS === 'web' ? ({ backdropFilter: 'blur(16px)' } as unknown as ViewStyle) : null
-
-type Item = ReceiptWithPeople['receipts_items'][number]
-
-/** Your own line reads "You" on screen. */
-const nameOf = (person: ReceiptPerson) => (person.is_me ? 'You' : person.name)
-
-/** Who had each item and how many of it: item id -> person id -> count. */
-const picksOf = (receipt: ReceiptWithPeople): Counts =>
-  Object.fromEntries(
-    receipt.receipts_items.map((item) => [
-      item.id,
-      Object.fromEntries(item.receipt_item_people.map((row) => [row.person_id, row.units])),
-    ]),
-  )
-
-/** How much of a line someone had, like "⅓" or "1 of 2". Empty when it was all theirs. */
-function partOf(item: Item, share: number) {
-  const lineTotal = item.qty * item.unit_price
-  if (lineTotal <= 0 || share / lineTotal > 0.999) return ''
-  const part = share / lineTotal
-  const units = part * item.qty
-  if (isCountable(item) && Math.abs(units - Math.round(units)) < 0.001) return `${Math.round(units)} of ${item.qty}`
-  const parts = Math.round(1 / part)
-  if (Math.abs(1 / parts - part) < 0.001) return FRACTIONS[parts] ?? `1/${parts}`
-  return `${Math.round(part * 100)}%`
-}
-
-// iOS can't show the share sheet or another sheet until the last one has slid away.
-const afterSheet = (run: () => void) => setTimeout(run, Platform.OS === 'ios' ? 400 : 0)
+const NO_STATUS = { text: '', warn: false }
 
 // The person who scanned the bill splits it: they add who was there, say who
 // had each item (tap initials, or swipe a row) and send everyone their total.
@@ -101,17 +58,16 @@ export default function SplitScreen() {
   const [people, setPeople] = useState<ReceiptPerson[]>([])
   const [picks, setPicks] = useState<Counts>({})
   const [recentNames, setRecentNames] = useState<string[]>([])
-  const [newName, setNewName] = useState('')
   const [adding, setAdding] = useState(false)
   const [showEnglish, setShowEnglish] = useState(false)
   const [linkBusy, setLinkBusy] = useState(false)
   const [deleting, setDeleting] = useState(false)
   const [refreshing, setRefreshing] = useState(false)
-  // Once people are added, the "Who was there?" card folds away until the menu opens it.
+  // Once people are added, "Who was there?" folds away until the menu or "+ Add" opens it.
   const [editingPeople, setEditingPeople] = useState(false)
   // The person card that is open, showing what they owe.
   const [detailFor, setDetailFor] = useState<string | null>(null)
-  // The item open in the "Who had this?" sheet, from a tap or a right swipe.
+  // The item open in "Who had this?", from a tap or a right swipe.
   const [pickFor, setPickFor] = useState<string | null>(null)
   const [pickOpen, setPickOpen] = useState(false)
   const [menuOpen, setMenuOpen] = useState(false)
@@ -123,15 +79,6 @@ export default function SplitScreen() {
   // order, so quick taps on the same name can't land out of order.
   const saves = useRef<Promise<void>>(Promise.resolve())
   const scroll = useRef<ScrollView>(null)
-  // Pulling the footer up opens the breakdown, like tapping it.
-  const [pullUp] = useState(() =>
-    PanResponder.create({
-      onMoveShouldSetPanResponder: (_, g) => g.dy < -8 && Math.abs(g.dy) > Math.abs(g.dx),
-      onPanResponderRelease: (_, g) => {
-        if (g.dy < -24) setBreakdownOpen(true)
-      },
-    }),
-  )
 
   const show = useCallback((receipt: ReceiptWithPeople) => {
     setReceipt(receipt)
@@ -174,24 +121,55 @@ export default function SplitScreen() {
     )
   }
 
+  // ============ what the screen shows ============
+
   const money = (amount: number) => formatMoney(amount, receipt.currency)
   const totalOf = (person: ReceiptPerson) => split.people[person.id]?.total ?? 0
+  const colorOf = (person: ReceiptPerson) => personColor(people.indexOf(person))
+  const views = people.map((person) => ({ id: person.id, name: nameOf(person), color: colorOf(person) }))
+  const alone = people.length === 1
   const payer = people.find((person) => person.is_payer) ?? null
   const payerName = payer?.is_me ? 'you' : payer?.name
-  const hasTranslation = !!receipt.merchant_name_en || receipt.receipts_items.some((item) => item.name_en)
-  const originalLanguage = originalLabel([receipt.merchant_name, ...receipt.receipts_items.map((item) => item.name)])
   const title = bothNames(receipt.merchant_name, receipt.merchant_name_en, showEnglish).main || 'Receipt'
   const date = new Date(receipt.created_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
-  const itemCount = receipt.receipts_items.length
+  const items = receipt.receipts_items
   const everyoneIds = people.map((person) => person.id)
-  const hasUnassigned = Math.abs(split.unassigned.total) >= 0.005
   const onBill = new Set(people.map((person) => person.name.toLowerCase()))
   const suggestions = recentNames.filter((name) => !onBill.has(name.toLowerCase())).slice(0, MAX_SUGGESTIONS)
+  const pickedByLink = people.filter((person) => person.guest_key).map((person) => person.name)
+
+  const peopleOn = (itemId: string) => Object.keys(picks[itemId] ?? {})
+  const sharesOf = (item: Item) => itemShares(item, peopleOn(item.id), picks[item.id])
+  const statusOf = (item: Item) => itemStatus(item, peopleOn(item.id), sharesOf(item), people, money)
+  const unassignedCount = items.filter((item) => sharesOf(item).left > 0).length
+  const assignedTotal = people.reduce((sum, person) => sum + totalOf(person), 0)
+
   // Everyone except the payer pays the payer back.
   const owesPayer = payer ? people.filter((person) => !person.is_payer) : []
   const owedBack = owesPayer.reduce((sum, person) => sum + totalOf(person), 0)
   const paidBack = owesPayer.filter((person) => person.paid_at).reduce((sum, person) => sum + totalOf(person), 0)
   const settled = owesPayer.length > 0 && owesPayer.every((person) => person.paid_at)
+
+  const included = [receipt.service_percent > 0 ? 'service' : null, receipt.tax_percent > 0 ? 'VAT' : null].filter(Boolean)
+  const charges = [
+    receipt.service_percent > 0 ? `${receipt.service_percent}% service` : null,
+    receipt.tax_percent > 0 ? `${receipt.tax_percent}% VAT` : null,
+  ].filter(Boolean)
+  const summaryCaption = [payer ? `Paid by ${payerName}` : null, included.length ? `incl. ${included.join(' and ')}` : null]
+    .filter(Boolean)
+    .join(' · ')
+
+  const itemName = (item: Item) => bothNames(item.name, item.name_en, showEnglish).main
+  // Each person's part of every item they had, for the breakdown.
+  const itemsOf = (person: ReceiptPerson) =>
+    items.flatMap((item) => {
+      const share = sharesOf(item).shares[person.id] ?? 0
+      if (share < 0.005) return []
+      const part = partOf(item, share)
+      return [{ label: part ? `${itemName(item)} · ${part}` : itemName(item), amount: share }]
+    })
+
+  // ============ changes ============
 
   // Shows a change straight away and saves it in the background. If saving
   // fails, the screen goes back to what is saved.
@@ -207,7 +185,6 @@ export default function SplitScreen() {
     )
   }
 
-  const peopleOn = (itemId: string) => Object.keys(picks[itemId] ?? {})
   const setItemPicks = (itemId: string, had: Record<string, number>) => setPicks((prev) => ({ ...prev, [itemId]: had }))
   // Everyone on the item, each with an even part of it.
   const evenly = (item: Item) =>
@@ -227,36 +204,31 @@ export default function SplitScreen() {
     }
   }
 
-  const setUnits = (itemId: string, personId: string, units: number) => {
-    setItemPicks(itemId, { ...picks[itemId], [personId]: units })
-    save(() => addItemPeople([{ item_id: itemId, person_id: personId, units }]))
-  }
-
-  const shareWithEveryone = (item: Item) => {
-    const even = evenly(item)
-    setItemPicks(item.id, even)
-    save(() => addItemPeople(rowsFor(item.id, even)))
-  }
-
   const toggleEveryone = (item: Item) => {
     const had = peopleOn(item.id)
     if (everyoneIds.every((personId) => had.includes(personId))) {
       setItemPicks(item.id, {})
       save(() => removeItemPeople(item.id, everyoneIds))
     } else {
-      shareWithEveryone(item)
+      const even = evenly(item)
+      setItemPicks(item.id, even)
+      save(() => addItemPeople(rowsFor(item.id, even)))
     }
   }
 
   // On lines like 2 × Egg Kim Bab, how many someone had; 0 takes them off it.
   const setCount = (item: Item, personId: string, units: number) => {
-    if (units > 0) return setUnits(item.id, personId, units)
-    if (personId in (picks[item.id] ?? {})) togglePerson(item.id, personId)
+    if (units <= 0) {
+      if (personId in (picks[item.id] ?? {})) togglePerson(item.id, personId)
+      return
+    }
+    setItemPicks(item.id, { ...picks[item.id], [personId]: units })
+    save(() => addItemPeople([{ item_id: item.id, person_id: personId, units }]))
   }
 
   const splitEvenly = () => {
     const run = () => {
-      const even = Object.fromEntries(receipt.receipts_items.map((item) => [item.id, evenly(item)]))
+      const even = Object.fromEntries(items.map((item) => [item.id, evenly(item)]))
       setPicks(even)
       save(() => addItemPeople(Object.entries(even).flatMap(([itemId, had]) => rowsFor(itemId, had))))
     }
@@ -271,24 +243,25 @@ export default function SplitScreen() {
 
   const add = async (typed: string) => {
     const name = typed.trim().replace(/\s+/g, ' ').slice(0, MAX_NAME_LENGTH)
-    if (!name || adding) return
+    if (!name || adding) return false
     const key = name.toLowerCase()
     if (key === 'you' || key === 'me') {
       showAlert('Already on this bill', "You're on every bill you scan.")
-      return
+      return false
     }
     if (onBill.has(key)) {
       showAlert('Already on this bill', `${name} is already on this bill.`)
-      return
+      return false
     }
     setAdding(true)
     try {
       const person = await addPerson(receipt.id, name)
       setPeople((prev) => [...prev, person])
-      setNewName('')
+      return true
     } catch (e) {
       console.error('Add person failed', e)
       showAlert(`Could not add ${name}`, 'Check your connection and try again.')
+      return false
     } finally {
       setAdding(false)
     }
@@ -317,17 +290,17 @@ export default function SplitScreen() {
     )
   }
 
-  const choosePayer = (person: ReceiptPerson) => {
-    if (person.is_payer) return
+  const choosePayer = (personId: string) => {
+    if (personId === payer?.id) return
     setPeople((prev) =>
       prev.map((other) => ({
         ...other,
-        is_payer: other.id === person.id,
+        is_payer: other.id === personId,
         // The payer has nobody to pay back.
-        paid_at: other.id === person.id ? null : other.paid_at,
+        paid_at: other.id === personId ? null : other.paid_at,
       })),
     )
-    save(() => setPayer(receipt.id, person.id))
+    save(() => setPayer(receipt.id, personId))
   }
 
   const togglePaid = (person: ReceiptPerson) => {
@@ -425,444 +398,32 @@ export default function SplitScreen() {
     })
 
   // Menu choices run once the menu has slid away.
-  const fromMenu = (run: () => void) => {
+  const fromMenu = (run: () => void) => () => {
     setMenuOpen(false)
     afterSheet(run)
   }
-
-  const colorOf = (person: ReceiptPerson) => personColor(people.indexOf(person))
-  const personById = (personId: string) => people.find((person) => person.id === personId)
-  const sharesOf = (item: Item) => itemShares(item, peopleOn(item.id), picks[item.id])
-  const unassignedCount = receipt.receipts_items.filter((item) => sharesOf(item).left > 0).length
-  const assignedTotal = people.reduce((sum, person) => sum + totalOf(person), 0)
-  const assignedShare = assignedTotal / (assignedTotal + split.unassigned.total || 1)
-  const charges = [
-    receipt.service_percent > 0 ? `${receipt.service_percent}% service` : null,
-    receipt.tax_percent > 0 ? `${receipt.tax_percent}% VAT` : null,
-  ].filter(Boolean)
-  const included = [receipt.service_percent > 0 ? 'service' : null, receipt.tax_percent > 0 ? 'VAT' : null].filter(Boolean)
-  const alone = people.length === 1
-  const showPeopleStep = alone || editingPeople
-  const nameOfItem = (item: Item) => bothNames(item.name, item.name_en, showEnglish).main
-
-  // What an item's row says about who had it.
-  const itemStatus = (item: Item, had: string[]) => {
-    const { shares, left } = sharesOf(item)
-    if (had.length === 0) return { text: 'Tap who had it', warn: true }
-    if (left > 0) return { text: `${left} of ${item.qty} not assigned`, warn: true }
-    if (had.length > 1) {
-      const first = shares[had[0]]
-      const even = had.every((personId) => Math.abs(shares[personId] - first) < 0.005)
-      return { text: even ? `${money(first)} each` : 'Shared', warn: false }
-    }
-    const only = personById(had[0])
-    return { text: !only || only.is_me ? 'All yours' : `All ${only.name}'s`, warn: false }
-  }
-
-  // Each person's part of every item they had, for the breakdown.
-  const itemsOf = (person: ReceiptPerson) =>
-    receipt.receipts_items.flatMap((item) => {
-      const share = sharesOf(item).shares[person.id] ?? 0
-      if (share < 0.005) return []
-      const part = partOf(item, share)
-      return [{ label: part ? `${nameOfItem(item)} · ${part}` : nameOfItem(item), amount: share }]
-    })
-
-  const shareLinkTile = (
-    <Pressable
-      onPress={shareLink}
-      disabled={linkBusy}
-      accessibilityRole="button"
-      style={({ pressed }) => [
-        styles.linkTile,
-        { backgroundColor: theme.primaryTint, borderColor: theme.primarySoft, opacity: linkBusy ? 0.5 : pressed ? 0.8 : 1 },
-      ]}>
-      <View style={[styles.linkIcon, { backgroundColor: theme.primary }]}>
-        {linkBusy ? <ActivityIndicator color={theme.onPrimary} /> : <LinkIcon color={theme.onPrimary} />}
-      </View>
-      <View style={styles.flex}>
-        <AppText variant="label">Share a link</AppText>
-        <AppText variant="caption">Friends tick their own items. No app or sign-up.</AppText>
-      </View>
-    </Pressable>
-  )
-
-  const peopleStep = (
-    <Card style={styles.stepCard}>
-      <View style={styles.stepHeader}>
-        <View style={styles.flex}>
-          {alone && <AppText variant="overline">Step 1 of 2</AppText>}
-          <AppText variant="title">Who was there?</AppText>
-        </View>
-        {!alone && <Button title="Done" size="small" variant="secondary" onPress={() => setEditingPeople(false)} />}
-      </View>
-      <AppText variant="muted">
-        {alone
-          ? "Add everyone sharing this bill. Next, you'll tap who had each item."
-          : 'Add or remove people. Items only a removed person had become unassigned.'}
-      </AppText>
-      <View style={styles.chips}>
-        {people.map((person) => (
-          <View
-            key={person.id}
-            style={[styles.personPill, { backgroundColor: person.is_me ? theme.primarySoft : theme.backgroundElement }]}>
-            <Avatar name={nameOf(person)} color={colorOf(person)} size={26} />
-            <AppText variant="label">{nameOf(person)}</AppText>
-            {!person.is_me && (
-              <Pressable
-                onPress={() => confirmRemove(person)}
-                hitSlop={8}
-                accessibilityRole="button"
-                accessibilityLabel={`Remove ${person.name}`}>
-                <AppText variant="muted">✕</AppText>
-              </Pressable>
-            )}
-          </View>
-        ))}
-      </View>
-      <View style={styles.addRow}>
-        <Input
-          value={newName}
-          onChangeText={setNewName}
-          onSubmitEditing={() => add(newName)}
-          placeholder="Friend's name"
-          maxLength={MAX_NAME_LENGTH}
-          autoCapitalize="words"
-          autoCorrect={false}
-          returnKeyType="done"
-          submitBehavior="submit"
-          editable={!adding}
-          // Opened from "+ Add", so go straight to typing a name.
-          autoFocus={!alone}
-          accessibilityLabel="Name of someone to add"
-          style={styles.flex}
-        />
-        <Button title="Add" onPress={() => add(newName)} loading={adding} disabled={!newName.trim()} />
-      </View>
-      {suggestions.length > 0 && (
-        <View style={styles.suggestions}>
-          <AppText variant="caption">From recent bills</AppText>
-          <View style={styles.chips}>
-            {suggestions.map((name) => (
-              <Chip key={name} role="button" label={`+  ${name}`} onPress={() => add(name)} accessibilityLabel={`Add ${name}`} />
-            ))}
-          </View>
-        </View>
-      )}
-      {friendLinksAvailable && !receipt.link_enabled && (
-        <>
-          <Divider label="or let them add themselves" />
-          {shareLinkTile}
-        </>
-      )}
-    </Card>
-  )
-
-  const assignedItems = itemCount - unassignedCount
-  const summary = (
-    <Card style={styles.summary}>
-      <View style={styles.summaryTop}>
-        <AppText variant="caption" style={[styles.summaryLabel, { color: theme.text }]}>
-          Bill total
-        </AppText>
-        <AppText variant="caption" numberOfLines={1} style={styles.shrink}>
-          {[payer ? `Paid by ${payerName}` : null, included.length ? `incl. ${included.join(' and ')}` : null]
-            .filter(Boolean)
-            .join(' · ')}
-        </AppText>
-      </View>
-      <AppText style={[styles.billTotal, { color: theme.text }]} numberOfLines={1} adjustsFontSizeToFit>
-        {money(receipt.total)}
-      </AppText>
-      {!alone && (
-        <View style={styles.assigned}>
-          <View style={styles.assignedRow}>
-            <AppText variant="caption" style={[styles.flex, styles.assignedText, { color: hasUnassigned ? theme.text : theme.success }]}>
-              {hasUnassigned ? `${assignedItems} of ${itemCount} items assigned` : `All ${itemCount} items assigned`}
-            </AppText>
-            <AppText variant="caption" style={styles.amount}>
-              {hasUnassigned ? `${money(split.unassigned.total)} left` : 'Ready to send'}
-            </AppText>
-          </View>
-          <ProgressBar value={assignedShare} color={hasUnassigned ? theme.primary : theme.success} />
-        </View>
-      )}
-      {settled ? (
-        <Pressable onPress={() => setSettledOpen(true)} accessibilityRole="button" style={styles.settledLink}>
-          <CheckIcon color={theme.success} size={14} weight={2} />
-          <AppText variant="caption" style={{ color: theme.success, fontWeight: '700' }}>
-            All settled
-          </AppText>
-        </Pressable>
-      ) : paidBack > 0 ? (
-        <AppText variant="caption" style={{ color: theme.success, fontWeight: '600' }}>
-          {money(paidBack)} of {money(owedBack)} paid back
-        </AppText>
-      ) : null}
-    </Card>
-  )
-
-  // The friend link, up front once there are people to send it to.
-  const pickedByLink = people.filter((person) => person.guest_key).map((person) => person.name)
-  const friendsCard = (
-    <View style={[styles.friends, { backgroundColor: theme.primaryTint, borderColor: theme.primarySoft }]}>
-      <View style={[styles.linkIcon, { backgroundColor: theme.primary }]}>
-        <LinkIcon color={theme.onPrimary} />
-      </View>
-      <View style={styles.flex}>
-        <AppText variant="label">{receipt.link_enabled ? 'Friend link is on' : 'Let friends pick'}</AppText>
-        <AppText variant="caption">
-          {!receipt.link_enabled
-            ? 'They tick their own items. No app or sign-up.'
-            : pickedByLink.length > 0
-              ? `${pickedByLink.join(', ')} picked. Pull down for new picks.`
-              : 'Pull down to see their picks.'}
-        </AppText>
-      </View>
-      <Button
-        title={receipt.link_enabled ? 'Share again' : 'Share link'}
-        size="small"
-        onPress={shareLink}
-        loading={linkBusy}
-      />
-    </View>
-  )
-
-  const personCards = (
-    <ScrollView
-      horizontal
-      showsHorizontalScrollIndicator={false}
-      style={styles.cardsScroll}
-      contentContainerStyle={styles.cards}>
-      {people.map((person) => {
-        const open = detailFor === person.id
-        const color = colorOf(person)
-        const paid = !person.is_payer && !!person.paid_at
-        return (
-          <Pressable
-            key={person.id}
-            onPress={() => setDetailFor(open ? null : person.id)}
-            accessibilityRole="button"
-            accessibilityState={{ expanded: open }}
-            accessibilityLabel={`${nameOf(person)}, ${money(totalOf(person))}${paid ? ', paid back' : ''}`}
-            style={({ pressed }) => [
-              styles.personCard,
-              { backgroundColor: theme.surface, borderColor: open ? color : theme.hairline, opacity: pressed ? 0.85 : 1 },
-            ]}>
-            <View style={styles.personCardTop}>
-              <Avatar name={nameOf(person)} color={color} size={22} />
-              <AppText variant="caption" numberOfLines={1} style={styles.shrink}>
-                {nameOf(person)}
-              </AppText>
-              {paid && <CheckIcon color={theme.success} size={14} weight={2} />}
-            </View>
-            <AppText variant="heading" style={[styles.amount, styles.personAmount]} numberOfLines={1}>
-              {money(totalOf(person))}
-            </AppText>
-            <ProgressBar value={receipt.total > 0 ? totalOf(person) / receipt.total : 0} color={color} />
-          </Pressable>
-        )
-      })}
-      <Pressable
-        onPress={() => {
-          setDetailFor(null)
-          setEditingPeople(true)
-        }}
-        accessibilityRole="button"
-        accessibilityLabel="Add people"
-        style={({ pressed }) => [styles.personCard, styles.addCard, { borderColor: theme.border, opacity: pressed ? 0.7 : 1 }]}>
-        <View style={[styles.addIcon, { backgroundColor: theme.primarySoft }]}>
-          <AppText variant="heading" style={[styles.addPlus, { color: theme.primary }]}>
-            +
-          </AppText>
-        </View>
-        <AppText variant="label" style={{ color: theme.primary }}>
-          Add
-        </AppText>
-      </Pressable>
-    </ScrollView>
-  )
-
-  // What the open person card says, and the one thing to do about it.
-  const detailPerson = people.find((person) => person.id === detailFor)
-  const detailCard = (() => {
-    if (!detailPerson || alone) return null
-    const items = itemsOf(detailPerson).length
-    const extra = [`${items} item${items === 1 ? '' : 's'}`, detailPerson.guest_key ? 'picked via link' : null]
-    let status: string
-    let tone: string = theme.textSecondary
-    let action: ReactNode
-    if (!payer) {
-      status = 'Nobody is set as the payer yet'
-      action = <Button title="Choose who paid" variant="secondary" onPress={() => setPayerOpen(true)} />
-    } else if (detailPerson.is_payer) {
-      status = 'Paid the bill'
-      action = <Button title="Change who paid" variant="secondary" onPress={() => setPayerOpen(true)} />
-    } else if (detailPerson.paid_at) {
-      status = detailPerson.is_me ? `You paid ${payer.name} back` : `Paid ${payerName} back`
-      tone = theme.success
-      action = <Button title="Not paid yet" variant="secondary" onPress={() => togglePaid(detailPerson)} />
-    } else {
-      status = detailPerson.is_me ? `You owe ${payer.name}` : `Owes ${payerName}`
-      tone = theme.warning
-      action = (
-        <Button
-          title="Mark paid back"
-          icon={<CheckIcon color={theme.onPrimary} size={16} weight={2} />}
-          onPress={() => togglePaid(detailPerson)}
-        />
-      )
-    }
-    return (
-      <Card style={[styles.detail, { borderColor: colorOf(detailPerson) }]}>
-        <View style={styles.detailRow}>
-          <Avatar name={nameOf(detailPerson)} color={colorOf(detailPerson)} size={36} />
-          <View style={styles.flex}>
-            <AppText variant="heading">{nameOf(detailPerson)}</AppText>
-            <AppText variant="caption">
-              <AppText variant="caption" style={{ color: tone, fontWeight: '600' }}>
-                {status}
-              </AppText>
-              {' · '}
-              {extra.filter(Boolean).join(' · ')}
-            </AppText>
-          </View>
-          <AppText variant="title" style={[styles.amount, styles.detailAmount]}>
-            {money(totalOf(detailPerson))}
-          </AppText>
-        </View>
-        {action}
-      </Card>
-    )
-  })()
 
   const openItem = (itemId: string) => {
     setPickFor(itemId)
     setPickOpen(true)
   }
 
-  const itemRow = (item: Item, index: number) => {
-    const had = peopleOn(item.id)
-    const lineTotal = item.qty * item.unit_price
-    const names = bothNames(item.name, item.name_en, showEnglish)
-    const status = itemStatus(item, had)
-    const everyoneOn = everyoneIds.every((personId) => had.includes(personId))
-    const caption = [names.other, item.qty !== 1 ? `${item.qty} × ${money(item.unit_price)}` : null]
-      .filter(Boolean)
-      .join(' · ')
-    const row = (
-      <View
-        style={[
-          styles.itemRow,
-          { backgroundColor: theme.surface },
-          index > 0 && { borderTopColor: theme.hairline, borderTopWidth: StyleSheet.hairlineWidth },
-        ]}>
-        <Pressable
-          onPress={() => !justSwiped() && openItem(item.id)}
-          disabled={alone}
-          accessibilityRole="button"
-          accessibilityLabel={`${names.main}, ${money(lineTotal)}`}
-          accessibilityHint={alone ? undefined : 'Choose who had it'}
-          style={styles.itemTop}>
-          <View style={styles.flex}>
-            <AppText variant="heading">{names.main}</AppText>
-            {caption ? <AppText variant="caption">{caption}</AppText> : null}
-          </View>
-          <AppText variant="heading" style={styles.amount}>
-            {money(lineTotal)}
-          </AppText>
-        </Pressable>
-        {!alone && (
-          <View style={styles.chipRow}>
-            <View style={styles.initials}>
-              {people.map((person) => (
-                <InitialChip
-                  key={person.id}
-                  name={nameOf(person)}
-                  color={colorOf(person)}
-                  selected={had.includes(person.id)}
-                  onPress={() => !justSwiped() && togglePerson(item.id, person.id)}
-                  accessibilityLabel={`${nameOf(person)} had ${names.main}`}
-                />
-              ))}
-              <Pressable
-                onPress={() => !justSwiped() && toggleEveryone(item)}
-                hitSlop={2}
-                accessibilityRole="checkbox"
-                accessibilityState={{ checked: everyoneOn }}
-                accessibilityLabel={`Everyone shared ${names.main}`}
-                style={({ pressed }) => [
-                  styles.allPill,
-                  { backgroundColor: everyoneOn ? theme.text : theme.backgroundElement, opacity: pressed ? 0.8 : 1 },
-                ]}>
-                <AppText variant="label" style={{ color: everyoneOn ? theme.background : theme.text }}>
-                  All
-                </AppText>
-              </Pressable>
-            </View>
-            <Pressable onPress={() => !justSwiped() && openItem(item.id)} hitSlop={8} style={styles.status} accessibilityElementsHidden>
-              <AppText variant="caption" style={[styles.statusText, status.warn && { color: theme.warning, fontWeight: '600' }]}>
-                {status.text}
-              </AppText>
-            </Pressable>
-          </View>
-        )}
-      </View>
-    )
-    if (alone) return <View key={item.id}>{row}</View>
-    return (
-      <SwipeActions
-        key={item.id}
-        start={{
-          label: 'Pick who',
-          color: theme.primary,
-          textColor: theme.onPrimary,
-          icon: <PersonIcon color={theme.onPrimary} size={18} />,
-          onAction: () => openItem(item.id),
-        }}>
-        {row}
-      </SwipeActions>
-    )
-  }
+  // ============ the screen ============
 
-  const pickItem = receipt.receipts_items.find((item) => item.id === pickFor)
-  // What the "Who had this?" sheet shows for that item.
-  const pickSheet = pickItem
-    ? (() => {
-        const had = peopleOn(pickItem.id)
-        const status = itemStatus(pickItem, had)
-        const names = bothNames(pickItem.name, pickItem.name_en, showEnglish)
-        return {
-          names,
-          subtitle: [names.other, `${pickItem.qty} × ${money(pickItem.unit_price)}`].filter(Boolean).join(' · '),
-          status,
-          shares: sharesOf(pickItem).shares,
-          everyoneOn: everyoneIds.every((personId) => had.includes(personId)),
-          // "Split between 2 · ฿144.50 each"
-          summary:
-            had.length > 1 && !status.warn
-              ? `Split between ${had.length}${status.text.endsWith(' each') ? ` · ${status.text}` : ''}`
-              : status.text,
-        }
-      })()
-    : null
-  const menuIcon = (icon: ReactNode) => <View style={styles.menuIcon}>{icon}</View>
+  const showPeopleStep = alone || editingPeople
+  const detailPerson = alone ? undefined : people.find((person) => person.id === detailFor)
+  const pickItem = items.find((item) => item.id === pickFor)
+  const hasTranslation = !!receipt.merchant_name_en || items.some((item) => item.name_en)
+  const left = split.unassigned.total
 
   return (
     <View style={[styles.flex, { backgroundColor: theme.background }]}>
       <ScreenHeader
         plain
         title={title}
-        subtitle={`${date} · ${itemCount} item${itemCount === 1 ? '' : 's'}`}
+        subtitle={`${date} · ${countLabel(items.length, 'item')}`}
         right={
-          <Pressable
-            onPress={() => setMenuOpen(true)}
-            hitSlop={6}
-            accessibilityRole="button"
-            accessibilityLabel="More options"
-            style={({ pressed }) => [styles.menuButton, { backgroundColor: theme.surface, opacity: pressed ? 0.7 : 1 }]}>
-            <DotsIcon color={theme.text} size={18} />
-          </Pressable>
+<MenuButton onPress={() => setMenuOpen(true)} />
         }
       />
 
@@ -873,31 +434,94 @@ export default function SplitScreen() {
         keyboardShouldPersistTaps="handled"
         automaticallyAdjustKeyboardInsets
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refresh} />}>
-        {summary}
-        {!alone && personCards}
-        {detailCard}
-        {friendLinksAvailable && !showPeopleStep && friendsCard}
-        {showPeopleStep && peopleStep}
+        <BillSummary
+          total={receipt.total}
+          caption={summaryCaption}
+          progress={
+            alone
+              ? null
+              : {
+                  assignedItems: items.length - unassignedCount,
+                  itemCount: items.length,
+                  left,
+                  share: assignedTotal / (assignedTotal + left || 1),
+                }
+          }
+          settled={settled}
+          paidBack={paidBack}
+          owedBack={owedBack}
+          money={money}
+          onShowSettled={() => setSettledOpen(true)}
+        />
 
-        {alone ? (
-          <View style={styles.sectionRow}>
-            <AppText variant="heading" style={styles.flex}>
-              Step 2 · Who had what
-            </AppText>
-            <AppText variant="caption">
-              {itemCount} item{itemCount === 1 ? '' : 's'}
-            </AppText>
-          </View>
-        ) : (
-          <View style={styles.sectionRow}>
-            <AppText variant="title" style={[styles.flex, styles.sectionTitle]}>
-              Who had what
-            </AppText>
-            <TextLink title="Split all evenly" onPress={splitEvenly} />
-          </View>
+        {!alone && (
+          <PersonCards
+            people={people.map((person, index) => ({
+              ...views[index],
+              total: totalOf(person),
+              paidBack: !person.is_payer && !!person.paid_at,
+            }))}
+            openId={detailFor}
+            billTotal={receipt.total}
+            money={money}
+            onToggle={(personId) => setDetailFor(detailFor === personId ? null : personId)}
+            onAdd={() => {
+              setDetailFor(null)
+              setEditingPeople(true)
+            }}
+          />
         )}
 
-        {!alone && hasUnassigned && (
+        {detailPerson && (
+          <PersonDetail
+            person={detailPerson}
+            payer={payer}
+            color={colorOf(detailPerson)}
+            total={totalOf(detailPerson)}
+            itemCount={itemsOf(detailPerson).length}
+            money={money}
+            onChoosePayer={() => setPayerOpen(true)}
+            onTogglePaid={() => togglePaid(detailPerson)}
+          />
+        )}
+
+        {friendLinksAvailable && !showPeopleStep && (
+          <FriendLinkCard on={receipt.link_enabled} pickedNames={pickedByLink} busy={linkBusy} onShare={shareLink} />
+        )}
+
+        {showPeopleStep && (
+          <PeopleStep
+            people={people}
+            alone={alone}
+            colorOf={colorOf}
+            suggestions={suggestions}
+            adding={adding}
+            linkTile={friendLinksAvailable && !receipt.link_enabled ? <ShareLinkTile busy={linkBusy} onPress={shareLink} /> : null}
+            onAdd={add}
+            onRemove={confirmRemove}
+            onDone={() => setEditingPeople(false)}
+          />
+        )}
+
+        <View style={styles.sectionRow}>
+          {alone ? (
+            <>
+              <AppText variant="heading" style={styles.flex}>
+                Step 2 · Who had what
+              </AppText>
+              <AppText variant="caption">{countLabel(items.length, 'item')}</AppText>
+            </>
+          ) : (
+            <>
+              <AppText variant="title" style={[styles.flex, styles.sectionTitle]}>
+                Who had what
+              </AppText>
+              <TextLink title="Split all evenly" onPress={splitEvenly} />
+            </>
+          )}
+        </View>
+
+        {!alone && Math.abs(left) >= 0.005 && (
           <View style={[styles.hint, { backgroundColor: theme.primarySoft }]}>
             <AppText variant="caption" style={{ color: theme.primary, fontWeight: '600' }}>
               Tap an item, or swipe it right, to pick who had it
@@ -905,7 +529,24 @@ export default function SplitScreen() {
           </View>
         )}
 
-        <Card style={styles.list}>{receipt.receipts_items.map(itemRow)}</Card>
+        <Card style={styles.list}>
+          {items.map((item, index) => (
+            <ItemRow
+              key={item.id}
+              item={item}
+              showEnglish={showEnglish}
+              people={views}
+              had={peopleOn(item.id)}
+              status={statusOf(item)}
+              alone={alone}
+              divider={index > 0}
+              money={money}
+              onOpen={() => openItem(item.id)}
+              onTogglePerson={(personId) => togglePerson(item.id, personId)}
+              onToggleEveryone={() => toggleEveryone(item)}
+            />
+          ))}
+        </Card>
 
         {charges.length > 0 && (
           <AppText variant="caption" style={styles.footnote}>
@@ -914,61 +555,26 @@ export default function SplitScreen() {
         )}
       </ScrollView>
 
-      <View pointerEvents="box-none" style={[styles.footerWrap, { paddingBottom: insets.bottom + Spacing.three - 4 }]}>
-        <View
-          style={[styles.footer, { backgroundColor: theme.glass, borderColor: theme.hairline }, glassBlur]}
-          {...pullUp.panHandlers}>
-          <Pressable
-            onPress={() => setBreakdownOpen(true)}
-            accessibilityRole="button"
-            accessibilityLabel="See the breakdown"
-            style={styles.footerSummary}>
-            {alone ? (
-              <>
-                <AppText variant="heading" style={styles.amount}>
-                  You {money(totalOf(people[0]))}
-                </AppText>
-                <AppText variant="caption">Just you so far</AppText>
-              </>
-            ) : hasUnassigned ? (
-              <>
-                <AppText variant="heading" style={[styles.amount, { color: theme.warning }]} numberOfLines={1}>
-                  {money(split.unassigned.total)} left
-                </AppText>
-                <AppText variant="caption">
-                  {unassignedCount} item{unassignedCount === 1 ? '' : 's'} to go
-                </AppText>
-              </>
-            ) : (
-              <>
-                <AppText variant="heading" style={{ color: theme.success }}>
-                  ✓ All assigned
-                </AppText>
-                <AppText variant="caption">See the breakdown</AppText>
-              </>
-            )}
-          </Pressable>
-          <Button
-            title="Send totals"
-            onPress={sendTotals}
-            icon={<ShareIcon color={theme.onPrimary} />}
-            style={styles.sendButton}
-          />
-        </View>
-      </View>
+      <SplitFooter
+        alone={alone}
+        myTotal={totalOf(people[0])}
+        left={left}
+        leftItems={unassignedCount}
+        money={money}
+        onOpenBreakdown={() => setBreakdownOpen(true)}
+        onSend={sendTotals}
+      />
 
       <BreakdownSheet
         visible={breakdownOpen}
         onClose={() => setBreakdownOpen(false)}
         total={receipt.total}
-        people={people.map((person) => ({
-          id: person.id,
-          name: nameOf(person),
-          color: colorOf(person),
+        people={people.map((person, index) => ({
+          ...views[index],
           result: split.people[person.id] ?? NOTHING,
           items: itemsOf(person),
         }))}
-        unassigned={{ items: unassignedCount, amount: split.unassigned.total }}
+        unassigned={{ items: unassignedCount, amount: left }}
         servicePercent={receipt.service_percent}
         taxPercent={receipt.tax_percent}
         money={money}
@@ -984,190 +590,57 @@ export default function SplitScreen() {
         }
       />
 
-      <Sheet
-        visible={pickOpen && !!pickItem}
+      <WhoHadSheet
+        visible={pickOpen}
         onClose={() => setPickOpen(false)}
-        title={pickSheet?.names.main}
-        subtitle={pickSheet?.subtitle}
-        right={
-          pickItem ? (
-            <AppText variant="title" style={[styles.amount, styles.sheetPrice]}>
-              {money(pickItem.qty * pickItem.unit_price)}
-            </AppText>
-          ) : null
-        }
-        footer={
-          <View style={styles.sheetFooter}>
-            <AppText variant="caption" style={[styles.flex, pickSheet?.status.warn && { color: theme.warning, fontWeight: '600' }]}>
-              {pickSheet?.summary}
-            </AppText>
-            <Button title="Done" onPress={() => setPickOpen(false)} style={styles.doneButton} />
-          </View>
-        }>
-        {pickItem && pickSheet && (
-          <>
-            <View style={styles.whoHad}>
-              <AppText variant="label" style={styles.flex}>
-                Who had this?
-              </AppText>
-              <Pressable
-                onPress={() => toggleEveryone(pickItem)}
-                accessibilityRole="checkbox"
-                accessibilityState={{ checked: pickSheet.everyoneOn }}
-                accessibilityLabel="Everyone"
-                style={({ pressed }) => [
-                  styles.everyone,
-                  { backgroundColor: pickSheet.everyoneOn ? theme.text : theme.backgroundElement, opacity: pressed ? 0.8 : 1 },
-                ]}>
-                <AppText variant="label" style={{ color: pickSheet.everyoneOn ? theme.background : theme.text }}>
-                  Everyone
-                </AppText>
-              </Pressable>
-            </View>
-            {people.map((person) => {
-              const color = colorOf(person)
-              const units = picks[pickItem.id]?.[person.id] ?? 0
-              const on = person.id in (picks[pickItem.id] ?? {})
-              const rowStyle = [
-                styles.pickRow,
-                on ? { backgroundColor: `${color}1F`, borderColor: color } : { backgroundColor: theme.backgroundElement, borderColor: 'transparent' },
-              ]
-              const share = on ? (
-                <AppText variant="label" style={styles.amount}>
-                  {money(pickSheet.shares[person.id] ?? 0)}
-                </AppText>
-              ) : null
-              // On lines like 2 × Egg Kim Bab, − 1 + says how many each person had.
-              if (isCountable(pickItem)) {
-                return (
-                  <View key={person.id} style={rowStyle}>
-                    <Avatar name={nameOf(person)} color={color} size={32} />
-                    <AppText variant="label" numberOfLines={1} style={styles.flex}>
-                      {nameOf(person)}
-                    </AppText>
-                    {share}
-                    <Stepper
-                      value={units}
-                      min={0}
-                      max={pickItem.qty}
-                      onChange={(next) => setCount(pickItem, person.id, next)}
-                      label={`${pickSheet.names.main} for ${nameOf(person)}`}
-                    />
-                  </View>
-                )
+        item={pickItem}
+        showEnglish={showEnglish}
+        people={views}
+        counts={pickItem ? (picks[pickItem.id] ?? {}) : {}}
+        shares={pickItem ? sharesOf(pickItem).shares : {}}
+        status={pickItem ? statusOf(pickItem) : NO_STATUS}
+        money={money}
+        onToggleEveryone={() => pickItem && toggleEveryone(pickItem)}
+        onTogglePerson={(personId) => pickItem && togglePerson(pickItem.id, personId)}
+        onSetCount={(personId, units) => pickItem && setCount(pickItem, personId, units)}
+      />
+
+      <PayerSheet
+        visible={payerOpen}
+        onClose={() => setPayerOpen(false)}
+        people={views}
+        payerId={payer?.id}
+        onChoose={choosePayer}
+      />
+
+      <SplitMenu
+        visible={menuOpen}
+        onClose={() => setMenuOpen(false)}
+        translation={
+          hasTranslation
+            ? {
+                showEnglish,
+                originalLanguage: originalLabel([receipt.merchant_name, ...items.map((item) => item.name)]),
               }
-              return (
-                <Pressable
-                  key={person.id}
-                  onPress={() => togglePerson(pickItem.id, person.id)}
-                  accessibilityRole="checkbox"
-                  accessibilityState={{ checked: on }}
-                  accessibilityLabel={`${nameOf(person)} had ${pickSheet.names.main}`}
-                  style={({ pressed }) => [rowStyle, { opacity: pressed ? 0.85 : 1 }]}>
-                  <Avatar name={nameOf(person)} color={color} size={32} />
-                  <AppText variant="label" numberOfLines={1} style={styles.flex}>
-                    {nameOf(person)}
-                  </AppText>
-                  {share}
-                  <View
-                    style={[
-                      styles.checkbox,
-                      on ? { backgroundColor: color, borderColor: color } : { backgroundColor: theme.surface, borderColor: theme.border },
-                    ]}>
-                    {on && <CheckIcon color={theme.onPerson} size={14} weight={2} />}
-                  </View>
-                </Pressable>
-              )
-            })}
-          </>
-        )}
-      </Sheet>
-
-      <Sheet visible={payerOpen} onClose={() => setPayerOpen(false)} title="Who paid the bill?">
-        <AppText variant="muted" style={styles.sheetNote}>
-          Everyone else pays them back.
-        </AppText>
-        {people.map((person) => (
-          <SheetOption
-            key={person.id}
-            role="radio"
-            label={nameOf(person)}
-            icon={<Avatar name={nameOf(person)} color={colorOf(person)} size={32} />}
-            selected={person.is_payer}
-            onPress={() => {
-              choosePayer(person)
-              setPayerOpen(false)
-            }}
-          />
-        ))}
-      </Sheet>
-
-      <Sheet visible={menuOpen} onClose={() => setMenuOpen(false)}>
-        {hasTranslation && (
-          <SheetOption
-            label={
-              showEnglish ? `Show ${originalLanguage === 'ไทย' ? 'Thai' : 'original'} names` : 'Show English names'
-            }
-            icon={menuIcon(<AppText variant="label">{showEnglish ? originalLanguage.slice(0, 3) : 'EN'}</AppText>)}
-            onPress={() => {
-              setShowEnglish(!showEnglish)
-              setMenuOpen(false)
-            }}
-          />
-        )}
-        <SheetOption
-          label="Add or remove people"
-          icon={menuIcon(<PeopleIcon color={theme.text} size={18} />)}
-          onPress={() =>
-            fromMenu(() => {
-              setEditingPeople(true)
-              scroll.current?.scrollTo({ y: 0, animated: true })
-            })
-          }
-        />
-        {!alone && (
-          <SheetOption
-            label="Change who paid"
-            detail={payer ? `Now: ${nameOf(payer)}` : 'Nobody yet'}
-            icon={menuIcon(<PersonIcon color={theme.text} size={18} />)}
-            onPress={() => fromMenu(() => setPayerOpen(true))}
-          />
-        )}
-        {friendLinksAvailable &&
-          (receipt.link_enabled ? (
-            <>
-              <SheetOption
-                label="Share the friend link again"
-                detail={
-                  pickedByLink.length > 0
-                    ? `On · ${pickedByLink.join(', ')} picked their own items`
-                    : 'On · pull down on this screen to see new picks'
-                }
-                icon={menuIcon(<LinkIcon color={theme.text} size={18} />)}
-                onPress={() => fromMenu(shareLink)}
-              />
-              <SheetOption
-                label="Turn off the friend link"
-                destructive
-                icon={menuIcon(<LinkIcon color={theme.danger} size={18} />)}
-                onPress={() => fromMenu(turnOffLink)}
-              />
-            </>
-          ) : (
-            <SheetOption
-              label="Share a friend link"
-              detail="Friends tick their own items. No app or sign-up."
-              icon={menuIcon(<LinkIcon color={theme.text} size={18} />)}
-              onPress={() => fromMenu(shareLink)}
-            />
-          ))}
-        <SheetOption
-          label={deleting ? 'Deleting…' : 'Delete receipt'}
-          destructive
-          icon={menuIcon(<TrashIcon color={theme.danger} size={18} />)}
-          onPress={() => !deleting && fromMenu(confirmDelete)}
-        />
-      </Sheet>
+            : null
+        }
+        onToggleEnglish={() => {
+          setShowEnglish(!showEnglish)
+          setMenuOpen(false)
+        }}
+        onEditPeople={fromMenu(() => {
+          setEditingPeople(true)
+          scroll.current?.scrollTo({ y: 0, animated: true })
+        })}
+        canChangePayer={!alone}
+        payerName={payer ? nameOf(payer) : undefined}
+        onChangePayer={fromMenu(() => setPayerOpen(true))}
+        link={friendLinksAvailable ? { on: receipt.link_enabled, pickedNames: pickedByLink } : null}
+        onShareLink={fromMenu(shareLink)}
+        onTurnOffLink={fromMenu(turnOffLink)}
+        deleting={deleting}
+        onDelete={fromMenu(confirmDelete)}
+      />
 
       <AllSettled
         visible={settledOpen && settled}
@@ -1176,10 +649,8 @@ export default function SplitScreen() {
         date={date}
         payerName={payerName ?? 'you'}
         paidBack={owedBack}
-        people={people.map((person) => ({
-          id: person.id,
-          name: nameOf(person),
-          color: colorOf(person),
+        people={people.map((person, index) => ({
+          ...views[index],
           amount: totalOf(person),
           paidTheBill: person.is_payer,
         }))}
@@ -1193,7 +664,6 @@ export default function SplitScreen() {
 
 const styles = StyleSheet.create({
   flex: { flex: 1 },
-  shrink: { flexShrink: 1 },
   centered: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: Spacing.four },
   content: {
     padding: Spacing.three,
@@ -1203,110 +673,9 @@ const styles = StyleSheet.create({
     maxWidth: MaxContentWidth,
     alignSelf: 'center',
   },
-  amount: { fontVariant: ['tabular-nums'] },
-  menuButton: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },
-  menuIcon: { width: 32, alignItems: 'center', justifyContent: 'center' },
-  summary: { gap: Spacing.one, padding: Spacing.three + 4, borderRadius: Radius.large + 4 },
-  summaryTop: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
-  summaryLabel: { flex: 1, fontWeight: '600' },
-  assigned: { gap: Spacing.two, marginTop: Spacing.two },
-  assignedRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
-  assignedText: { fontWeight: '700' },
-  friends: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.three - 4,
-    borderWidth: 1,
-    borderRadius: Radius.large + 4,
-    padding: Spacing.three - 2,
-  },
-  billTotal: { fontSize: 36, lineHeight: 44, fontWeight: '800', fontVariant: ['tabular-nums'], letterSpacing: -0.5 },
-  settledLink: { flexDirection: 'row', alignItems: 'center', gap: Spacing.one, alignSelf: 'flex-start', marginTop: 2 },
-  // The row of person cards runs edge to edge and scrolls when there are many.
-  cardsScroll: { marginHorizontal: -Spacing.three, flexGrow: 0 },
-  cards: { flexGrow: 1, gap: Spacing.two, paddingHorizontal: Spacing.three },
-  personCard: {
-    flexGrow: 1,
-    flexBasis: 0,
-    minWidth: 108,
-    gap: Spacing.one + 2,
-    borderWidth: 1.5,
-    borderRadius: Radius.large,
-    padding: Spacing.three - 4,
-  },
-  personCardTop: { flexDirection: 'row', alignItems: 'center', gap: Spacing.one + 2 },
-  addCard: { borderStyle: 'dashed', alignItems: 'center', justifyContent: 'center' },
-  addIcon: { width: 30, height: 30, borderRadius: 15, alignItems: 'center', justifyContent: 'center' },
-  addPlus: { fontSize: 22, lineHeight: 26, fontWeight: '500' },
-  personAmount: { fontSize: 18, fontWeight: '700' },
-  detail: { borderWidth: 1.5, gap: Spacing.three - 4 },
-  detailRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.three - 4 },
-  detailAmount: { fontSize: 22, lineHeight: 28 },
-  stepCard: { gap: Spacing.three - 4 },
-  stepHeader: { flexDirection: 'row', alignItems: 'flex-start', gap: Spacing.two },
-  chips: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.two },
-  personPill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.two,
-    borderRadius: Radius.pill,
-    paddingLeft: Spacing.one + 2,
-    paddingRight: Spacing.three,
-    minHeight: 40,
-  },
-  addRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
-  suggestions: { gap: Spacing.two },
-  linkTile: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.three - 4,
-    borderWidth: 1,
-    borderRadius: Radius.medium,
-    padding: Spacing.three - 4,
-  },
-  linkIcon: { width: 36, height: 36, borderRadius: Radius.small + 2, alignItems: 'center', justifyContent: 'center' },
   sectionRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.three, marginTop: Spacing.three },
   sectionTitle: { fontSize: 22, lineHeight: 28 },
   hint: { borderRadius: Radius.medium, paddingHorizontal: Spacing.three - 4, paddingVertical: Spacing.two + 2 },
   list: { padding: 0, gap: 0, overflow: 'hidden', borderRadius: Radius.large + 4 },
-  itemRow: { paddingHorizontal: Spacing.three, paddingVertical: Spacing.three - 2, gap: Spacing.two + 2 },
-  itemTop: { flexDirection: 'row', alignItems: 'flex-start', gap: Spacing.three },
-  chipRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
-  initials: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.two + 2, flexShrink: 1 },
-  allPill: { minWidth: 44, height: 40, borderRadius: 20, paddingHorizontal: Spacing.three - 4, alignItems: 'center', justifyContent: 'center' },
-  status: { marginLeft: 'auto', maxWidth: 130 },
-  statusText: { textAlign: 'right' },
-  sheetPrice: { fontSize: 22, lineHeight: 28 },
-  whoHad: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two, paddingHorizontal: Spacing.one, marginBottom: Spacing.one },
-  everyone: { borderRadius: Radius.pill, paddingHorizontal: Spacing.three, minHeight: 36, justifyContent: 'center' },
-  pickRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.three - 4,
-    minHeight: 56,
-    paddingHorizontal: Spacing.three - 4,
-    borderWidth: 1.5,
-    borderRadius: Radius.medium + 2,
-  },
-  checkbox: { width: 24, height: 24, borderRadius: 6, borderWidth: 1.5, alignItems: 'center', justifyContent: 'center' },
-  sheetFooter: { flexDirection: 'row', alignItems: 'center', gap: Spacing.three },
-  doneButton: { paddingHorizontal: Spacing.five },
   footnote: { textAlign: 'center', marginTop: Spacing.one },
-  footerWrap: { position: 'absolute', left: 0, right: 0, bottom: 0, paddingHorizontal: Spacing.three - 4 },
-  footer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.three - 4,
-    width: '100%',
-    maxWidth: MaxContentWidth,
-    alignSelf: 'center',
-    borderWidth: 1,
-    borderRadius: Radius.large + 6,
-    padding: Spacing.two + 2,
-    paddingLeft: Spacing.three,
-    boxShadow: '0 8px 28px rgba(16, 24, 27, 0.14)',
-  },
-  footerSummary: { flex: 1, minHeight: 44, justifyContent: 'center' },
-  sendButton: { paddingHorizontal: Spacing.four, borderRadius: Radius.medium + 2 },
-  sheetNote: { paddingHorizontal: Spacing.two, marginTop: -Spacing.one },
 })
