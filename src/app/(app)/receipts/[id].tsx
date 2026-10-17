@@ -537,6 +537,8 @@ export default function SplitScreen() {
           returnKeyType="done"
           submitBehavior="submit"
           editable={!adding}
+          // Opened from "+ Add", so go straight to typing a name.
+          autoFocus={!alone}
           accessibilityLabel="Name of someone to add"
           style={styles.flex}
         />
@@ -668,6 +670,23 @@ export default function SplitScreen() {
           </Pressable>
         )
       })}
+      <Pressable
+        onPress={() => {
+          setDetailFor(null)
+          setEditingPeople(true)
+        }}
+        accessibilityRole="button"
+        accessibilityLabel="Add people"
+        style={({ pressed }) => [styles.personCard, styles.addCard, { borderColor: theme.border, opacity: pressed ? 0.7 : 1 }]}>
+        <View style={[styles.addIcon, { backgroundColor: theme.primarySoft }]}>
+          <AppText variant="heading" style={[styles.addPlus, { color: theme.primary }]}>
+            +
+          </AppText>
+        </View>
+        <AppText variant="label" style={{ color: theme.primary }}>
+          Add
+        </AppText>
+      </Pressable>
     </ScrollView>
   )
 
@@ -1153,6 +1172,9 @@ const styles = StyleSheet.create({
     padding: Spacing.three - 4,
   },
   personCardTop: { flexDirection: 'row', alignItems: 'center', gap: Spacing.one + 2 },
+  addCard: { borderStyle: 'dashed', alignItems: 'center', justifyContent: 'center' },
+  addIcon: { width: 30, height: 30, borderRadius: 15, alignItems: 'center', justifyContent: 'center' },
+  addPlus: { fontSize: 22, lineHeight: 26, fontWeight: '500' },
   personAmount: { fontSize: 18, fontWeight: '700' },
   detail: { borderWidth: 1.5, gap: Spacing.three - 4 },
   detailRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.three - 4 },
