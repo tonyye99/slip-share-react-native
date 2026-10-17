@@ -17,7 +17,6 @@ import { AllSettled } from '@/components/all-settled'
 import { BreakdownSheet } from '@/components/breakdown-sheet'
 import { Avatar, Chip, InitialChip, usePersonColor } from '@/components/chip'
 import { CheckIcon, DotsIcon, LinkIcon, PeopleIcon, PersonIcon, ShareIcon, TrashIcon } from '@/components/icons'
-import { ProgressRing } from '@/components/progress-ring'
 import { ScreenHeader } from '@/components/screen-header'
 import { Sheet, SheetOption } from '@/components/sheet'
 import { SwipeActions } from '@/components/swipe-actions'
@@ -562,41 +561,76 @@ export default function SplitScreen() {
     </Card>
   )
 
+  const assignedItems = itemCount - unassignedCount
   const summary = (
     <Card style={styles.summary}>
-      <View style={styles.flex}>
-        <AppText variant="caption">Bill total</AppText>
-        <AppText style={[styles.billTotal, { color: theme.text }]} numberOfLines={1} adjustsFontSizeToFit>
-          {money(receipt.total)}
+      <View style={styles.summaryTop}>
+        <AppText variant="caption" style={[styles.summaryLabel, { color: theme.text }]}>
+          Bill total
         </AppText>
-        <AppText variant="caption">
+        <AppText variant="caption" numberOfLines={1} style={styles.shrink}>
           {[payer ? `Paid by ${payerName}` : null, included.length ? `incl. ${included.join(' and ')}` : null]
             .filter(Boolean)
             .join(' · ')}
         </AppText>
-        {settled ? (
-          <Pressable onPress={() => setSettledOpen(true)} accessibilityRole="button" style={styles.settledLink}>
-            <CheckIcon color={theme.success} size={14} weight={2} />
-            <AppText variant="caption" style={{ color: theme.success, fontWeight: '700' }}>
-              All settled
-            </AppText>
-          </Pressable>
-        ) : paidBack > 0 ? (
-          <AppText variant="caption" style={{ color: theme.success, fontWeight: '600' }}>
-            {money(paidBack)} of {money(owedBack)} paid back
-          </AppText>
-        ) : null}
       </View>
+      <AppText style={[styles.billTotal, { color: theme.text }]} numberOfLines={1} adjustsFontSizeToFit>
+        {money(receipt.total)}
+      </AppText>
       {!alone && (
-        <ProgressRing
-          value={assignedShare}
-          label={hasUnassigned ? `${Math.min(99, Math.floor(assignedShare * 100))}%` : '100%'}
-          caption="ASSIGNED"
-          color={hasUnassigned ? theme.primary : theme.success}
-          track={theme.backgroundElement}
-        />
+        <View style={styles.assigned}>
+          <View style={styles.assignedRow}>
+            <AppText variant="caption" style={[styles.flex, styles.assignedText, { color: hasUnassigned ? theme.text : theme.success }]}>
+              {hasUnassigned ? `${assignedItems} of ${itemCount} items assigned` : `All ${itemCount} items assigned`}
+            </AppText>
+            {hasUnassigned && (
+              <AppText variant="caption" style={styles.amount}>
+                {money(split.unassigned.total)} left
+              </AppText>
+            )}
+          </View>
+          <ProgressBar value={assignedShare} color={hasUnassigned ? theme.primary : theme.success} />
+        </View>
       )}
+      {settled ? (
+        <Pressable onPress={() => setSettledOpen(true)} accessibilityRole="button" style={styles.settledLink}>
+          <CheckIcon color={theme.success} size={14} weight={2} />
+          <AppText variant="caption" style={{ color: theme.success, fontWeight: '700' }}>
+            All settled
+          </AppText>
+        </Pressable>
+      ) : paidBack > 0 ? (
+        <AppText variant="caption" style={{ color: theme.success, fontWeight: '600' }}>
+          {money(paidBack)} of {money(owedBack)} paid back
+        </AppText>
+      ) : null}
     </Card>
+  )
+
+  // The friend link, up front once there are people to send it to.
+  const pickedByLink = people.filter((person) => person.guest_key).map((person) => person.name)
+  const friendsCard = (
+    <View style={[styles.friends, { backgroundColor: theme.primaryTint, borderColor: theme.primarySoft }]}>
+      <View style={[styles.linkIcon, { backgroundColor: theme.primary }]}>
+        <LinkIcon color={theme.onPrimary} />
+      </View>
+      <View style={styles.flex}>
+        <AppText variant="label">{receipt.link_enabled ? 'Friend link is on' : 'Let friends pick'}</AppText>
+        <AppText variant="caption">
+          {!receipt.link_enabled
+            ? 'They tick their own items. No app or sign-up.'
+            : pickedByLink.length > 0
+              ? `${pickedByLink.join(', ')} picked. Pull down for new picks.`
+              : 'Pull down to see their picks.'}
+        </AppText>
+      </View>
+      <Button
+        title={receipt.link_enabled ? 'Share again' : 'Share link'}
+        size="small"
+        onPress={shareLink}
+        loading={linkBusy}
+      />
+    </View>
   )
 
   const personCards = (
@@ -788,13 +822,6 @@ export default function SplitScreen() {
             setPickFor(item.id)
             setPickOpen(true)
           },
-        }}
-        end={{
-          label: 'Everyone',
-          color: theme.success,
-          textColor: theme.onPerson,
-          icon: <PeopleIcon color={theme.onPerson} size={18} />,
-          onAction: () => shareWithEveryone(item),
         }}>
         {row}
       </SwipeActions>
@@ -803,7 +830,6 @@ export default function SplitScreen() {
 
   const pickItem = receipt.receipts_items.find((item) => item.id === pickFor)
   const menuIcon = (icon: ReactNode) => <View style={styles.menuIcon}>{icon}</View>
-  const pickedByLink = people.filter((person) => person.guest_key).map((person) => person.name)
 
   return (
     <View style={[styles.flex, { backgroundColor: theme.background }]}>
@@ -833,6 +859,7 @@ export default function SplitScreen() {
         {summary}
         {!alone && personCards}
         {detailCard}
+        {friendLinksAvailable && !showPeopleStep && friendsCard}
         {showPeopleStep && peopleStep}
 
         {alone ? (
@@ -856,7 +883,7 @@ export default function SplitScreen() {
         {!alone && hasUnassigned && (
           <View style={[styles.hint, { backgroundColor: theme.primarySoft }]}>
             <AppText variant="caption" style={{ color: theme.primary, fontWeight: '600' }}>
-              ↔  Swipe left to share with everyone, right to pick who had it
+              →  Swipe an item right to pick who had it
             </AppText>
           </View>
         )}
@@ -1097,7 +1124,20 @@ const styles = StyleSheet.create({
   amount: { fontVariant: ['tabular-nums'] },
   menuButton: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },
   menuIcon: { width: 32, alignItems: 'center', justifyContent: 'center' },
-  summary: { flexDirection: 'row', alignItems: 'center', gap: Spacing.three, padding: Spacing.three + 4, borderRadius: Radius.large + 4 },
+  summary: { gap: Spacing.one, padding: Spacing.three + 4, borderRadius: Radius.large + 4 },
+  summaryTop: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
+  summaryLabel: { flex: 1, fontWeight: '600' },
+  assigned: { gap: Spacing.two, marginTop: Spacing.two },
+  assignedRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
+  assignedText: { fontWeight: '700' },
+  friends: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.three - 4,
+    borderWidth: 1,
+    borderRadius: Radius.large + 4,
+    padding: Spacing.three - 2,
+  },
   billTotal: { fontSize: 36, lineHeight: 44, fontWeight: '800', fontVariant: ['tabular-nums'], letterSpacing: -0.5 },
   settledLink: { flexDirection: 'row', alignItems: 'center', gap: Spacing.one, alignSelf: 'flex-start', marginTop: 2 },
   // The row of person cards runs edge to edge and scrolls when there are many.
