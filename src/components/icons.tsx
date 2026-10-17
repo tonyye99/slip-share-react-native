@@ -22,6 +22,71 @@ export function ChevronLeft({ color, size = 12 }: { color: string; size?: number
   )
 }
 
+/** A ">" pointing right, for a row that opens something. */
+export function ChevronRight({ color, size = 8, weight = 2 }: { color: string; size?: number; weight?: number }) {
+  return (
+    <View style={{ width: size * 0.75 + weight, height: size * 1.42, justifyContent: 'center' }}>
+      <View
+        style={{
+          width: size,
+          height: size,
+          borderRightWidth: weight,
+          borderTopWidth: weight,
+          borderColor: color,
+          borderRadius: 1,
+          transform: [{ rotate: '45deg' }],
+          marginLeft: -size * 0.45,
+        }}
+      />
+    </View>
+  )
+}
+
+/** A paper plane, for sending. */
+export function SendIcon({ color, size = 18, weight = 2 }: { color: string; size?: number; weight?: number }) {
+  // The plane's outline and its fold, on a 24 × 24 grid.
+  const tip: Point = [21.5, 2.5]
+  const left: Point = [2.5, 9]
+  const bottom: Point = [15, 21.5]
+  const fold: Point = [10.8, 13.2]
+  return (
+    <View style={{ width: size, height: size }}>
+      {[
+        [left, tip],
+        [tip, bottom],
+        [bottom, fold],
+        [fold, left],
+        [fold, tip],
+      ].map(([from, to], index) => (
+        <Line key={index} from={from} to={to} scale={size / 24} color={color} weight={weight} />
+      ))}
+    </View>
+  )
+}
+
+type Point = [number, number]
+
+/** A straight stroke between two points, with rounded ends so corners close up. */
+function Line({ from, to, scale, color, weight }: { from: Point; to: Point; scale: number; color: string; weight: number }) {
+  const dx = (to[0] - from[0]) * scale
+  const dy = (to[1] - from[1]) * scale
+  const length = Math.hypot(dx, dy) + weight
+  return (
+    <View
+      style={{
+        position: 'absolute',
+        left: ((from[0] + to[0]) / 2) * scale - length / 2,
+        top: ((from[1] + to[1]) / 2) * scale - weight / 2,
+        width: length,
+        height: weight,
+        borderRadius: weight / 2,
+        backgroundColor: color,
+        transform: [{ rotate: `${Math.atan2(dy, dx)}rad` }],
+      }}
+    />
+  )
+}
+
 /** Arrow up out of a tray, for sharing. */
 export function ShareIcon({ color, size = 18 }: { color: string; size?: number }) {
   const arrow = size * 0.4
@@ -237,15 +302,15 @@ export function DotsIcon({ color, size = 20 }: { color: string; size?: number })
 }
 
 /** A head and shoulders, for one person. */
-export function PersonIcon({ color, size = 20 }: { color: string; size?: number }) {
+export function PersonIcon({ color, size = 20, weight = 2 }: { color: string; size?: number; weight?: number }) {
   return (
     <View style={{ width: size, height: size, alignItems: 'center', justifyContent: 'space-between' }}>
-      <View style={{ width: size * 0.42, height: size * 0.42, borderRadius: size, borderWidth: 2, borderColor: color }} />
+      <View style={{ width: size * 0.42, height: size * 0.42, borderRadius: size, borderWidth: weight, borderColor: color }} />
       <View
         style={{
           width: size * 0.8,
           height: size * 0.42,
-          borderWidth: 2,
+          borderWidth: weight,
           borderBottomWidth: 0,
           borderColor: color,
           borderTopLeftRadius: size,
@@ -257,12 +322,12 @@ export function PersonIcon({ color, size = 20 }: { color: string; size?: number 
 }
 
 /** Two people side by side, for "everyone". */
-export function PeopleIcon({ color, size = 22 }: { color: string; size?: number }) {
+export function PeopleIcon({ color, size = 22, weight = 2 }: { color: string; size?: number; weight?: number }) {
   return (
     <View style={{ width: size * 1.3, height: size, flexDirection: 'row', alignItems: 'flex-end' }}>
-      <PersonIcon color={color} size={size * 0.85} />
+      <PersonIcon color={color} size={size * 0.85} weight={weight} />
       <View style={{ marginLeft: -size * 0.3 }}>
-        <PersonIcon color={color} size={size} />
+        <PersonIcon color={color} size={size} weight={weight} />
       </View>
     </View>
   )

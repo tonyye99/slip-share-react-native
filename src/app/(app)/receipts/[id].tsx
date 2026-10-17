@@ -6,7 +6,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { AllSettled } from '@/components/all-settled'
 import { BreakdownSheet } from '@/components/breakdown-sheet'
 import { usePersonColor } from '@/components/chip'
-import { ShareIcon } from '@/components/icons'
+import { SendIcon } from '@/components/icons'
 import { ScreenHeader } from '@/components/screen-header'
 import { BillSummary } from '@/components/split/bill-summary'
 import { FriendLinkCard, ShareLinkTile } from '@/components/split/friend-link'
@@ -398,7 +398,7 @@ export default function SplitScreen() {
     })
 
   // Menu choices run once the menu has slid away.
-  const fromMenu = (run: () => void) => () => {
+  const fromMenu = (run: () => void) => {
     setMenuOpen(false)
     afterSheet(run)
   }
@@ -503,7 +503,7 @@ export default function SplitScreen() {
           />
         )}
 
-        <View style={styles.sectionRow}>
+        <View style={[styles.sectionRow, !alone && styles.sectionGap]}>
           {alone ? (
             <>
               <AppText variant="heading" style={styles.flex}>
@@ -516,18 +516,12 @@ export default function SplitScreen() {
               <AppText variant="title" style={[styles.flex, styles.sectionTitle]}>
                 Who had what
               </AppText>
-              <TextLink title="Split all evenly" onPress={splitEvenly} />
+              <View>
+                <TextLink title="Split all evenly" onPress={splitEvenly} />
+              </View>
             </>
           )}
         </View>
-
-        {!alone && Math.abs(left) >= 0.005 && (
-          <View style={[styles.hint, { backgroundColor: theme.primarySoft }]}>
-            <AppText variant="caption" style={{ color: theme.primary, fontWeight: '600' }}>
-              Tap an item, or swipe it right, to pick who had it
-            </AppText>
-          </View>
-        )}
 
         <Card style={styles.list}>
           {items.map((item, index) => (
@@ -535,15 +529,12 @@ export default function SplitScreen() {
               key={item.id}
               item={item}
               showEnglish={showEnglish}
-              people={views}
               had={peopleOn(item.id)}
               status={statusOf(item)}
               alone={alone}
               divider={index > 0}
               money={money}
               onOpen={() => openItem(item.id)}
-              onTogglePerson={(personId) => togglePerson(item.id, personId)}
-              onToggleEveryone={() => toggleEveryone(item)}
             />
           ))}
         </Card>
@@ -581,7 +572,7 @@ export default function SplitScreen() {
         footer={
           <Button
             title="Send totals"
-            icon={<ShareIcon color={theme.onPrimary} />}
+            icon={<SendIcon color={theme.onPrimary} />}
             onPress={() => {
               setBreakdownOpen(false)
               afterSheet(sendTotals)
@@ -628,18 +619,20 @@ export default function SplitScreen() {
           setShowEnglish(!showEnglish)
           setMenuOpen(false)
         }}
-        onEditPeople={fromMenu(() => {
-          setEditingPeople(true)
-          scroll.current?.scrollTo({ y: 0, animated: true })
-        })}
+        onEditPeople={() =>
+          fromMenu(() => {
+            setEditingPeople(true)
+            scroll.current?.scrollTo({ y: 0, animated: true })
+          })
+        }
         canChangePayer={!alone}
         payerName={payer ? nameOf(payer) : undefined}
-        onChangePayer={fromMenu(() => setPayerOpen(true))}
+        onChangePayer={() => fromMenu(() => setPayerOpen(true))}
         link={friendLinksAvailable ? { on: receipt.link_enabled, pickedNames: pickedByLink } : null}
-        onShareLink={fromMenu(shareLink)}
-        onTurnOffLink={fromMenu(turnOffLink)}
+        onShareLink={() => fromMenu(shareLink)}
+        onTurnOffLink={() => fromMenu(turnOffLink)}
         deleting={deleting}
-        onDelete={fromMenu(confirmDelete)}
+        onDelete={() => fromMenu(confirmDelete)}
       />
 
       <AllSettled
@@ -674,8 +667,8 @@ const styles = StyleSheet.create({
     alignSelf: 'center',
   },
   sectionRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.three, marginTop: Spacing.three },
+  sectionGap: { marginBottom: Spacing.one + 2 },
   sectionTitle: { fontSize: 22, lineHeight: 28 },
-  hint: { borderRadius: Radius.medium, paddingHorizontal: Spacing.three - 4, paddingVertical: Spacing.two + 2 },
   list: { padding: 0, gap: 0, overflow: 'hidden', borderRadius: Radius.large + 4 },
   footnote: { textAlign: 'center', marginTop: Spacing.one },
 })

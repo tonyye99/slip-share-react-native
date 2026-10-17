@@ -20,20 +20,20 @@ export function FriendLinkCard({
 }) {
   const theme = useTheme()
   const caption = !on
-    ? 'They tick their own items. No app or sign-up.'
+    ? 'They tick their own items.\nNo app or sign-up.'
     : pickedNames.length > 0
       ? `${pickedNames.join(', ')} picked. Pull down for new picks.`
       : 'Pull down to see their picks.'
   return (
     <View style={[styles.card, { backgroundColor: theme.primaryTint, borderColor: theme.primarySoft }]}>
-      <View style={[styles.icon, { backgroundColor: theme.primary }]}>
-        <LinkIcon color={theme.onPrimary} />
+      <View style={[styles.icon, styles.bigIcon, { backgroundColor: theme.primary }]}>
+        <LinkIcon color={theme.onPrimary} size={22} />
       </View>
       <View style={styles.flex}>
         <AppText variant="label">{on ? 'Friend link is on' : 'Let friends pick'}</AppText>
         <AppText variant="caption">{caption}</AppText>
       </View>
-      <Button title={on ? 'Share again' : 'Share link'} size="small" onPress={onShare} loading={busy} />
+      <Button title={on ? 'Share again' : 'Share link'} onPress={onShare} loading={busy} style={styles.button} />
     </View>
   )
 }
@@ -69,7 +69,8 @@ const styles = StyleSheet.create({
     gap: Spacing.three - 4,
     borderWidth: 1,
     borderRadius: Radius.large + 4,
-    padding: Spacing.three - 2,
+    paddingHorizontal: Spacing.three,
+    paddingVertical: Spacing.three - 4,
   },
   tile: {
     flexDirection: 'row',
@@ -80,4 +81,6 @@ const styles = StyleSheet.create({
     padding: Spacing.three - 4,
   },
   icon: { width: 36, height: 36, borderRadius: Radius.small + 2, alignItems: 'center', justifyContent: 'center' },
+  bigIcon: { width: 44, height: 44, borderRadius: Radius.medium },
+  button: { minHeight: 44, paddingHorizontal: Spacing.three - 2, borderRadius: Radius.medium + 2 },
 })

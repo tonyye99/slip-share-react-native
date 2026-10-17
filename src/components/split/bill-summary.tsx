@@ -33,7 +33,7 @@ export function BillSummary({
   return (
     <Card style={styles.summary}>
       <View style={styles.top}>
-        <AppText variant="caption" style={[styles.label, { color: theme.text }]}>
+        <AppText variant="caption" style={styles.label}>
           Bill total
         </AppText>
         <AppText variant="caption" numberOfLines={1} style={styles.shrink}>
@@ -77,11 +77,11 @@ export function BillSummary({
 const styles = StyleSheet.create({
   shrink: { flexShrink: 1 },
   amount: { fontVariant: ['tabular-nums'] },
-  summary: { gap: Spacing.one, padding: Spacing.three + 4, borderRadius: Radius.large + 4 },
+  summary: { gap: Spacing.one, padding: Spacing.three + 2, borderRadius: Radius.large + 4 },
   top: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
   label: { flex: 1, fontWeight: '600' },
-  total: { fontSize: 36, lineHeight: 44, fontWeight: '800', fontVariant: ['tabular-nums'], letterSpacing: -0.5 },
-  assigned: { gap: Spacing.two, marginTop: Spacing.two },
+  total: { fontSize: 36, lineHeight: 40, fontWeight: '800', fontVariant: ['tabular-nums'], letterSpacing: -0.5 },
+  assigned: { gap: Spacing.one + 1, marginTop: Spacing.one + 3 },
   assignedRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
   assignedText: { flex: 1, fontWeight: '700' },
   settledLink: { flexDirection: 'row', alignItems: 'center', gap: Spacing.one, alignSelf: 'flex-start', marginTop: 2 },

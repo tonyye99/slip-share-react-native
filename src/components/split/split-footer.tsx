@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { PanResponder, Platform, Pressable, StyleSheet, View, type ViewStyle } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
-import { ShareIcon } from '@/components/icons'
+import { SendIcon } from '@/components/icons'
 import { AppText, Button } from '@/components/ui'
 import { MaxContentWidth, Radius, Spacing } from '@/constants/theme'
 import { useTheme } from '@/hooks/use-theme'
@@ -80,7 +80,7 @@ export function SplitFooter({
         <Pressable onPress={onOpenBreakdown} accessibilityRole="button" accessibilityLabel="See the breakdown" style={styles.summary}>
           {summary}
         </Pressable>
-        <Button title="Send totals" onPress={onSend} icon={<ShareIcon color={theme.onPrimary} />} style={styles.send} />
+        <Button title="Send totals" onPress={onSend} icon={<SendIcon color={theme.onPrimary} />} style={styles.send} />
       </View>
     </View>
   )
@@ -98,10 +98,10 @@ const styles = StyleSheet.create({
     alignSelf: 'center',
     borderWidth: 1,
     borderRadius: Radius.large + 6,
-    padding: Spacing.two + 2,
+    padding: Spacing.two,
     paddingLeft: Spacing.three,
     boxShadow: '0 8px 28px rgba(16, 24, 27, 0.14)',
   },
   summary: { flex: 1, minHeight: 44, justifyContent: 'center' },
-  send: { paddingHorizontal: Spacing.four, borderRadius: Radius.medium + 2 },
+  send: { paddingHorizontal: Spacing.four + 2, borderRadius: Radius.pill },
 })

@@ -46,11 +46,11 @@ export function PersonCards({
             accessibilityLabel={`${person.name}, ${money(person.total)}${person.paidBack ? ', paid back' : ''}`}
             style={({ pressed }) => [
               styles.card,
-              { backgroundColor: theme.surface, borderColor: open ? person.color : theme.hairline, opacity: pressed ? 0.85 : 1 },
+              { backgroundColor: theme.surface, borderColor: open ? person.color : 'transparent', opacity: pressed ? 0.85 : 1 },
             ]}>
             <View style={styles.top}>
-              <Avatar name={person.name} color={person.color} size={22} />
-              <AppText variant="caption" numberOfLines={1} style={styles.shrink}>
+              <Avatar name={person.name} color={person.color} size={24} />
+              <AppText variant="caption" numberOfLines={1} style={[styles.shrink, styles.name]}>
                 {person.name}
               </AppText>
               {person.paidBack && <CheckIcon color={theme.success} size={14} weight={2} />}
@@ -82,6 +82,7 @@ export function PersonCards({
 
 const styles = StyleSheet.create({
   shrink: { flexShrink: 1 },
+  name: { fontWeight: '600' },
   scroll: { marginHorizontal: -Spacing.three, flexGrow: 0 },
   cards: { flexGrow: 1, gap: Spacing.two, paddingHorizontal: Spacing.three },
   card: {
@@ -93,8 +94,8 @@ const styles = StyleSheet.create({
     borderRadius: Radius.large,
     padding: Spacing.three - 4,
   },
-  top: { flexDirection: 'row', alignItems: 'center', gap: Spacing.one + 2 },
-  amount: { fontVariant: ['tabular-nums'], fontSize: 18, fontWeight: '700' },
+  top: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
+  amount: { fontVariant: ['tabular-nums'], fontSize: 20, lineHeight: 24, fontWeight: '700' },
   addCard: { borderStyle: 'dashed', alignItems: 'center', justifyContent: 'center' },
   addIcon: { width: 30, height: 30, borderRadius: 15, alignItems: 'center', justifyContent: 'center' },
   addPlus: { fontSize: 22, lineHeight: 26, fontWeight: '500' },
