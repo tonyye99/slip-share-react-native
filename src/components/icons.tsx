@@ -64,6 +64,31 @@ export function SendIcon({ color, size = 18, weight = 2 }: { color: string; size
   )
 }
 
+/** A till receipt with a torn bottom edge, for a bill. */
+export function ReceiptIcon({ color, size = 20, weight = 1.8 }: { color: string; size?: number; weight?: number }) {
+  const edges: [Point, Point][] = [
+    [[5.5, 2.5], [18.5, 2.5]],
+    [[5.5, 2.5], [5.5, 21.5]],
+    [[18.5, 2.5], [18.5, 21.5]],
+    [[5.5, 21.5], [7.7, 19.8]],
+    [[7.7, 19.8], [9.8, 21.5]],
+    [[9.8, 21.5], [12, 19.8]],
+    [[12, 19.8], [14.2, 21.5]],
+    [[14.2, 21.5], [16.3, 19.8]],
+    [[16.3, 19.8], [18.5, 21.5]],
+    [[9, 7.5], [15, 7.5]],
+    [[9, 11.5], [15, 11.5]],
+    [[9, 15.5], [12.5, 15.5]],
+  ]
+  return (
+    <View style={{ width: size, height: size }}>
+      {edges.map(([from, to], index) => (
+        <Line key={index} from={from} to={to} scale={size / 24} color={color} weight={weight} />
+      ))}
+    </View>
+  )
+}
+
 type Point = [number, number]
 
 /** A straight stroke between two points, with rounded ends so corners close up. */

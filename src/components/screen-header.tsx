@@ -47,7 +47,7 @@ export function ScreenHeader({
           : { backgroundColor: theme.surface, borderColor: theme.hairline },
       ]}>
       <View style={styles.inner}>
-        <View style={styles.row}>
+        <View style={[styles.row, brand && styles.brandRow]}>
           {back && (
             <Pressable onPress={goBack} hitSlop={12} accessibilityRole="button" accessibilityLabel="Back" style={styles.back}>
               <ChevronLeft color={theme.text} />
@@ -55,7 +55,7 @@ export function ScreenHeader({
           )}
           {brand ? (
             <View style={[styles.titles, styles.brand]}>
-              <Logo />
+              <Logo size={32} />
               <AppText variant="heading" style={styles.brandName}>
                 SlipShare
               </AppText>
@@ -88,5 +88,6 @@ const styles = StyleSheet.create({
   titles: { flex: 1, gap: 1 },
   title: { fontSize: 20, lineHeight: 25, fontWeight: '700' },
   brand: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
+  brandRow: { minHeight: 64 },
   brandName: { fontSize: 18, fontWeight: '700' },
 })

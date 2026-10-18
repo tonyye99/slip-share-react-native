@@ -1,44 +1,92 @@
 import { router, useFocusEffect } from 'expo-router'
-import { useCallback, useState } from 'react'
-import { ActivityIndicator, FlatList, Pressable, RefreshControl, StyleSheet, View } from 'react-native'
-import { SafeAreaView } from 'react-native-safe-area-context'
+import { useCallback, useMemo, useState } from 'react'
+import { ActivityIndicator, FlatList, RefreshControl, ScrollView, StyleSheet, View } from 'react-native'
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
-import { Avatar } from '@/components/chip'
+import { Chip, usePersonColor } from '@/components/chip'
+import { AccountButton } from '@/components/home/account-button'
+import { MonthCard, ToSplitCard, WaitingCard } from '@/components/home/bill-cards'
+import { BillRow } from '@/components/home/bill-row'
+import { FirstTime } from '@/components/home/first-time'
+import { ScanFooter } from '@/components/home/scan-footer'
 import { ScreenHeader } from '@/components/screen-header'
-import { SwipeToDelete } from '@/components/swipe-to-delete'
-import { AppText, Button, Card } from '@/components/ui'
+import { AppText } from '@/components/ui'
 import { MaxContentWidth, Spacing } from '@/constants/theme'
 import { useTheme } from '@/hooks/use-theme'
 import { showAlert } from '@/lib/alert'
 import { useAuth } from '@/lib/auth'
-import { confirmDeleteReceipt, deleteReceipt, listReceipts, type ReceiptSummary } from '@/lib/receipts'
+import {
+  badgeText,
+  billName,
+  billStatus,
+  biggestDebt,
+  monthTotal,
+  reminderText,
+  type Bill,
+  type BillState,
+} from '@/lib/bills'
+import { pickedPhoto, pickPhoto } from '@/lib/photo'
+import { confirmDeleteReceipt, deleteReceipt, listBills } from '@/lib/receipts'
+import { shareText } from '@/lib/share-text'
 import { formatMoney } from '@/lib/split'
+import { countLabel } from '@/lib/split-view'
 
-const PAGE_SIZE = 20
+const PAGE_SIZE = 30
+
+type Filter = 'all' | BillState
+const FILTERS: { key: Filter; label: string }[] = [
+  { key: 'all', label: 'All' },
+  { key: 'to-split', label: 'To split' },
+  { key: 'waiting', label: 'Waiting' },
+  { key: 'settled', label: 'Settled' },
+]
+
+const sameDay = (a: Date, b: Date) =>
+  a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate()
+
+/** "Wed, Oct 15", with the year when it isn't this year. */
+const dateLabel = (date: Date, now: Date) =>
+  date.toLocaleDateString(undefined, {
+    weekday: 'short',
+    month: 'short',
+    day: 'numeric',
+    year: date.getFullYear() === now.getFullYear() ? undefined : 'numeric',
+  })
+
+/** "Today", "Yesterday" or the date. */
+function dayLabel(date: Date, now: Date) {
+  if (sameDay(date, now)) return 'Today'
+  const yesterday = new Date(now)
+  yesterday.setDate(now.getDate() - 1)
+  return sameDay(date, yesterday) ? 'Yesterday' : dateLabel(date, now)
+}
 
 export default function HomeScreen() {
   const theme = useTheme()
+  const insets = useSafeAreaInsets()
+  const personColor = usePersonColor()
   const { session } = useAuth()
-  const [receipts, setReceipts] = useState<ReceiptSummary[]>([])
+  const [bills, setBills] = useState<Bill[]>([])
   const [total, setTotal] = useState(0)
   const [loading, setLoading] = useState(true)
   const [loadingMore, setLoadingMore] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [filter, setFilter] = useState<Filter>('all')
 
   const loadFirstPage = useCallback(async () => {
     try {
-      const page = await listReceipts(0, PAGE_SIZE)
-      setReceipts(page.receipts)
+      const page = await listBills(0, PAGE_SIZE)
+      setBills(page.bills)
       setTotal(page.total)
       setError(null)
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Could not load receipts')
+      setError(e instanceof Error ? e.message : 'Could not load your bills')
     } finally {
       setLoading(false)
     }
   }, [])
 
-  // Reload when coming back from a newly saved receipt.
+  // Reload when coming back from a bill, which may have changed.
   useFocusEffect(
     useCallback(() => {
       loadFirstPage()
@@ -46,24 +94,24 @@ export default function HomeScreen() {
   )
 
   const loadMore = async () => {
-    if (loadingMore || receipts.length >= total) return
+    if (loadingMore || bills.length >= total) return
     setLoadingMore(true)
     try {
-      const page = await listReceipts(receipts.length, PAGE_SIZE)
-      setReceipts((prev) => [...prev, ...page.receipts])
+      const page = await listBills(bills.length, PAGE_SIZE)
+      setBills((prev) => [...prev, ...page.bills])
       setTotal(page.total)
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Could not load receipts')
+      setError(e instanceof Error ? e.message : 'Could not load your bills')
     } finally {
       setLoadingMore(false)
     }
   }
 
-  const remove = (receipt: ReceiptSummary) =>
+  const remove = (bill: Bill) =>
     confirmDeleteReceipt(async () => {
       try {
-        await deleteReceipt(receipt.id)
-        setReceipts((prev) => prev.filter((other) => other.id !== receipt.id))
+        await deleteReceipt(bill.id)
+        setBills((prev) => prev.filter((other) => other.id !== bill.id))
         setTotal((prev) => prev - 1)
       } catch (e) {
         console.error('Delete receipt failed', e)
@@ -71,107 +119,153 @@ export default function HomeScreen() {
       }
     })
 
+  // Take a photo (or pick one) here, then check it on the scan screen.
+  const scan = async (source: 'camera' | 'library') => {
+    const photo = await pickPhoto(source)
+    if (!photo) return
+    pickedPhoto.set(photo)
+    router.push('/scan')
+  }
+
+  const openBill = (id: string) => router.push(`/receipts/${id}`)
+
+  const withStatus = useMemo(() => bills.map((bill) => ({ bill, status: billStatus(bill) })), [bills])
+  const now = new Date()
+  const top = biggestDebt(withStatus)
+  const toSplit = withStatus.filter(({ status }) => status.state === 'to-split')
+  const month = monthTotal(bills, now)
+  const shown = filter === 'all' ? withStatus : withStatus.filter(({ status }) => status.state === filter)
+
+  const remind = () => {
+    if (!top) return
+    const money = (amount: number) => formatMoney(amount, top.bill.currency)
+    shareText(reminderText(top.debt, billName(top.bill), dateLabel(new Date(top.bill.created_at), now), money))
+  }
+
+  const header = (
+    <ScreenHeader
+      brand
+      plain
+      back={false}
+      right={<AccountButton user={session?.user} />}
+    />
+  )
+
+  if (loading || (error && bills.length === 0)) {
+    return (
+      <View style={[styles.flex, { backgroundColor: theme.background }]}>
+        {header}
+        <View style={styles.centered}>{error ? <AppText variant="error">{error}</AppText> : <ActivityIndicator />}</View>
+      </View>
+    )
+  }
+
+  if (bills.length === 0) {
+    return (
+      <View style={[styles.flex, { backgroundColor: theme.background }]}>
+        {header}
+        <ScrollView
+          contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 110 }]}
+          refreshControl={<RefreshControl refreshing={false} onRefresh={loadFirstPage} />}>
+          <FirstTime />
+        </ScrollView>
+        <ScanFooter title="Scan your first receipt" onCamera={() => scan('camera')} onLibrary={() => scan('library')} />
+      </View>
+    )
+  }
+
+  const monthMoney = (amount: number) => formatMoney(amount, month.currency)
   return (
-    <SafeAreaView edges={['bottom']} style={[styles.flex, { backgroundColor: theme.background }]}>
-      <ScreenHeader
-        brand
-        back={false}
-        right={
-          <Pressable
-            onPress={() => router.push('/account')}
-            hitSlop={8}
-            accessibilityRole="button"
-            accessibilityLabel="Account"
-            style={styles.account}>
-            <AppText variant="label" style={{ color: theme.primary }}>
-              Account
-            </AppText>
-            <Avatar name={session?.user.email ?? '?'} color={theme.primary} size={30} soft />
-          </Pressable>
-        }
-      />
+    <View style={[styles.flex, { backgroundColor: theme.background }]}>
+      {header}
       <FlatList
-        data={receipts}
-        keyExtractor={(receipt) => receipt.id}
-        contentContainerStyle={styles.list}
+        data={shown}
+        keyExtractor={({ bill }) => bill.id}
+        contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 110 }]}
         refreshControl={<RefreshControl refreshing={false} onRefresh={loadFirstPage} />}
         onEndReached={loadMore}
         onEndReachedThreshold={0.5}
         ListHeaderComponent={
-          <View style={styles.header}>
-            <Card style={styles.hero}>
-              <AppText variant="title">Split a bill</AppText>
-              <AppText variant="muted">Take a photo of the receipt. SlipShare reads the items so you can tap who had what.</AppText>
-              <Button title="Scan a receipt" onPress={() => router.push('/scan')} style={styles.heroButton} />
-            </Card>
+          <View style={styles.top}>
+            {top && (
+              <WaitingCard
+                amount={formatMoney(top.debt.amount, top.bill.currency)}
+                name={top.debt.name}
+                color={personColor(top.debt.index)}
+                billName={billName(top.bill)}
+                onOpen={() => openBill(top.bill.id)}
+                onRemind={remind}
+              />
+            )}
+            <View style={styles.pair}>
+              <MonthCard
+                month={now.toLocaleDateString(undefined, { month: 'long' })}
+                amount={monthMoney(month.total)}
+                count={countLabel(month.count, 'bill')}
+              />
+              {toSplit.length > 0 && (
+                <ToSplitCard
+                  count={countLabel(toSplit.length, 'bill')}
+                  onPress={() => (toSplit.length === 1 ? openBill(toSplit[0].bill.id) : setFilter('to-split'))}
+                />
+              )}
+            </View>
             {error && <AppText variant="error">{error}</AppText>}
-            {receipts.length > 0 && <AppText variant="heading">Your receipts</AppText>}
+            <View style={styles.bills}>
+              <AppText variant="title" style={styles.heading} accessibilityRole="header">
+                Your bills
+              </AppText>
+              <View style={styles.filters} accessibilityRole="radiogroup">
+                {FILTERS.map(({ key, label }) => (
+                  <Chip key={key} label={label} role="radio" selected={filter === key} onPress={() => setFilter(key)} />
+                ))}
+              </View>
+            </View>
           </View>
         }
         ListEmptyComponent={
-          loading ? (
-            <ActivityIndicator />
-          ) : (
-            <Card dashed style={styles.empty}>
-              <AppText variant="heading">No receipts yet</AppText>
-              <AppText variant="muted" style={styles.center}>
-                Bills you scan show up here, with who owes what.
-              </AppText>
-            </Card>
-          )
-        }
-        ListFooterComponent={loadingMore ? <ActivityIndicator style={styles.footer} /> : null}
-        renderItem={({ item }) => <ReceiptRow receipt={item} onDelete={() => remove(item)} />}
-      />
-    </SafeAreaView>
-  )
-}
-
-// Swipe a receipt left to delete it.
-function ReceiptRow({ receipt, onDelete }: { receipt: ReceiptSummary; onDelete: () => void }) {
-  const theme = useTheme()
-  const itemCount = receipt.receipts_items[0]?.count ?? 0
-  return (
-    <SwipeToDelete
-      onPress={() => router.push(`/receipts/${receipt.id}`)}
-      onDelete={onDelete}
-      deleteLabel="Delete receipt">
-      {(pressed) => (
-        <Card style={[styles.row, { backgroundColor: pressed ? theme.primaryTint : theme.surface }]}>
-          <View style={styles.flex}>
-            <AppText variant="heading" numberOfLines={1}>
-              {receipt.merchant_name || receipt.merchant_name_en || 'Receipt'}
-            </AppText>
-            <AppText variant="caption">
-              {new Date(receipt.created_at).toLocaleDateString()} · {itemCount} item{itemCount === 1 ? '' : 's'} ·{' '}
-              {receipt.user_type === 'payer' ? 'You paid' : 'Someone else paid'}
-            </AppText>
-          </View>
-          <AppText variant="heading" style={styles.amount}>
-            {formatMoney(receipt.total, receipt.currency)}
+          <AppText variant="muted" style={styles.none}>
+            No bills here right now.
           </AppText>
-        </Card>
-      )}
-    </SwipeToDelete>
+        }
+        ListFooterComponent={loadingMore ? <ActivityIndicator style={styles.more} /> : null}
+        renderItem={({ item: { bill, status }, index }) => {
+          const money = (amount: number) => formatMoney(amount, bill.currency)
+          return (
+            <BillRow
+              name={billName(bill)}
+              caption={`${dayLabel(new Date(bill.created_at), now)} · ${countLabel(status.itemCount, 'item')}`}
+              amount={money(bill.total)}
+              state={status.state}
+              badge={badgeText(status, money)}
+              first={index === 0}
+              last={index === shown.length - 1}
+              onOpen={() => openBill(bill.id)}
+              onDelete={() => remove(bill)}
+            />
+          )
+        }}
+      />
+      <ScanFooter title="Scan receipt" onCamera={() => scan('camera')} onLibrary={() => scan('library')} />
+    </View>
   )
 }
 
 const styles = StyleSheet.create({
   flex: { flex: 1 },
-  list: {
-    padding: Spacing.three,
-    gap: Spacing.two,
+  centered: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: Spacing.four },
+  content: {
+    paddingHorizontal: Spacing.three,
+    paddingTop: Spacing.one + 3,
     width: '100%',
     maxWidth: MaxContentWidth,
     alignSelf: 'center',
   },
-  header: { gap: Spacing.three, marginBottom: Spacing.one },
-  hero: { gap: Spacing.two, padding: Spacing.four - 4 },
-  heroButton: { marginTop: Spacing.two },
-  account: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
-  empty: { alignItems: 'center', paddingVertical: Spacing.five },
-  center: { textAlign: 'center' },
-  row: { flexDirection: 'row', alignItems: 'center', gap: Spacing.three },
-  amount: { fontVariant: ['tabular-nums'] },
-  footer: { marginVertical: Spacing.three },
+  top: { gap: Spacing.three - 4, marginBottom: Spacing.three - 4 },
+  pair: { flexDirection: 'row', gap: Spacing.three - 5 },
+  bills: { gap: Spacing.two + 2, marginTop: 3 },
+  heading: { fontSize: 20, lineHeight: 26, marginLeft: 3 },
+  filters: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.two },
+  none: { textAlign: 'center', paddingVertical: Spacing.four },
+  more: { marginVertical: Spacing.three },
 })

@@ -11,11 +11,11 @@ import { ScreenHeader } from '@/components/screen-header'
 import { AppText, Button, Card, TextLink } from '@/components/ui'
 import { MaxContentWidth, Radius, Spacing } from '@/constants/theme'
 import { useTheme } from '@/hooks/use-theme'
-import { showAlert } from '@/lib/alert'
 import { useAuth } from '@/lib/auth'
 import { getAiConsent, giveAiConsent, openPrivacyPolicy } from '@/lib/consent'
 import { receiptDraft } from '@/lib/draft'
 import { ConsentRequiredError, parseReceipt, prepareImage, ScanLimitError } from '@/lib/parse'
+import { pickedPhoto, pickPhoto } from '@/lib/photo'
 import { checkScan } from '@/lib/split'
 import type { ParsedReceipt } from '@/lib/types'
 
@@ -28,7 +28,8 @@ export default function ScanScreen() {
   // Photos go to OpenAI, so the user agrees once before the first scan.
   const [consent, setConsent] = useState<'checking' | 'needed' | 'given'>('checking')
   const [allowing, setAllowing] = useState(false)
-  const [asset, setAsset] = useState<ImagePicker.ImagePickerAsset | null>(null)
+  // A photo taken from the home screen arrives already picked.
+  const [asset, setAsset] = useState<ImagePicker.ImagePickerAsset | null>(() => pickedPhoto.take())
   const [translateToEnglish, setTranslateToEnglish] = useState(false)
   // Set while a receipt is being read; the reading screen shows instead.
   const [reading, setReading] = useState<{ stage: 'preparing' | 'reading'; receipt: ParsedReceipt | null } | null>(null)
@@ -68,19 +69,8 @@ export default function ScanScreen() {
 
   const pickImage = async (source: 'camera' | 'library') => {
     setError(null)
-    if (source === 'camera') {
-      const permission = await ImagePicker.requestCameraPermissionsAsync()
-      if (!permission.granted) {
-        showAlert('Camera access needed', 'Allow camera access in Settings to scan receipts.')
-        return
-      }
-    }
-    const options: ImagePicker.ImagePickerOptions = { mediaTypes: 'images', quality: 1 }
-    const result =
-      source === 'camera'
-        ? await ImagePicker.launchCameraAsync(options)
-        : await ImagePicker.launchImageLibraryAsync(options)
-    if (!result.canceled) setAsset(result.assets[0])
+    const photo = await pickPhoto(source)
+    if (photo) setAsset(photo)
   }
 
   const readReceipt = async () => {

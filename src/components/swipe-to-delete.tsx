@@ -17,11 +17,14 @@ export function SwipeToDelete({
   onPress,
   onDelete,
   deleteLabel,
+  flat,
   children,
 }: {
   onPress: () => void
   onDelete: () => void
   deleteLabel: string
+  /** Square corners, for a row inside a card rather than a card of its own. */
+  flat?: boolean
   children: (pressed: boolean) => ReactNode
 }) {
   const theme = useTheme()
@@ -79,6 +82,7 @@ export function SwipeToDelete({
         accessibilityElementsHidden
         style={[
           styles.behind,
+          flat && { borderRadius: 0 },
           {
             backgroundColor: theme.destructive,
             // Hidden while the row is closed, so no red shows at its rounded corners.
