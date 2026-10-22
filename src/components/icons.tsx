@@ -281,16 +281,118 @@ export function ImageIcon({ color, size = 18 }: { color: string; size?: number }
   )
 }
 
-/** Four corners around a line, for reading a receipt. */
-export function ScanIcon({ color, size = 18 }: { color: string; size?: number }) {
+/** Four corners around a line (or two lines of text), for reading a receipt. */
+export function ScanIcon({ color, size = 18, lines = 1 }: { color: string; size?: number; lines?: 1 | 2 }) {
   const corner = { position: 'absolute', width: size * 0.32, height: size * 0.32, borderColor: color } as const
+  const line = { height: 2, borderRadius: 1, backgroundColor: color }
   return (
-    <View style={{ width: size, height: size, justifyContent: 'center', alignItems: 'center' }}>
+    <View style={{ width: size, height: size, justifyContent: 'center', alignItems: 'center', gap: size * 0.14 }}>
       <View style={[corner, { top: 0, left: 0, borderTopWidth: 2, borderLeftWidth: 2, borderTopLeftRadius: 3 }]} />
       <View style={[corner, { top: 0, right: 0, borderTopWidth: 2, borderRightWidth: 2, borderTopRightRadius: 3 }]} />
       <View style={[corner, { bottom: 0, left: 0, borderBottomWidth: 2, borderLeftWidth: 2, borderBottomLeftRadius: 3 }]} />
       <View style={[corner, { bottom: 0, right: 0, borderBottomWidth: 2, borderRightWidth: 2, borderBottomRightRadius: 3 }]} />
-      <View style={{ width: size * 0.56, height: 2, borderRadius: 1, backgroundColor: color }} />
+      {lines === 1 ? (
+        <View style={[line, { width: size * 0.56 }]} />
+      ) : (
+        <>
+          <View style={[line, { width: size * 0.5 }]} />
+          <View style={[line, { width: size * 0.36 }]} />
+        </>
+      )}
+    </View>
+  )
+}
+
+/** A shield, for privacy. */
+export function ShieldIcon({ color, size = 20, weight = 1.8 }: { color: string; size?: number; weight?: number }) {
+  const edges: [Point, Point][] = [
+    [[4.8, 5.6], [12, 3]],
+    [[12, 3], [19.2, 5.6]],
+    [[19.2, 5.6], [19.2, 12.5]],
+    [[19.2, 12.5], [18.2, 16]],
+    [[18.2, 16], [15.6, 19]],
+    [[15.6, 19], [12, 21]],
+    [[12, 21], [8.4, 19]],
+    [[8.4, 19], [5.8, 16]],
+    [[5.8, 16], [4.8, 12.5]],
+    [[4.8, 12.5], [4.8, 5.6]],
+  ]
+  return (
+    <View style={{ width: size, height: size }}>
+      {edges.map(([from, to], index) => (
+        <Line key={index} from={from} to={to} scale={size / 24} color={color} weight={weight} />
+      ))}
+    </View>
+  )
+}
+
+/**
+ * Three sliders, for settings. `background` fills each knob so the line
+ * behind it is hidden.
+ */
+export function SlidersIcon({
+  color,
+  background,
+  size = 20,
+  weight = 1.8,
+}: {
+  color: string
+  background: string
+  size?: number
+  weight?: number
+}) {
+  const knob = size * 0.27
+  return (
+    <View style={{ width: size, height: size, justifyContent: 'space-evenly' }}>
+      {[0.68, 0.32, 0.72].map((at, index) => (
+        <View key={index} style={{ height: knob, justifyContent: 'center' }}>
+          <View style={{ height: weight, borderRadius: weight, backgroundColor: color, marginHorizontal: size * 0.08 }} />
+          <View
+            style={{
+              position: 'absolute',
+              left: size * at - knob / 2,
+              width: knob,
+              height: knob,
+              borderRadius: knob,
+              borderWidth: weight,
+              borderColor: color,
+              backgroundColor: background,
+            }}
+          />
+        </View>
+      ))}
+    </View>
+  )
+}
+
+/** An arrow leaving through a door, for signing out. */
+export function SignOutIcon({ color, size = 20, weight = 1.8 }: { color: string; size?: number; weight?: number }) {
+  const edges: [Point, Point][] = [
+    [[4, 12], [15, 12]],
+    [[4, 12], [8.5, 7.5]],
+    [[4, 12], [8.5, 16.5]],
+  ]
+  const unit = size / 24
+  return (
+    <View style={{ width: size, height: size }}>
+      <View
+        style={{
+          position: 'absolute',
+          left: 13.5 * unit,
+          top: 3.5 * unit - weight / 2,
+          width: 6.5 * unit + weight / 2,
+          height: 17 * unit + weight,
+          borderColor: color,
+          borderTopWidth: weight,
+          borderRightWidth: weight,
+          borderBottomWidth: weight,
+          borderTopRightRadius: 3 * unit,
+          borderBottomRightRadius: 3 * unit,
+        }}
+      />
+      {edges.map(([from, to], index) => (
+        <Line key={index} from={from} to={to} scale={unit} color={color} weight={weight} />
+      ))}
     </View>
   )
 }
