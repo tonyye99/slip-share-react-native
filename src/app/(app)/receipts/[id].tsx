@@ -144,8 +144,10 @@ export default function SplitScreen() {
   const unassignedCount = items.filter((item) => sharesOf(item).left > 0).length
   const assignedTotal = people.reduce((sum, person) => sum + totalOf(person), 0)
 
-  // Everyone except the payer pays the payer back.
-  const owesPayer = payer ? people.filter((person) => !person.is_payer) : []
+  // Everyone except the payer pays the payer back, if they had anything. Someone
+  // who had nothing doesn't hold up "All settled", as on the home screen.
+  const owesSomething = (person: ReceiptPerson) => !person.is_payer && totalOf(person) >= 0.005
+  const owesPayer = payer ? people.filter(owesSomething) : []
   const owedBack = owesPayer.reduce((sum, person) => sum + totalOf(person), 0)
   const paidBack = owesPayer.filter((person) => person.paid_at).reduce((sum, person) => sum + totalOf(person), 0)
   const settled = owesPayer.length > 0 && owesPayer.every((person) => person.paid_at)
@@ -311,7 +313,7 @@ export default function SplitScreen() {
     setPeople(next)
     save(() => setPersonPaid(person.id, paid))
     // The last person to pay back settles the bill.
-    if (paid && next.filter((other) => !other.is_payer).every((other) => other.paid_at)) setSettledOpen(true)
+    if (paid && next.filter(owesSomething).every((other) => other.paid_at)) setSettledOpen(true)
   }
 
   const totalsText = () =>
