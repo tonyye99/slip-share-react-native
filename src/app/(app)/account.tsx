@@ -62,7 +62,7 @@ export default function AccountScreen() {
     on
       ? confirmAction(
           'Turn on receipt scanning?',
-          "When you scan, the photo is sent to OpenAI to read the items. SlipShare doesn't keep it, and OpenAI doesn't train on it.",
+          "When you scan, the photo is sent to OpenAI to read the items. SlipShare doesn't keep it. OpenAI doesn't train on it and may keep it for up to 30 days to check for abuse.",
           'Turn on',
           () => setScanning(true),
         )
