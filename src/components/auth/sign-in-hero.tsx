@@ -2,19 +2,21 @@ import { Image, type ImageSource } from 'expo-image'
 import { StyleSheet, View } from 'react-native'
 
 import { CheckIcon, Logo } from '@/components/icons'
-import { LanguageSwitch } from '@/components/language-switch'
+import { LanguagePicker } from '@/components/language-picker'
 import { AppText } from '@/components/ui'
 import { useTheme } from '@/hooks/use-theme'
 import { useT } from '@/i18n'
 
 // Laid out on a 366 x 248 canvas as in Ye's "Sign in · v2" design, then scaled to the screen's width.
 const CANVAS = { width: 366, height: 248 }
-const CHIP = { width: 114, height: 43 }
+const CHIP_HEIGHT = 43
+// The middle of the SlipShare name row, on the canvas.
+const BRAND_MIDDLE = 29
 const PAID_GREEN = '#34C38F'
 
 /**
- * The panel at the top of sign-in: the SlipShare name and the EN | ไทย switch
- * over a little picture of a bill being split.
+ * The panel at the top of sign-in: the SlipShare name and the language
+ * dropdown over a little picture of a bill being split.
  */
 export function SignInHero({ width }: { width: number }) {
   const theme = useTheme()
@@ -42,14 +44,14 @@ export function SignInHero({ width }: { width: number }) {
             name={t.auth.heroYou}
             amount="฿201.66"
             avatar={require('@/assets/images/sign-in-you.png')}
-            center={[77.3, 97.7]}
+            at={{ left: 20.3, top: 76.2 }}
             tilt="-3deg"
           />
           <AmountChip
             name={t.auth.heroAnna}
             amount="฿254.62"
             avatar={require('@/assets/images/sign-in-anna.png')}
-            center={[292.7, 162]}
+            at={{ right: 16.3, top: 140.5 }}
             tilt="3deg"
           />
           <View style={[styles.paid, { backgroundColor: theme.text }]}>
@@ -57,9 +59,10 @@ export function SignInHero({ width }: { width: number }) {
             <AppText style={[styles.paidText, { color: theme.surface }]}>{t.auth.heroBenPaid}</AppText>
           </View>
         </View>
-
-        <LanguageSwitch style={styles.language} />
       </View>
+
+      {/* Outside the scaled picture, so it stays full size and easy to tap. */}
+      <LanguagePicker style={[styles.language, { top: BRAND_MIDDLE * scale - 16, right: 8.5 * scale }]} />
     </View>
   )
 }
@@ -68,13 +71,14 @@ function AmountChip({
   name,
   amount,
   avatar,
-  center,
+  at,
   tilt,
 }: {
   name: string
   amount: string
   avatar: ImageSource
-  center: [number, number]
+  /** Where it sits on the canvas. It grows away from that edge to fit the amount. */
+  at: { left: number; top: number } | { right: number; top: number }
   tilt: string
 }) {
   const theme = useTheme()
@@ -82,9 +86,8 @@ function AmountChip({
     <View
       style={[
         styles.chip,
+        at,
         {
-          left: center[0] - CHIP.width / 2,
-          top: center[1] - CHIP.height / 2,
           backgroundColor: theme.surface,
           transform: [{ rotate: tilt }],
         },
@@ -103,13 +106,13 @@ const styles = StyleSheet.create({
   canvas: { position: 'absolute', width: CANVAS.width, height: CANVAS.height },
   brand: { position: 'absolute', left: 16, top: 14, height: 30, flexDirection: 'row', alignItems: 'center', gap: 8 },
   brandName: { fontSize: 17, lineHeight: 22, fontWeight: '700', letterSpacing: -0.2 },
-  language: { position: 'absolute', right: 8.5, top: 8.5 },
+  language: { position: 'absolute' },
   chip: {
     position: 'absolute',
-    width: CHIP.width,
-    height: CHIP.height,
+    height: CHIP_HEIGHT,
     borderRadius: 15,
     paddingLeft: 8,
+    paddingRight: 14,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
