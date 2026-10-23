@@ -5,6 +5,7 @@ import { SwipeToDelete } from '@/components/swipe-to-delete'
 import { AppText, Tag } from '@/components/ui'
 import { Radius, Spacing } from '@/constants/theme'
 import { useTheme } from '@/hooks/use-theme'
+import { useT } from '@/i18n'
 import type { BillState } from '@/lib/bills'
 
 /** One bill in "Your bills": a tile in its state's colour, name and date, total and a badge. Swipe left to delete. */
@@ -31,6 +32,7 @@ export function BillRow({
   onDelete: () => void
 }) {
   const theme = useTheme()
+  const t = useT()
   const [tint, ink, tone] = {
     'to-split': [theme.warningSoft, theme.warning, 'warning'] as const,
     waiting: [theme.primarySoft, theme.primary, 'primary'] as const,
@@ -44,7 +46,7 @@ export function BillRow({
         last && styles.bottom,
         !first && { borderTopColor: theme.hairline, borderTopWidth: StyleSheet.hairlineWidth },
       ]}>
-      <SwipeToDelete flat onPress={onOpen} onDelete={onDelete} deleteLabel="Delete receipt">
+      <SwipeToDelete flat onPress={onOpen} onDelete={onDelete} deleteLabel={t.home.deleteReceipt}>
         {(pressed) => (
           <View style={[styles.row, { backgroundColor: pressed ? theme.primaryTint : theme.surface }]}>
             <View style={[styles.tile, { backgroundColor: tint }]}>

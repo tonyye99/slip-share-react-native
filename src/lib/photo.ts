@@ -1,5 +1,6 @@
 import * as ImagePicker from 'expo-image-picker'
 
+import { strings } from '@/i18n/strings'
 import { showAlert } from '@/lib/alert'
 
 /** Takes a photo or picks one from the library. Null when the person cancels or says no to the camera. */
@@ -7,7 +8,7 @@ export async function pickPhoto(source: 'camera' | 'library'): Promise<ImagePick
   if (source === 'camera') {
     const permission = await ImagePicker.requestCameraPermissionsAsync()
     if (!permission.granted) {
-      showAlert('Camera access needed', 'Allow camera access in Settings to scan receipts.')
+      showAlert(strings().common.cameraNeeded, strings().common.cameraNeededMessage)
       return null
     }
   }

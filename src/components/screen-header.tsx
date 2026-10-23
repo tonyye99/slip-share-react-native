@@ -6,6 +6,7 @@ import { SafeAreaView } from 'react-native-safe-area-context'
 import { ChevronLeft, Logo } from '@/components/icons'
 import { AppText } from '@/components/ui'
 import { MaxContentWidth, Spacing } from '@/constants/theme'
+import { useT } from '@/i18n'
 import { useTheme } from '@/hooks/use-theme'
 
 // Screens opened straight from a link have nothing to go back to.
@@ -37,6 +38,7 @@ export function ScreenHeader({
   children?: ReactNode
 }) {
   const theme = useTheme()
+  const t = useT()
   return (
     <SafeAreaView
       edges={['top']}
@@ -49,7 +51,7 @@ export function ScreenHeader({
       <View style={styles.inner}>
         <View style={[styles.row, brand && styles.brandRow]}>
           {back && (
-            <Pressable onPress={goBack} hitSlop={12} accessibilityRole="button" accessibilityLabel="Back" style={styles.back}>
+            <Pressable onPress={goBack} hitSlop={12} accessibilityRole="button" accessibilityLabel={t.common.back} style={styles.back}>
               <ChevronLeft color={theme.text} />
             </Pressable>
           )}

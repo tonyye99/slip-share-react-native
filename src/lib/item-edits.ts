@@ -1,5 +1,7 @@
 import type { ParsedItem } from '@/lib/types'
 
+import { strings } from '../i18n/strings.ts'
+
 // Editing parsed items on the review screen. Inputs keep the text as typed so
 // a half-typed number like "12." isn't rewritten while you type; it is parsed
 // and rounded to what the database stores (qty 3 decimals, price 2) on save.
@@ -45,9 +47,10 @@ export function parseNumber(text: string): number | null {
 export function itemErrors(input: ItemInput): ItemErrors {
   const errors: ItemErrors = {}
   const qty = parseNumber(input.qty)
-  if (!input.name.trim()) errors.name = 'Enter a name'
-  if (qty === null || qty <= 0) errors.qty = 'Enter a quantity above 0'
-  if (parseNumber(input.unit_price) === null) errors.unit_price = 'Enter a price'
+  const t = strings().review
+  if (!input.name.trim()) errors.name = t.enterName
+  if (qty === null || qty <= 0) errors.qty = t.enterQty
+  if (parseNumber(input.unit_price) === null) errors.unit_price = t.enterPrice
   return errors
 }
 

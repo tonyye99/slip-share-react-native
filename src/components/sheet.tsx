@@ -4,6 +4,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import { AppText } from '@/components/ui'
 import { MaxContentWidth, Radius, Spacing } from '@/constants/theme'
+import { useT } from '@/i18n'
 import { useTheme } from '@/hooks/use-theme'
 
 /** A panel that slides up from the bottom over a dimmed screen. Tapping outside closes it. */
@@ -28,6 +29,7 @@ export function Sheet({
   children: ReactNode
 }) {
   const theme = useTheme()
+  const t = useT()
   const insets = useSafeAreaInsets()
   // The dimmed page fades in or out while the panel slides up or back down.
   const [slide] = useState(() => new Animated.Value(0))
@@ -42,7 +44,7 @@ export function Sheet({
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
       <View style={styles.wrap}>
-        <Pressable style={styles.backdrop} onPress={onClose} accessibilityRole="button" accessibilityLabel="Close" />
+        <Pressable style={styles.backdrop} onPress={onClose} accessibilityRole="button" accessibilityLabel={t.common.close} />
         <Animated.View
           style={[
             styles.sheet,

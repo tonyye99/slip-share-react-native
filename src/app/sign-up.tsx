@@ -1,4 +1,5 @@
 import { AuthForm } from '@/components/auth-form'
+import { strings } from '@/i18n'
 import { authCallbackUrl } from '@/lib/auth-links'
 import { supabase } from '@/lib/supabase'
 
@@ -15,7 +16,7 @@ export default function SignUpScreen() {
         })
         if (error) return { error: error.message }
         // With email confirmation on, there is no session until the link is clicked.
-        return data.session ? {} : { notice: 'Check your email to confirm your account, then sign in.' }
+        return data.session ? {} : { notice: strings().auth.checkEmailToConfirm }
       }}
     />
   )

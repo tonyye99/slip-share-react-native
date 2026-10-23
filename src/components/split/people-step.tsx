@@ -5,6 +5,7 @@ import { Avatar, Chip } from '@/components/chip'
 import { AppText, Button, Card, Divider, Input } from '@/components/ui'
 import { Radius, Spacing } from '@/constants/theme'
 import { useTheme } from '@/hooks/use-theme'
+import { useT } from '@/i18n'
 import { MAX_NAME_LENGTH } from '@/lib/names'
 import { nameOf } from '@/lib/split-view'
 import type { ReceiptPerson } from '@/lib/types'
@@ -37,6 +38,7 @@ export function PeopleStep({
   onDone: () => void
 }) {
   const theme = useTheme()
+  const t = useT()
   const [newName, setNewName] = useState('')
   const add = async (name: string) => {
     if (await onAdd(name)) setNewName('')
@@ -46,15 +48,13 @@ export function PeopleStep({
     <Card style={styles.card}>
       <View style={styles.header}>
         <View style={styles.flex}>
-          {alone && <AppText variant="overline">Step 1 of 2</AppText>}
-          <AppText variant="title">Who was there?</AppText>
+          {alone && <AppText variant="overline">{t.split.stepOne}</AppText>}
+          <AppText variant="title">{t.split.whoWasThere}</AppText>
         </View>
-        {!alone && <Button title="Done" size="small" variant="secondary" onPress={onDone} />}
+        {!alone && <Button title={t.common.done} size="small" variant="secondary" onPress={onDone} />}
       </View>
       <AppText variant="muted">
-        {alone
-          ? "Add everyone sharing this bill. Next, you'll tap who had each item."
-          : 'Add or remove people. Items only a removed person had become unassigned.'}
+        {alone ? t.split.addEveryone : t.split.addOrRemove}
       </AppText>
       <View style={styles.chips}>
         {people.map((person) => (
@@ -66,7 +66,7 @@ export function PeopleStep({
                 onPress={() => onRemove(person)}
                 hitSlop={8}
                 accessibilityRole="button"
-                accessibilityLabel={`Remove ${person.name}`}>
+                accessibilityLabel={t.split.removeName(person.name)}>
                 <AppText variant="muted">✕</AppText>
               </Pressable>
             )}
@@ -78,7 +78,7 @@ export function PeopleStep({
           value={newName}
           onChangeText={setNewName}
           onSubmitEditing={() => add(newName)}
-          placeholder="Friend's name"
+          placeholder={t.split.friendsName}
           maxLength={MAX_NAME_LENGTH}
           autoCapitalize="words"
           autoCorrect={false}
@@ -87,24 +87,24 @@ export function PeopleStep({
           editable={!adding}
           // Opened from "+ Add", so go straight to typing a name.
           autoFocus={!alone}
-          accessibilityLabel="Name of someone to add"
+          accessibilityLabel={t.split.nameToAdd}
           style={styles.flex}
         />
-        <Button title="Add" onPress={() => add(newName)} loading={adding} disabled={!newName.trim()} />
+        <Button title={t.common.add} onPress={() => add(newName)} loading={adding} disabled={!newName.trim()} />
       </View>
       {suggestions.length > 0 && (
         <View style={styles.suggestions}>
-          <AppText variant="caption">From recent bills</AppText>
+          <AppText variant="caption">{t.split.fromRecentBills}</AppText>
           <View style={styles.chips}>
             {suggestions.map((name) => (
-              <Chip key={name} role="button" label={`+  ${name}`} onPress={() => add(name)} accessibilityLabel={`Add ${name}`} />
+              <Chip key={name} role="button" label={`+  ${name}`} onPress={() => add(name)} accessibilityLabel={t.split.addName(name)} />
             ))}
           </View>
         </View>
       )}
       {linkTile && (
         <>
-          <Divider label="or let them add themselves" />
+          <Divider label={t.split.orLetThemAdd} />
           {linkTile}
         </>
       )}

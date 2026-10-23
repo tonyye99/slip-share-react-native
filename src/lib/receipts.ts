@@ -1,3 +1,4 @@
+import { strings } from '@/i18n/strings'
 import { confirmDestructive } from '@/lib/alert'
 import type { Bill } from '@/lib/bills'
 import { billTotal, peopleInOrder, receiptSubtotal } from '@/lib/split'
@@ -147,12 +148,8 @@ export async function getRecentNames(): Promise<string[]> {
 
 /** Asks before deleting a receipt; `onConfirm` runs only if the person agrees. */
 export function confirmDeleteReceipt(onConfirm: () => void) {
-  confirmDestructive(
-    'Delete this receipt?',
-    "It's removed for good, with the names, picks and payments on it, and its friend link stops working.",
-    'Delete',
-    onConfirm,
-  )
+  const t = strings()
+  confirmDestructive(t.bills.deleteTitle, t.bills.deleteMessage, t.common.delete, onConfirm)
 }
 
 /** Deletes a receipt for good, with its items, people and picks. */

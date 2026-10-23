@@ -6,7 +6,8 @@ import { CheckIcon } from '@/components/icons'
 import { AppText, Button, Card } from '@/components/ui'
 import { Spacing } from '@/constants/theme'
 import { useTheme } from '@/hooks/use-theme'
-import { countLabel, nameOf, type Money } from '@/lib/split-view'
+import { useT } from '@/i18n'
+import { nameOf, type Money } from '@/lib/split-view'
 import type { ReceiptPerson } from '@/lib/types'
 
 /** What an open person card says, and the one thing to do about it. */
@@ -30,27 +31,28 @@ export function PersonDetail({
   onTogglePaid: () => void
 }) {
   const theme = useTheme()
-  const payerName = payer?.is_me ? 'you' : payer?.name
-  const extra = [countLabel(itemCount, 'item'), person.guest_key ? 'picked via link' : null].filter(Boolean)
+  const { common, split: t } = useT()
+  const payerName = (payer?.is_me ? common.youInSentence : payer?.name) ?? ''
+  const extra = [common.items(itemCount), person.guest_key ? t.pickedViaLink : null].filter(Boolean)
 
   let status: string
   let tone: string = theme.textSecondary
   let action: ReactNode
   if (!payer) {
-    status = 'Nobody is set as the payer yet'
-    action = <Button title="Choose who paid" variant="secondary" onPress={onChoosePayer} />
+    status = t.noPayerYet
+    action = <Button title={t.choosePayer} variant="secondary" onPress={onChoosePayer} />
   } else if (person.is_payer) {
-    status = 'Paid the bill'
-    action = <Button title="Change who paid" variant="secondary" onPress={onChoosePayer} />
+    status = t.paidTheBill
+    action = <Button title={t.changePayer} variant="secondary" onPress={onChoosePayer} />
   } else if (person.paid_at) {
-    status = person.is_me ? `You paid ${payer.name} back` : `Paid ${payerName} back`
+    status = person.is_me ? t.youPaidBack(payer.name) : t.paidBack(payerName)
     tone = theme.success
-    action = <Button title="Not paid yet" variant="secondary" onPress={onTogglePaid} />
+    action = <Button title={t.notPaidYet} variant="secondary" onPress={onTogglePaid} />
   } else {
-    status = person.is_me ? `You owe ${payer.name}` : `Owes ${payerName}`
+    status = person.is_me ? t.youOwe(payer.name) : t.owes(payerName)
     tone = theme.warning
     action = (
-      <Button title="Mark paid back" icon={<CheckIcon color={theme.onPrimary} size={16} weight={2} />} onPress={onTogglePaid} />
+      <Button title={t.markPaidBack} icon={<CheckIcon color={theme.onPrimary} size={16} weight={2} />} onPress={onTogglePaid} />
     )
   }
 

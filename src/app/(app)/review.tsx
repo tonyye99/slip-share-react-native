@@ -6,6 +6,7 @@ import { ScreenHeader } from '@/components/screen-header'
 import { AppText, Button, Card, Divider, Row, TextField } from '@/components/ui'
 import { MaxContentWidth, Spacing } from '@/constants/theme'
 import { useTheme } from '@/hooks/use-theme'
+import { useT } from '@/i18n'
 import { useUserId } from '@/lib/auth'
 import { receiptDraft } from '@/lib/draft'
 import {
@@ -25,6 +26,7 @@ const PRICE_KEYBOARD = Platform.OS === 'ios' ? 'numbers-and-punctuation' : 'nume
 
 export default function ReviewScreen() {
   const theme = useTheme()
+  const t = useT()
   const userId = useUserId()
   const [draft] = useState(receiptDraft.get)
   const [items, setItems] = useState(() => toItemInputs(draft?.items ?? []))
@@ -78,7 +80,7 @@ export default function ReviewScreen() {
     if (!parsedItems) {
       setEditing(true)
       setShowErrors(true)
-      setError(items.length === 0 ? 'Add at least one item.' : 'Fix the items marked above first.')
+      setError(items.length === 0 ? t.review.addOneItem : t.review.fixMarked)
       return
     }
     setSaving(true)
@@ -89,7 +91,7 @@ export default function ReviewScreen() {
       router.replace(`/receipts/${id}`)
     } catch (e) {
       console.error('Save failed', e)
-      setError('Could not save the receipt. Please try again.')
+      setError(t.review.saveFailed)
       setSaving(false)
     }
   }
@@ -97,10 +99,10 @@ export default function ReviewScreen() {
   return (
     <View style={[styles.flex, { backgroundColor: theme.background }]}>
     <ScreenHeader
-      title={draft.merchant_name || 'Receipt'}
+      title={draft.merchant_name || t.common.receipt}
       subtitle={[
         showEnglish && draft.merchant_name_en ? draft.merchant_name_en : null,
-        `${items.length} item${items.length === 1 ? '' : 's'}`,
+        t.common.items(items.length),
         draft.currency,
         draft.original_language ? draft.original_language.toUpperCase() : null,
       ]
@@ -113,18 +115,18 @@ export default function ReviewScreen() {
       keyboardShouldPersistTaps="handled"
       automaticallyAdjustKeyboardInsets>
       <View style={styles.header}>
-        <AppText variant="overline">Check the items</AppText>
-        <AppText variant="title">Did we read it right?</AppText>
-        <AppText variant="muted">Fix anything misread before you split the bill.</AppText>
+        <AppText variant="overline">{t.review.overline}</AppText>
+        <AppText variant="title">{t.review.title}</AppText>
+        <AppText variant="muted">{t.review.subtitle}</AppText>
       </View>
 
       <Card>
         <View style={styles.cardHeader}>
           <AppText variant="heading" style={styles.flex}>
-            Items
+            {t.review.items}
           </AppText>
           <Button
-            title={editing ? 'Done' : 'Edit'}
+            title={editing ? t.common.done : t.common.edit}
             size="small"
             variant="secondary"
             onPress={editing ? finishEditing : () => setEditing(true)}
@@ -152,15 +154,15 @@ export default function ReviewScreen() {
           return (
             <View key={item.key} style={[styles.editItem, { borderColor: theme.border }]}>
               <TextField
-                label="Name"
+                label={t.review.name}
                 value={item.name}
                 onChangeText={(name) => updateItem(item.key, { name })}
-                placeholder="What it says on the receipt"
+                placeholder={t.review.namePlaceholder}
               />
               <View style={styles.editRow}>
                 <View style={styles.qtyField}>
                   <TextField
-                    label="Qty"
+                    label={t.review.qty}
                     value={item.qty}
                     onChangeText={(text) => updateItem(item.key, { qty: text })}
                     keyboardType="decimal-pad"
@@ -168,7 +170,7 @@ export default function ReviewScreen() {
                 </View>
                 <View style={styles.flex}>
                   <TextField
-                    label="Price each"
+                    label={t.review.priceEach}
                     value={item.unit_price}
                     onChangeText={(text) => updateItem(item.key, { unit_price: text })}
                     keyboardType={PRICE_KEYBOARD}
@@ -181,38 +183,36 @@ export default function ReviewScreen() {
               )}
               <Pressable onPress={() => removeItem(item.key)} hitSlop={8} accessibilityRole="button">
                 <AppText variant="label" style={{ color: theme.danger }}>
-                  Remove item
+                  {t.review.removeItem}
                 </AppText>
               </Pressable>
             </View>
           )
         })}
-        {editing && showErrors && items.length === 0 && <AppText variant="error">Add at least one item.</AppText>}
-        {editing && <Button title="Add item" variant="secondary" onPress={addItem} />}
+        {editing && showErrors && items.length === 0 && <AppText variant="error">{t.review.addOneItem}</AppText>}
+        {editing && <Button title={t.review.addItem} variant="secondary" onPress={addItem} />}
       </Card>
 
       <Card>
-        <Row label="Subtotal" value={money(subtotal)} />
-        {service > 0 && <Row label={`Service ${draft.service_percent}%`} value={money(service)} />}
-        {tax > 0 && <Row label={`VAT ${draft.tax_percent}%`} value={money(tax)} />}
-        {draft.rounding !== 0 && <Row label="Rounding" value={money(draft.rounding)} />}
+        <Row label={t.common.subtotal} value={money(subtotal)} />
+        {service > 0 && <Row label={t.common.service(draft.service_percent)} value={money(service)} />}
+        {tax > 0 && <Row label={t.common.vat(draft.tax_percent)} value={money(tax)} />}
+        {draft.rounding !== 0 && <Row label={t.common.rounding} value={money(draft.rounding)} />}
         <Divider />
-        <Row label="Total" value={money(total)} bold />
+        <Row label={t.common.total} value={money(total)} bold />
         {doesNotAddUp && (
           <AppText variant="caption" style={{ color: theme.warning }}>
             {edited
-              ? `The receipt's printed total is ${money(draft.total)}. ` +
-                `Saving uses ${money(itemsTotal)}, the total of these items.`
-              : `These items add up to ${money(itemsTotal)}, not the ${money(draft.total)} printed on the receipt. ` +
-                'Tap Edit to fix a misread item.'}
+              ? t.review.editedTotal(money(draft.total), money(itemsTotal))
+              : t.review.doesntAddUp(money(itemsTotal), money(draft.total))}
           </AppText>
         )}
       </Card>
 
       {error && <AppText variant="error">{error}</AppText>}
 
-      <Button title="Continue" onPress={save} loading={saving} />
-      <Button title="Start over" variant="secondary" onPress={() => router.replace('/scan')} disabled={saving} />
+      <Button title={t.review.continue} onPress={save} loading={saving} />
+      <Button title={t.review.startOver} variant="secondary" onPress={() => router.replace('/scan')} disabled={saving} />
     </ScrollView>
     </View>
   )

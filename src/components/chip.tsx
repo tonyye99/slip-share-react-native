@@ -15,7 +15,12 @@ export function usePersonColor() {
   return (index: number) => palette[Math.max(0, index) % palette.length]
 }
 
-const initialOf = (name: string) => (Array.from(name.trim())[0] ?? '?').toUpperCase()
+// Thai vowels written before the consonant (เ แ โ ใ ไ) are skipped, so เบน shows บ.
+const LEADING_VOWEL = /[\u0E40-\u0E44]/
+const initialOf = (name: string) => {
+  const letters = Array.from(name.trim())
+  return (letters.find((letter) => !LEADING_VOWEL.test(letter)) ?? letters[0] ?? '?').toUpperCase()
+}
 
 /** A round initial in the person's colour. `soft` is a pale circle with a coloured letter. */
 export function Avatar({ name, color, size = 28, soft }: { name: string; color: string; size?: number; soft?: boolean }) {

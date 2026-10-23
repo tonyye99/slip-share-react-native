@@ -15,6 +15,7 @@ import {
 
 import { Radius, Spacing } from '@/constants/theme'
 import { useTheme } from '@/hooks/use-theme'
+import { useT } from '@/i18n'
 
 type TextVariant =
   | 'display'
@@ -240,6 +241,7 @@ export function Stepper({
   label: string
 }) {
   const theme = useTheme()
+  const t = useT().common
   const step = (by: number) => {
     const next = Math.min(max, Math.max(min, value + by))
     if (next !== value) onChange(next)
@@ -250,7 +252,7 @@ export function Stepper({
       disabled={disabled}
       hitSlop={6}
       accessibilityRole="button"
-      accessibilityLabel={`${by > 0 ? 'One more' : 'One fewer'} ${label}`}
+      accessibilityLabel={by > 0 ? t.oneMore(label) : t.oneFewer(label)}
       accessibilityState={{ disabled }}
       style={({ pressed }) => [
         styles.stepButton,
@@ -262,7 +264,7 @@ export function Stepper({
   return (
     <View style={styles.stepper}>
       {button(-1, '−', value <= min)}
-      <AppText variant="label" style={[styles.amount, styles.stepValue]} accessibilityLabel={`${value} ${label}`}>
+      <AppText variant="label" style={[styles.amount, styles.stepValue]} accessibilityLabel={t.countOf(value, label)}>
         {value}
       </AppText>
       {button(1, '+', value >= max)}

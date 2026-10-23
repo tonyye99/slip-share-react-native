@@ -4,6 +4,8 @@
 // people had is divided evenly between them, unless they say how many of a
 // line they each had (see itemShares).
 
+import { strings } from '../i18n/strings.ts'
+
 export interface SplitItem {
   id: string
   qty: number
@@ -224,19 +226,20 @@ export function totalsMessage(bill: {
   people: TotalsLine[]
   unassigned: number
 }): string {
+  const t = strings().totals
   const money = (amount: number) => formatMoney(amount, bill.currency)
   const charges = [
-    bill.service_percent > 0 ? `${bill.service_percent}% service` : null,
-    bill.tax_percent > 0 ? `${bill.tax_percent}% tax` : null,
+    bill.service_percent > 0 ? t.service(bill.service_percent) : null,
+    bill.tax_percent > 0 ? t.tax(bill.tax_percent) : null,
   ].filter((charge) => charge !== null)
 
   const lines = [`${bill.title}: ${money(bill.total)}`]
-  if (bill.payer) lines.push(`Paid by ${bill.payer}.`)
+  if (bill.payer) lines.push(t.paidBy(bill.payer))
   lines.push('')
   for (const person of bill.people) {
-    lines.push(`${person.name}: ${money(person.total)}${bill.payer && person.paid ? ' (paid)' : ''}`)
+    lines.push(`${person.name}: ${money(person.total)}${bill.payer && person.paid ? t.paid : ''}`)
   }
-  if (Math.abs(bill.unassigned) >= 0.005) lines.push(`Not assigned yet: ${money(bill.unassigned)}`)
-  if (charges.length > 0) lines.push('', `Includes ${charges.join(' and ')}.`)
+  if (Math.abs(bill.unassigned) >= 0.005) lines.push(t.notAssigned(money(bill.unassigned)))
+  if (charges.length > 0) lines.push('', t.includes(charges))
   return lines.join('\n')
 }

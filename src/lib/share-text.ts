@@ -1,5 +1,6 @@
 import { Platform, Share } from 'react-native'
 
+import { strings } from '@/i18n/strings'
 import { showAlert } from '@/lib/alert'
 
 /**
@@ -15,10 +16,10 @@ export async function shareText(message: string) {
     if (Platform.OS !== 'web') return console.error('Share failed', e)
     try {
       await navigator.clipboard.writeText(message)
-      showAlert('Copied', 'Paste it into LINE, WhatsApp or wherever you chat.')
+      showAlert(strings().common.copied, strings().common.copiedMessage)
     } catch (copyError) {
       console.error('Copy failed', copyError)
-      showAlert('Copy this', message)
+      showAlert(strings().common.copyThis, message)
     }
   }
 }

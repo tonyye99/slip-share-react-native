@@ -5,6 +5,7 @@ import { CameraIcon, ImageIcon } from '@/components/icons'
 import { Button } from '@/components/ui'
 import { MaxContentWidth, Radius, Spacing } from '@/constants/theme'
 import { useTheme } from '@/hooks/use-theme'
+import { useT } from '@/i18n'
 
 // See-through like the split screen's footer; browsers can also blur behind it.
 const glassBlur = Platform.OS === 'web' ? ({ backdropFilter: 'blur(16px)' } as unknown as ViewStyle) : null
@@ -12,6 +13,7 @@ const glassBlur = Platform.OS === 'web' ? ({ backdropFilter: 'blur(16px)' } as u
 /** The glass bar at the bottom of home: take a photo of a receipt, or pick one from the library. */
 export function ScanFooter({ title, onCamera, onLibrary }: { title: string; onCamera: () => void; onLibrary: () => void }) {
   const theme = useTheme()
+  const t = useT()
   const insets = useSafeAreaInsets()
   return (
     <View pointerEvents="box-none" style={[styles.wrap, { paddingBottom: Math.max(insets.bottom, Spacing.three) + Spacing.two }]}>
@@ -20,7 +22,7 @@ export function ScanFooter({ title, onCamera, onLibrary }: { title: string; onCa
         <Pressable
           onPress={onLibrary}
           accessibilityRole="button"
-          accessibilityLabel="Pick a photo from your library"
+          accessibilityLabel={t.home.pickFromLibrary}
           style={({ pressed }) => [styles.library, { backgroundColor: theme.primarySoft, opacity: pressed ? 0.8 : 1 }]}>
           <ImageIcon color={theme.primary} size={20} />
         </Pressable>

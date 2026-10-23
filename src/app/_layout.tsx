@@ -4,6 +4,7 @@ import { useEffect } from 'react'
 import { useColorScheme } from 'react-native'
 
 import { Colors } from '@/constants/theme'
+import { LanguageProvider } from '@/i18n'
 import { AuthProvider, useAuth } from '@/lib/auth'
 
 SplashScreen.preventAutoHideAsync()
@@ -65,9 +66,11 @@ export default function RootLayout() {
   const colorScheme = useColorScheme()
   return (
     <ThemeProvider value={colorScheme === 'dark' ? navigationThemes.dark : navigationThemes.light}>
-      <AuthProvider>
-        <RootStack />
-      </AuthProvider>
+      <LanguageProvider>
+        <AuthProvider>
+          <RootStack />
+        </AuthProvider>
+      </LanguageProvider>
     </ThemeProvider>
   )
 }

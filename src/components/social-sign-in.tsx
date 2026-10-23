@@ -5,6 +5,7 @@ import { ActivityIndicator, Platform, Pressable, StyleSheet, useColorScheme, Vie
 
 import { AppText, Divider } from '@/components/ui'
 import { useTheme } from '@/hooks/use-theme'
+import { useT } from '@/i18n'
 import { signInWithApple, signInWithProvider } from '@/lib/auth-links'
 
 type Provider = 'apple' | 'google' | 'github'
@@ -12,6 +13,7 @@ type Provider = 'apple' | 'google' | 'github'
 /** "or continue with" Google and GitHub side by side, and Apple under them on iPhone. The session change moves the app on. */
 export function SocialSignIn({ onError }: { onError: (message: string | null) => void }) {
   const isDark = useColorScheme() === 'dark'
+  const t = useT()
   const [appleAvailable, setAppleAvailable] = useState(false)
   const [pendingProvider, setPendingProvider] = useState<Provider | null>(null)
 
@@ -27,7 +29,7 @@ export function SocialSignIn({ onError }: { onError: (message: string | null) =>
       else await signInWithProvider(provider)
     } catch (e) {
       console.error(`${provider} sign-in failed`, e)
-      onError(e instanceof Error ? e.message : 'Sign-in failed. Please try again.')
+      onError(e instanceof Error ? t.auth.errorText(e.message) : t.auth.signInFailed)
     } finally {
       setPendingProvider(null)
     }
@@ -35,7 +37,7 @@ export function SocialSignIn({ onError }: { onError: (message: string | null) =>
 
   return (
     <View style={styles.container}>
-      <Divider label="or continue with" style={styles.divider} />
+      <Divider label={t.auth.orContinueWith} style={styles.divider} />
       <View style={styles.row}>
         <ProviderButton
           title="Google"
@@ -87,12 +89,13 @@ function ProviderButton({
   disabled: boolean
 }) {
   const theme = useTheme()
+  const t = useT()
   return (
     <Pressable
       onPress={onPress}
       disabled={disabled}
       accessibilityRole="button"
-      accessibilityLabel={`Continue with ${title}`}
+      accessibilityLabel={t.auth.continueWith(title)}
       accessibilityState={{ disabled, busy: pending }}
       style={({ pressed }) => [
         styles.provider,

@@ -4,6 +4,7 @@ import { LinkIcon } from '@/components/icons'
 import { AppText, Button } from '@/components/ui'
 import { Radius, Spacing } from '@/constants/theme'
 import { useTheme } from '@/hooks/use-theme'
+import { useT } from '@/i18n'
 
 /** The friend link card under the person cards: share it, or share it again once it's on. */
 export function FriendLinkCard({
@@ -19,21 +20,22 @@ export function FriendLinkCard({
   onShare: () => void
 }) {
   const theme = useTheme()
+  const t = useT().split
   const caption = !on
-    ? 'They tick their own items.\nNo app or sign-up.'
+    ? t.linkOffCaption
     : pickedNames.length > 0
-      ? `${pickedNames.join(', ')} picked. Pull down for new picks.`
-      : 'Pull down to see their picks.'
+      ? t.linkPicked(pickedNames.join(', '))
+      : t.linkPullDown
   return (
     <View style={[styles.card, { backgroundColor: theme.primaryTint, borderColor: theme.primarySoft }]}>
       <View style={[styles.icon, styles.bigIcon, { backgroundColor: theme.primary }]}>
         <LinkIcon color={theme.onPrimary} size={22} />
       </View>
       <View style={styles.flex}>
-        <AppText variant="label">{on ? 'Friend link is on' : 'Let friends pick'}</AppText>
+        <AppText variant="label">{on ? t.linkIsOn : t.letFriendsPick}</AppText>
         <AppText variant="caption">{caption}</AppText>
       </View>
-      <Button title={on ? 'Share again' : 'Share link'} onPress={onShare} loading={busy} style={styles.button} />
+      <Button title={on ? t.shareAgain : t.shareLink} onPress={onShare} loading={busy} style={styles.button} />
     </View>
   )
 }
@@ -41,6 +43,7 @@ export function FriendLinkCard({
 /** The "Share a link" tile in "Who was there?". */
 export function ShareLinkTile({ busy, onPress }: { busy: boolean; onPress: () => void }) {
   const theme = useTheme()
+  const t = useT().split
   return (
     <Pressable
       onPress={onPress}
@@ -54,8 +57,8 @@ export function ShareLinkTile({ busy, onPress }: { busy: boolean; onPress: () =>
         {busy ? <ActivityIndicator color={theme.onPrimary} /> : <LinkIcon color={theme.onPrimary} />}
       </View>
       <View style={styles.flex}>
-        <AppText variant="label">Share a link</AppText>
-        <AppText variant="caption">Friends tick their own items. No app or sign-up.</AppText>
+        <AppText variant="label">{t.shareALink}</AppText>
+        <AppText variant="caption">{t.linkTileCaption}</AppText>
       </View>
     </Pressable>
   )
