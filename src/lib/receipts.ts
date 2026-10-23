@@ -1,6 +1,6 @@
 import { confirmDestructive } from '@/lib/alert'
 import type { Bill } from '@/lib/bills'
-import { billTotal, receiptSubtotal } from '@/lib/split'
+import { billTotal, peopleInOrder, receiptSubtotal } from '@/lib/split'
 import { supabase } from '@/lib/supabase'
 import type { ParsedReceipt, ReceiptPerson, ReceiptWithPeople } from '@/lib/types'
 
@@ -33,8 +33,7 @@ export async function getReceipt(id: string): Promise<ReceiptWithPeople> {
 
   const receipt = data as ReceiptWithPeople
   receipt.receipts_items.sort((a, b) => a.position - b.position)
-  // You first, then everyone else in the order they were added.
-  receipt.receipt_people.sort((a, b) => Number(b.is_me) - Number(a.is_me) || a.created_at.localeCompare(b.created_at))
+  receipt.receipt_people = peopleInOrder(receipt.receipt_people)
   return receipt
 }
 

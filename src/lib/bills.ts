@@ -1,6 +1,6 @@
 import type { Receipt, ReceiptPerson } from '@/lib/types'
 
-import { itemShares, splitByPerson } from './split.ts'
+import { itemShares, peopleInOrder, picksFrom, splitByPicks } from './split.ts'
 
 // Where each bill on the home screen stands: still to split, waiting on
 // people to pay back, or settled. Pure, so it is unit tested.
@@ -47,24 +47,12 @@ export interface BillStatus {
 
 const SMALL = 0.005
 
-/** You first, then everyone else in the order they joined, like the split screen. */
-export const peopleInOrder = (bill: Bill) =>
-  [...bill.receipt_people].sort((a, b) => Number(b.is_me) - Number(a.is_me) || a.created_at.localeCompare(b.created_at))
-
 export function billStatus(bill: Bill): BillStatus {
-  const people = peopleInOrder(bill)
+  const people = peopleInOrder(bill.receipt_people)
   const items = bill.receipts_items
-  const picks = Object.fromEntries(
-    items.map((item) => [item.id, Object.fromEntries(item.receipt_item_people.map((row) => [row.person_id, row.units]))]),
-  )
+  const picks = picksFrom(items)
   const unassignedItems = items.filter((item) => itemShares(item, Object.keys(picks[item.id]), picks[item.id]).left > 0).length
-  const split = splitByPerson(
-    bill,
-    items,
-    people.map((person) => person.id),
-    Object.fromEntries(Object.entries(picks).map(([itemId, had]) => [itemId, Object.keys(had)])),
-    picks,
-  )
+  const split = splitByPicks(bill, items, people.map((person) => person.id), picks)
   const owing = (person: Bill['receipt_people'][number]) =>
     !person.is_payer && !person.paid_at && (split.people[person.id]?.total ?? 0) >= SMALL
 

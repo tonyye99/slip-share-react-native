@@ -129,6 +129,22 @@ export function splitByPerson(
   }
 }
 
+/** Who had each line as the database stores it, as item id -> person id -> count. */
+export const picksFrom = (items: { id: string; receipt_item_people: { person_id: string; units: number }[] }[]): Counts =>
+  Object.fromEntries(
+    items.map((item) => [item.id, Object.fromEntries(item.receipt_item_people.map((row) => [row.person_id, row.units]))]),
+  )
+
+/** splitByPerson for picks with counts: everyone with a count on a line had it. */
+export function splitByPicks(receipt: SplitReceipt, items: SplitItem[], personIds: string[], picks: Counts): PeopleSplit {
+  const assignments = Object.fromEntries(Object.entries(picks).map(([itemId, had]) => [itemId, Object.keys(had)]))
+  return splitByPerson(receipt, items, personIds, assignments, picks)
+}
+
+/** You first, then everyone else in the order they were added. */
+export const peopleInOrder = <T extends { is_me: boolean; created_at: string }>(people: T[]): T[] =>
+  [...people].sort((a, b) => Number(b.is_me) - Number(a.is_me) || a.created_at.localeCompare(b.created_at))
+
 export function receiptSubtotal(items: Pick<SplitItem, 'qty' | 'unit_price'>[]): number {
   return items.reduce((sum, item) => sum + item.qty * item.unit_price, 0)
 }

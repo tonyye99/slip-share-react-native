@@ -5,10 +5,10 @@ import { Avatar, Chip } from '@/components/chip'
 import { AppText, Button, Card, Divider, Input } from '@/components/ui'
 import { Radius, Spacing } from '@/constants/theme'
 import { useTheme } from '@/hooks/use-theme'
+import { MAX_NAME_LENGTH } from '@/lib/names'
 import { nameOf } from '@/lib/split-view'
 import type { ReceiptPerson } from '@/lib/types'
 
-export const MAX_NAME_LENGTH = 40
 
 /** "Who was there?": add and remove the people on the bill. */
 export function PeopleStep({

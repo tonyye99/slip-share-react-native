@@ -3,7 +3,7 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
 
-import { evenCount, splitByPerson, totalsMessage } from './split.ts'
+import { evenCount, peopleInOrder, picksFrom, splitByPerson, splitByPicks, totalsMessage } from './split.ts'
 
 // The example receipt from slip-share's CLAUDE.md.
 const items = [
@@ -132,4 +132,25 @@ test('totals message leaves out paid marks when nobody is the payer', () => {
     unassigned: 0,
   })
   assert.equal(message, 'Cafe: $10.00\n\nAlice: $10.00')
+})
+
+test('splitByPicks reads picks as the database stores them', () => {
+  const stored = [
+    { ...items[0], receipt_item_people: [{ person_id: 'me', units: 1 }, { person_id: 'alice', units: 1 }] },
+    { ...items[1], receipt_item_people: [{ person_id: 'alice', units: 1 }] },
+    { ...items[2], receipt_item_people: [] },
+    { ...items[3], receipt_item_people: [{ person_id: 'me', units: 1 }] },
+  ]
+  const fromPicks = splitByPicks(receipt, stored, ['me', 'alice'], picksFrom(stored))
+  const direct = splitByPerson(receipt, items, ['me', 'alice'], { a: ['me', 'alice'], b: ['alice'], d: ['me'] })
+  assert.deepEqual(fromPicks, direct)
+})
+
+test('peopleInOrder puts you first, then everyone in the order they were added', () => {
+  const people = [
+    { name: 'Ben', is_me: false, created_at: '2026-10-02' },
+    { name: 'Me', is_me: true, created_at: '2026-10-03' },
+    { name: 'Anna', is_me: false, created_at: '2026-10-01' },
+  ]
+  assert.deepEqual(peopleInOrder(people).map((person) => person.name), ['Me', 'Anna', 'Ben'])
 })
