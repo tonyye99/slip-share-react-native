@@ -506,7 +506,7 @@ export function ChevronDownIcon({ color, size = 10, up }: { color: string; size?
   )
 }
 
-/** The SlipShare mark: the app icon ("Shared plate"), so the logo in the app matches the home screen. */
+/** The SlipShare mark: the app icon, so the logo in the app matches the home screen. */
 export function Logo({ size = 28 }: { size?: number }) {
   return (
     <Image
