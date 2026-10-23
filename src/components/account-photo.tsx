@@ -6,7 +6,7 @@ import { StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native'
 import { Avatar } from '@/components/chip'
 import { useTheme } from '@/hooks/use-theme'
 
-/** Your sign-in photo when the provider gave one (Google, GitHub), and a name for the initial. */
+/** Your sign-in photo when the provider gave one (Google), and a name for the initial. */
 function accountLook(user: User | null | undefined) {
   const meta = user?.user_metadata ?? {}
   const photo = [meta.avatar_url, meta.picture].find((value) => typeof value === 'string' && value.startsWith('https://'))

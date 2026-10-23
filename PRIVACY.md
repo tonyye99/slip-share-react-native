@@ -1,12 +1,12 @@
 # SlipShare Privacy Policy
 
-Last updated: October 10, 2026
+Last updated: October 23, 2026
 
 SlipShare is an app for splitting restaurant bills with friends. This policy explains what the SlipShare mobile app collects, why, who can see it, and how to delete it.
 
 ## What we collect
 
-- **Your account.** Your email address, and your name if you give one. If you sign in with Apple, Google or GitHub, that service shares your name and email address with us, and Google and GitHub also share a link to your profile picture. If you sign in with Apple and choose to hide your email, we only get Apple's private relay address.
+- **Your account.** Your email address, and your name if you give one. If you sign in with Apple or Google, that service shares your name and email address with us, and Google also shares a link to your profile picture. If you sign in with Apple and choose to hide your email, we only get Apple's private relay address.
 - **Your receipts.** The shop name, items, prices, tax, service charge and totals you save, including the text the AI read from the photo.
 - **Your bill splits.** The names you type for the people you split a receipt with, who had each item, who paid the bill, who has paid back, and what each person owes. Friends' names are only used to show the split to you, and to friends you send a link to.
 - **Friend links.** If you send a friend link for a receipt, the names friends type when they open it and the items they tick.
@@ -35,7 +35,7 @@ You can turn off receipt scanning at any time in **Account > Privacy**. The app 
 - **Service providers we use to run SlipShare:**
   - [Supabase](https://supabase.com/privacy) hosts our database, sign-in and server code.
   - [OpenAI](https://openai.com/policies/privacy-policy/) reads receipt photos, as described above.
-  - Apple, Google and GitHub handle sign-in if you choose them.
+  - Apple and Google handle sign-in if you choose them.
 
 We do not sell your information or share it for advertising.
 
