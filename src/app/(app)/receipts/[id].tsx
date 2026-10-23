@@ -11,7 +11,7 @@ import { ScreenHeader } from '@/components/screen-header'
 import { BillSummary } from '@/components/split/bill-summary'
 import { FriendLinkCard, ShareLinkTile } from '@/components/split/friend-link'
 import { ItemRow } from '@/components/split/item-row'
-import { MAX_NAME_LENGTH, PeopleStep } from '@/components/split/people-step'
+import { PeopleStep } from '@/components/split/people-step'
 import { PersonCards } from '@/components/split/person-cards'
 import { PersonDetail } from '@/components/split/person-detail'
 import { SplitFooter } from '@/components/split/split-footer'
@@ -22,7 +22,7 @@ import { MaxContentWidth, Radius, Spacing } from '@/constants/theme'
 import { useTheme } from '@/hooks/use-theme'
 import { confirmDestructive, showAlert } from '@/lib/alert'
 import { friendLinksAvailable, friendLinkUrl } from '@/lib/link-picks'
-import { bothNames, originalLabel } from '@/lib/names'
+import { bothNames, cleanName, originalLabel } from '@/lib/names'
 import {
   addItemPeople,
   addPerson,
@@ -37,8 +37,8 @@ import {
   setReceiptLink,
 } from '@/lib/receipts'
 import { shareText } from '@/lib/share-text'
-import { evenCount, formatMoney, itemShares, splitByPerson, totalsMessage, type Counts, type SplitResult } from '@/lib/split'
-import { afterSheet, countLabel, itemStatus, nameOf, partOf, picksOf, type Item } from '@/lib/split-view'
+import { evenCount, formatMoney, itemShares, picksFrom, splitByPicks, totalsMessage, type Counts, type SplitResult } from '@/lib/split'
+import { afterSheet, countLabel, itemStatus, nameOf, partOf, type Item } from '@/lib/split-view'
 import type { ReceiptPerson, ReceiptWithPeople } from '@/lib/types'
 
 const MAX_SUGGESTIONS = 6
@@ -83,7 +83,7 @@ export default function SplitScreen() {
   const show = useCallback((receipt: ReceiptWithPeople) => {
     setReceipt(receipt)
     setPeople(receipt.receipt_people)
-    setPicks(picksOf(receipt))
+    setPicks(picksFrom(receipt.receipts_items))
   }, [])
 
   useEffect(() => {
@@ -100,15 +100,7 @@ export default function SplitScreen() {
 
   const split = useMemo(
     () =>
-      receipt
-        ? splitByPerson(
-            receipt,
-            receipt.receipts_items,
-            people.map((person) => person.id),
-            Object.fromEntries(Object.entries(picks).map(([itemId, had]) => [itemId, Object.keys(had)])),
-            picks,
-          )
-        : null,
+      receipt ? splitByPicks(receipt, receipt.receipts_items, people.map((person) => person.id), picks) : null,
     [receipt, people, picks],
   )
 
@@ -244,7 +236,7 @@ export default function SplitScreen() {
   }
 
   const add = async (typed: string) => {
-    const name = typed.trim().replace(/\s+/g, ' ').slice(0, MAX_NAME_LENGTH)
+    const name = cleanName(typed)
     if (!name || adding) return false
     const key = name.toLowerCase()
     if (key === 'you' || key === 'me') {

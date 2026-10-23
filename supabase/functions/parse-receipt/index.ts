@@ -108,6 +108,23 @@ Deno.serve(async (req) => {
   const { data: auth } = token ? await supabase.auth.getUser(token) : { data: { user: null } }
   if (!auth.user) return json({ error: 'Sign in to scan receipts' }, 401)
 
+  // A bad request is turned away before it uses up one of the day's scans.
+  let imageBase64: unknown
+  let enableTranslation = false
+  try {
+    const body = await req.json()
+    imageBase64 = body.imageBase64
+    enableTranslation = body.enableTranslation === true
+  } catch {
+    return json({ error: 'Invalid JSON body' }, 400)
+  }
+  if (typeof imageBase64 !== 'string' || imageBase64.length === 0) {
+    return json({ error: 'imageBase64 is required' }, 400)
+  }
+  if (imageBase64.length > MAX_BASE64_LENGTH) {
+    return json({ error: 'Image is too large' }, 413)
+  }
+
   // Queries run as this user, so RLS and the daily scan limit apply.
   const userClient = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_ANON_KEY')!, {
     global: { headers: { Authorization: `Bearer ${token}` } },
@@ -126,23 +143,8 @@ Deno.serve(async (req) => {
     console.error('use_receipt_scan failed:', limitError)
     return json({ error: 'Failed to parse receipt' }, 500)
   }
+  // A scan that OpenAI then fails on still counts, because the call may already have cost money.
   if (!withinLimit) return json({ error: 'Daily scan limit reached' }, 429)
-
-  let imageBase64: unknown
-  let enableTranslation = false
-  try {
-    const body = await req.json()
-    imageBase64 = body.imageBase64
-    enableTranslation = body.enableTranslation === true
-  } catch {
-    return json({ error: 'Invalid JSON body' }, 400)
-  }
-  if (typeof imageBase64 !== 'string' || imageBase64.length === 0) {
-    return json({ error: 'imageBase64 is required' }, 400)
-  }
-  if (imageBase64.length > MAX_BASE64_LENGTH) {
-    return json({ error: 'Image is too large' }, 413)
-  }
 
   try {
     const result = await openai.responses.create({

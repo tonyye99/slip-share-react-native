@@ -23,10 +23,9 @@ import {
   type LinkItem,
   type LinkReceipt,
 } from '@/lib/link-picks'
-import { bothNames, originalLabel } from '@/lib/names'
-import { formatMoney, isCountable, itemShares, splitByPerson } from '@/lib/split'
+import { bothNames, cleanName, MAX_NAME_LENGTH, originalLabel } from '@/lib/names'
+import { formatMoney, isCountable, itemShares, splitByPicks } from '@/lib/split'
 
-const MAX_NAME_LENGTH = 40
 const LINK_ERROR = "This link doesn't work. It may have been turned off, so ask whoever sent it for a new one."
 
 // Opened from a friend link (https://<site>/pick/<token>), usually on the
@@ -85,11 +84,10 @@ export default function PickScreen() {
   const owner = people.find((person) => person.is_owner)
   const payer = people.find((person) => person.is_payer)
   const me = identity ? people.find((person) => person.id === identity.person_id) : undefined
-  const split = splitByPerson(
+  const split = splitByPicks(
     receipt,
     receipt.items,
     people.map((person) => person.id),
-    Object.fromEntries(receipt.items.map((item) => [item.id, item.person_ids])),
     Object.fromEntries(receipt.items.map((item) => [item.id, item.counts])),
   )
   const mine = me ? split.people[me.id] : undefined
@@ -125,7 +123,7 @@ export default function PickScreen() {
   }
 
   const joinWithName = () => {
-    const typed = name.trim().replace(/\s+/g, ' ')
+    const typed = cleanName(name)
     if (!typed) return
     join({ name: typed })
   }

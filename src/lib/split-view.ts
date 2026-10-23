@@ -3,7 +3,7 @@
 
 import { Platform } from 'react-native'
 
-import { isCountable, type Counts } from '@/lib/split'
+import { isCountable } from '@/lib/split'
 import type { ReceiptPerson, ReceiptWithPeople } from '@/lib/types'
 
 export type Item = ReceiptWithPeople['receipts_items'][number]
@@ -23,15 +23,6 @@ export const nameOf = (person: ReceiptPerson) => (person.is_me ? 'You' : person.
 
 /** "1 item", "3 items". */
 export const countLabel = (count: number, noun: string) => `${count} ${noun}${count === 1 ? '' : 's'}`
-
-/** Who had each item and how many of it: item id -> person id -> count. */
-export const picksOf = (receipt: ReceiptWithPeople): Counts =>
-  Object.fromEntries(
-    receipt.receipts_items.map((item) => [
-      item.id,
-      Object.fromEntries(item.receipt_item_people.map((row) => [row.person_id, row.units])),
-    ]),
-  )
 
 /** How much of a line someone had, like "⅓" or "1 of 2". Empty when it was all theirs. */
 export function partOf(item: Item, share: number) {
