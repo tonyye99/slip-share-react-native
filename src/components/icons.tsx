@@ -1,7 +1,5 @@
+import { Image } from 'expo-image'
 import { StyleSheet, View } from 'react-native'
-
-import { Radius } from '@/constants/theme'
-import { useTheme } from '@/hooks/use-theme'
 
 // Small line icons drawn with Views, so they need no icon font or extra package.
 
@@ -508,23 +506,17 @@ export function ChevronDownIcon({ color, size = 10, up }: { color: string; size?
   )
 }
 
-/** The SlipShare mark: a receipt on a blue tile. */
+/** The SlipShare mark: the app icon ("Shared plate"), so the logo in the app matches the home screen. */
 export function Logo({ size = 28 }: { size?: number }) {
-  const theme = useTheme()
-  const line = { height: 2, borderRadius: 1, backgroundColor: theme.primary }
   return (
-    <View style={[styles.tile, { width: size, height: size, borderRadius: size * 0.28, backgroundColor: theme.primary }]}>
-      <View style={[styles.slip, { width: size * 0.46, height: size * 0.6, padding: size * 0.08 }]}>
-        <View style={[line, { width: '100%' }]} />
-        <View style={[line, { width: '100%' }]} />
-        <View style={[line, { width: '60%' }]} />
-      </View>
-    </View>
+    <Image
+      source={require('@/assets/images/logo.png')}
+      style={{ width: size, height: size, borderRadius: size * 0.225 }}
+      accessibilityIgnoresInvertColors
+    />
   )
 }
 
 const styles = StyleSheet.create({
   round: { borderWidth: 1.5, alignItems: 'center', justifyContent: 'center' },
-  tile: { alignItems: 'center', justifyContent: 'center' },
-  slip: { backgroundColor: '#FFFFFF', borderRadius: Radius.small / 4, justifyContent: 'space-evenly' },
 })
