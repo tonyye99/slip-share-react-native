@@ -1,44 +1,80 @@
 import { useEffect, useState } from 'react'
-import { ScrollView, StyleSheet, View } from 'react-native'
+import { ActivityIndicator, Linking, Platform, Pressable, ScrollView, StyleSheet, View } from 'react-native'
 
-import { Avatar } from '@/components/chip'
+import { AccountPhoto } from '@/components/account-photo'
+import { SettingsGroup, SettingsRow } from '@/components/account/settings-list'
+import { ScanIcon, ShieldIcon, SignOutIcon, SlidersIcon } from '@/components/icons'
 import { ScreenHeader } from '@/components/screen-header'
-import { AppText, Button, Card, Tag, TextLink } from '@/components/ui'
-import { MaxContentWidth, Spacing } from '@/constants/theme'
+import { Toggle } from '@/components/toggle'
+import { AppText } from '@/components/ui'
+import { MaxContentWidth, Radius, Spacing } from '@/constants/theme'
 import { useTheme } from '@/hooks/use-theme'
 import { deleteAccount } from '@/lib/account'
-import { confirmDestructive, showAlert } from '@/lib/alert'
+import { confirmAction, confirmDestructive, showAlert } from '@/lib/alert'
 import { useAuth } from '@/lib/auth'
-import { getAiConsent, openPrivacyPolicy, withdrawAiConsent } from '@/lib/consent'
+import { getAiConsent, giveAiConsent, openPrivacyPolicy, withdrawAiConsent } from '@/lib/consent'
 import { supabase } from '@/lib/supabase'
+
+const longDate = (iso: string) =>
+  new Date(iso).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })
 
 export default function AccountScreen() {
   const theme = useTheme()
   const { session } = useAuth()
   const [deleting, setDeleting] = useState(false)
-  // undefined until loaded (or if it couldn't be checked), null when scanning is off.
-  const [consentedAt, setConsentedAt] = useState<string | null>()
-  const [turningOff, setTurningOff] = useState(false)
+  // 'checking' until loaded, 'unknown' if it couldn't be checked, null when scanning is off.
+  const [consentedAt, setConsentedAt] = useState<string | null | 'checking' | 'unknown'>('checking')
+  const [saving, setSaving] = useState(false)
 
   useEffect(() => {
     getAiConsent()
       .then(setConsentedAt)
-      .catch((e) => console.error('Consent check failed', e))
+      .catch((e) => {
+        console.error('Consent check failed', e)
+        setConsentedAt('unknown')
+      })
   }, [])
 
-  const turnOffScanning = async () => {
+  const known = consentedAt !== 'checking' && consentedAt !== 'unknown'
+  const scanningOn = known && consentedAt !== null
+
+  const setScanning = async (on: boolean) => {
     if (!session) return
-    setTurningOff(true)
+    setSaving(true)
     try {
-      await withdrawAiConsent(session.user.id)
-      setConsentedAt(null)
+      if (on) {
+        await giveAiConsent(session.user.id)
+        setConsentedAt(await getAiConsent())
+      } else {
+        await withdrawAiConsent(session.user.id)
+        setConsentedAt(null)
+      }
     } catch (e) {
-      console.error('Turning off scanning failed', e)
-      showAlert('Could not turn off scanning', 'Please check your connection and try again.')
+      console.error('Changing receipt scanning failed', e)
+      showAlert(`Could not turn ${on ? 'on' : 'off'} scanning`, 'Please check your connection and try again.')
     } finally {
-      setTurningOff(false)
+      setSaving(false)
     }
   }
+
+  // Turning it on is agreeing to send photos to OpenAI, so say what that means first.
+  const toggleScanning = (on: boolean) =>
+    on
+      ? confirmAction(
+          'Turn on receipt scanning?',
+          "When you scan, the photo is sent to OpenAI to read the items. SlipShare doesn't keep it. OpenAI doesn't train on it and may keep it for up to 30 days to check for abuse.",
+          'Turn on',
+          () => setScanning(true),
+        )
+      : setScanning(false)
+
+  const scanningText = !known
+    ? consentedAt === 'unknown'
+      ? "Photos are read by OpenAI. We couldn't check this right now."
+      : 'Photos are read by OpenAI.'
+    : consentedAt
+      ? `Photos are read by OpenAI. You allowed this on ${longDate(consentedAt)}.`
+      : 'Off. Photos are read by OpenAI, so the app asks first.'
 
   // Signing out locally sends the app back to the sign-in screen.
   const runDelete = async () => {
@@ -62,63 +98,101 @@ export default function AccountScreen() {
 
   return (
     <View style={[styles.flex, { backgroundColor: theme.background }]}>
-    <ScreenHeader title="Account" />
-    <ScrollView style={styles.flex} contentContainerStyle={styles.content}>
-      <Card>
-        <View style={styles.who}>
-          <Avatar name={session?.user.email ?? '?'} color={theme.primary} size={44} />
-          <View style={styles.flex}>
-            <AppText variant="caption">Signed in as</AppText>
-            <AppText variant="heading" numberOfLines={1}>
-              {session?.user.email ?? 'Unknown'}
-            </AppText>
-          </View>
-        </View>
-        <Button title="Sign out" variant="secondary" onPress={() => supabase.auth.signOut()} disabled={deleting} />
-      </Card>
-
-      <Card>
-        <View style={styles.titleRow}>
-          <AppText variant="heading" style={styles.flex}>
-            Privacy
+      <ScreenHeader title="Account" plain />
+      <ScrollView style={styles.flex} contentContainerStyle={styles.content}>
+        <View style={styles.profile}>
+          <AccountPhoto user={session?.user} size={76} ring={4} style={styles.photo} />
+          <AppText style={[styles.email, { color: theme.text }]} numberOfLines={1} adjustsFontSizeToFit>
+            {session?.user.email ?? 'Unknown'}
           </AppText>
-          {consentedAt !== undefined && (
-            <Tag label={consentedAt ? 'Scanning on' : 'Scanning off'} tone={consentedAt ? 'success' : 'neutral'} />
+          <AppText variant="muted" style={[styles.signedIn, { color: theme.textSecondary }]}>
+            Signed in
+          </AppText>
+        </View>
+
+        <SettingsGroup title="Privacy">
+          <SettingsRow
+            tone="primary"
+            icon={(color) => <ScanIcon color={color} size={16} lines={2} />}
+            title="Receipt scanning"
+            subtitle={scanningText}
+            right={
+              <Toggle
+                value={scanningOn}
+                onValueChange={toggleScanning}
+                disabled={!known || saving || deleting}
+                accessibilityLabel="Receipt scanning"
+              />
+            }
+          />
+          <SettingsRow
+            icon={(color) => <ShieldIcon color={color} />}
+            title="Privacy policy"
+            chevron
+            onPress={openPrivacyPolicy}
+            accessibilityHint="Opens the privacy policy"
+          />
+        </SettingsGroup>
+
+        <SettingsGroup title="App">
+          {/* Browsers can't open the phone's settings, so the website leaves this out. */}
+          {Platform.OS !== 'web' && (
+            <SettingsRow
+              icon={(color, tile) => <SlidersIcon color={color} background={tile} />}
+              title="Settings"
+              chevron
+              onPress={() => Linking.openSettings()}
+              accessibilityHint="Opens SlipShare in your phone's Settings, like camera and photo access"
+            />
           )}
-        </View>
-        {consentedAt && (
-          <>
-            <AppText variant="muted">
-              Receipt scanning is on. You allowed SlipShare to send receipt photos to OpenAI on{' '}
-              {new Date(consentedAt).toLocaleDateString()}.
-            </AppText>
-            <Button title="Turn off scanning" variant="secondary" onPress={turnOffScanning} loading={turningOff} />
-          </>
-        )}
-        {consentedAt === null && (
-          <AppText variant="muted">
-            Receipt scanning is off. The app will ask before sending a photo to OpenAI.
-          </AppText>
-        )}
-        <TextLink title="Read the privacy policy" onPress={openPrivacyPolicy} />
-      </Card>
+          <SettingsRow
+            icon={(color) => <SignOutIcon color={color} />}
+            title="Sign out"
+            onPress={() => supabase.auth.signOut()}
+            disabled={deleting}
+          />
+        </SettingsGroup>
 
-      <Card>
-        <AppText variant="heading">Delete account</AppText>
-        <AppText variant="muted">
-          Removes your account and every receipt you scanned, with the names and payments on it. This also
-          deletes your account on the SlipShare website.
-        </AppText>
-        <Button title="Delete account" variant="danger" onPress={confirmDelete} loading={deleting} />
-      </Card>
-    </ScrollView>
+        <View style={styles.danger}>
+          <Pressable
+            onPress={confirmDelete}
+            disabled={deleting}
+            accessibilityRole="button"
+            accessibilityLabel="Delete account"
+            accessibilityState={{ busy: deleting }}
+            style={({ pressed }) => [styles.delete, { backgroundColor: pressed ? theme.dangerSoft : theme.surface }]}>
+            {deleting ? (
+              <ActivityIndicator color={theme.danger} />
+            ) : (
+              <AppText style={[styles.deleteText, { color: theme.danger }]}>Delete account</AppText>
+            )}
+          </Pressable>
+          <AppText variant="caption" style={[styles.note, { color: theme.textSecondary }]}>
+            Deletes your account, every bill you scanned and the names and payments on them, on the app and the website.
+          </AppText>
+        </View>
+      </ScrollView>
     </View>
   )
 }
 
 const styles = StyleSheet.create({
   flex: { flex: 1 },
-  who: { flexDirection: 'row', alignItems: 'center', gap: Spacing.three - 4, marginBottom: Spacing.one },
-  titleRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
-  content: { padding: Spacing.three, gap: Spacing.three, width: '100%', maxWidth: MaxContentWidth, alignSelf: 'center' },
+  content: {
+    paddingHorizontal: Spacing.three,
+    paddingTop: Spacing.three + 2,
+    paddingBottom: Spacing.five,
+    gap: Spacing.four - 1,
+    width: '100%',
+    maxWidth: MaxContentWidth,
+    alignSelf: 'center',
+  },
+  profile: { alignItems: 'center' },
+  photo: { boxShadow: '0 8px 24px rgba(16, 24, 27, 0.14)', marginBottom: Spacing.two },
+  email: { fontSize: 20, lineHeight: 26, fontWeight: '700', letterSpacing: -0.3, textAlign: 'center' },
+  signedIn: { fontSize: 15 },
+  danger: { gap: Spacing.two + 2, marginTop: Spacing.two + 1 },
+  delete: { minHeight: 54, borderRadius: Radius.large + 6, alignItems: 'center', justifyContent: 'center' },
+  deleteText: { fontSize: 17, fontWeight: '700' },
+  note: { lineHeight: 17, marginHorizontal: Spacing.three },
 })

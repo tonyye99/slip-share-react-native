@@ -188,10 +188,11 @@ export function Divider({ label }: { label?: string }) {
 }
 
 /** A small grey or coloured label, like "Paid the bill". */
-export function Tag({ label, tone = 'neutral' }: { label: string; tone?: 'neutral' | 'success' | 'warning' }) {
+export function Tag({ label, tone = 'neutral' }: { label: string; tone?: 'neutral' | 'primary' | 'success' | 'warning' }) {
   const theme = useTheme()
   const colors = {
     neutral: [theme.backgroundElement, theme.textSecondary],
+    primary: [theme.primarySoft, theme.primary],
     success: [theme.successSoft, theme.success],
     warning: [theme.warningSoft, theme.warning],
   }[tone]

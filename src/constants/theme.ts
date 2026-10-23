@@ -27,6 +27,10 @@ export const Colors = {
     dangerSoft: '#FCECEB',
     /** Solid red behind a white icon, like the swipe-to-delete button. */
     destructive: '#D92D20',
+    /** See-through bar that floats over the list, like the split screen's footer. */
+    glass: 'rgba(255, 255, 255, 0.84)',
+    /** Text on a person's colour. */
+    onPerson: '#FFFFFF',
   },
   dark: {
     text: '#ECEEF0',
@@ -48,13 +52,17 @@ export const Colors = {
     danger: '#FF7A6E',
     dangerSoft: '#3D1D1A',
     destructive: '#D92D20',
+    glass: 'rgba(24, 28, 32, 0.84)',
+    onPerson: '#0E1114',
   },
 } as const
 
 export type ThemeColors = { [K in keyof typeof Colors.light]: string }
 
-/** One colour per person, in the order they join the bill. White text sits on each. */
+/** One colour per person, in the order they join the bill. Text in `onPerson` sits on each. */
 export const PersonColors = ['#1768D1', '#C3410D', '#0E766D', '#7A3EB1', '#B4235F', '#5E6B12', '#8A5A00', '#2F4F9E'] as const
+/** The same colours, lighter, for dark mode. */
+export const PersonColorsDark = ['#5AA8F5', '#F2A06B', '#3CC4A6', '#B794F4', '#F48FB1', '#B5C36A', '#E3B04B', '#8FA8F0'] as const
 
 export const Spacing = {
   one: 4,

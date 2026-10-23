@@ -3,7 +3,7 @@ import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { ActivityIndicator, Pressable, RefreshControl, ScrollView, StyleSheet, View } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 
-import { Avatar, personColor } from '@/components/chip'
+import { Avatar, usePersonColor } from '@/components/chip'
 import { CheckBoxIcon, ClockIcon } from '@/components/icons'
 import { ScreenHeader } from '@/components/screen-header'
 import { AppText, Button, Card, Divider, Input, Row, Segmented, Stepper } from '@/components/ui'
@@ -35,6 +35,7 @@ const LINK_ERROR = "This link doesn't work. It may have been turned off, so ask 
 export default function PickScreen() {
   const { token } = useLocalSearchParams<{ token: string }>()
   const theme = useTheme()
+  const personColor = usePersonColor()
   const validToken = isLinkToken(token)
   const [receipt, setReceipt] = useState<LinkReceipt | null>(null)
   const [identity, setIdentity] = useState<LinkIdentity | null>(null)

@@ -7,14 +7,25 @@ export function showAlert(title: string, message: string) {
   else Alert.alert(title, message)
 }
 
-/** Asks before a destructive action; `onConfirm` runs only if the person agrees. */
-export function confirmDestructive(title: string, message: string, confirmText: string, onConfirm: () => void) {
+/** Asks first; `onConfirm` runs only if the person agrees. */
+export function confirmAction(
+  title: string,
+  message: string,
+  confirmText: string,
+  onConfirm: () => void,
+  style: 'default' | 'destructive' = 'default',
+) {
   if (Platform.OS === 'web') {
     if (window.confirm(`${title}\n\n${message}`)) onConfirm()
     return
   }
   Alert.alert(title, message, [
     { text: 'Cancel', style: 'cancel' },
-    { text: confirmText, style: 'destructive', onPress: onConfirm },
+    { text: confirmText, style, onPress: onConfirm },
   ])
+}
+
+/** Asks before a destructive action; `onConfirm` runs only if the person agrees. */
+export function confirmDestructive(title: string, message: string, confirmText: string, onConfirm: () => void) {
+  confirmAction(title, message, confirmText, onConfirm, 'destructive')
 }

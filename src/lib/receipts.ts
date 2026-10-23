@@ -1,26 +1,26 @@
 import { confirmDestructive } from '@/lib/alert'
+import type { Bill } from '@/lib/bills'
 import { billTotal, receiptSubtotal } from '@/lib/split'
 import { supabase } from '@/lib/supabase'
-import type { ParsedReceipt, Receipt, ReceiptPerson, ReceiptWithPeople } from '@/lib/types'
+import type { ParsedReceipt, ReceiptPerson, ReceiptWithPeople } from '@/lib/types'
 
 // The app talks to Supabase directly; RLS limits each user to their own
 // receipts and the people on them.
 
-export type ReceiptSummary = Pick<
-  Receipt,
-  'id' | 'merchant_name' | 'merchant_name_en' | 'currency' | 'total' | 'user_type' | 'created_at'
-> & { receipts_items: { count: number }[] }
-
-export async function listReceipts(offset: number, limit: number) {
+/** Your bills, newest first, with who had what so the home screen can tell where each one stands. */
+export async function listBills(offset: number, limit: number) {
   const { data, error, count } = await supabase
     .from('receipts')
-    .select('id, merchant_name, merchant_name_en, currency, total, user_type, created_at, receipts_items(count)', {
-      count: 'exact',
-    })
+    .select(
+      'id, merchant_name, merchant_name_en, currency, total, subtotal, tax_percent, service_percent, rounding, user_type, created_at, ' +
+        'receipts_items(id, qty, unit_price, receipt_item_people(person_id, units)), ' +
+        'receipt_people(id, name, is_me, is_payer, paid_at, created_at)',
+      { count: 'exact' },
+    )
     .order('created_at', { ascending: false })
     .range(offset, offset + limit - 1)
   if (error) throw error
-  return { receipts: (data ?? []) as ReceiptSummary[], total: count ?? 0 }
+  return { bills: (data ?? []) as unknown as Bill[], total: count ?? 0 }
 }
 
 export async function getReceipt(id: string): Promise<ReceiptWithPeople> {

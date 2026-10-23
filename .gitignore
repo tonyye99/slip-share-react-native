@@ -43,3 +43,6 @@ example
 # generated native folders
 /ios
 /android
+
+# Supabase CLI cache (project ref, pooler address)
+supabase/.temp/
