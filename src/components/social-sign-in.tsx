@@ -1,14 +1,15 @@
 import * as AppleAuthentication from 'expo-apple-authentication'
+import { Image, type ImageSource } from 'expo-image'
 import { useEffect, useState } from 'react'
-import { Platform, StyleSheet, useColorScheme, View } from 'react-native'
+import { ActivityIndicator, Platform, Pressable, StyleSheet, useColorScheme, View } from 'react-native'
 
-import { Button, Divider } from '@/components/ui'
-import { Spacing } from '@/constants/theme'
+import { AppText, Divider } from '@/components/ui'
+import { useTheme } from '@/hooks/use-theme'
 import { signInWithApple, signInWithProvider } from '@/lib/auth-links'
 
 type Provider = 'apple' | 'google' | 'github'
 
-/** "Continue with Apple / Google / GitHub". The session change moves the app on. */
+/** "or continue with" Google and GitHub side by side, and Apple under them on iPhone. The session change moves the app on. */
 export function SocialSignIn({ onError }: { onError: (message: string | null) => void }) {
   const isDark = useColorScheme() === 'dark'
   const [appleAvailable, setAppleAvailable] = useState(false)
@@ -34,39 +35,98 @@ export function SocialSignIn({ onError }: { onError: (message: string | null) =>
 
   return (
     <View style={styles.container}>
-      <Divider label="or" />
+      <Divider label="or continue with" style={styles.divider} />
+      <View style={styles.row}>
+        <ProviderButton
+          title="Google"
+          icon={require('@/assets/images/google.png')}
+          onPress={() => signIn('google')}
+          pending={pendingProvider === 'google'}
+          disabled={pendingProvider !== null}
+        />
+        <ProviderButton
+          title="GitHub"
+          icon={require('@/assets/images/github.png')}
+          // The GitHub mark is black, so it takes the text colour to show up in dark mode.
+          tinted
+          onPress={() => signIn('github')}
+          pending={pendingProvider === 'github'}
+          disabled={pendingProvider !== null}
+        />
+      </View>
       {appleAvailable && (
         <AppleAuthentication.AppleAuthenticationButton
           buttonType={AppleAuthentication.AppleAuthenticationButtonType.CONTINUE}
           buttonStyle={
             isDark
               ? AppleAuthentication.AppleAuthenticationButtonStyle.WHITE
-              : AppleAuthentication.AppleAuthenticationButtonStyle.BLACK
+              : AppleAuthentication.AppleAuthenticationButtonStyle.WHITE_OUTLINE
           }
-          cornerRadius={12}
+          cornerRadius={14}
           style={styles.apple}
           onPress={() => signIn('apple')}
         />
       )}
-      <Button
-        title="Continue with Google"
-        variant="secondary"
-        onPress={() => signIn('google')}
-        loading={pendingProvider === 'google'}
-        disabled={pendingProvider !== null}
-      />
-      <Button
-        title="Continue with GitHub"
-        variant="secondary"
-        onPress={() => signIn('github')}
-        loading={pendingProvider === 'github'}
-        disabled={pendingProvider !== null}
-      />
     </View>
   )
 }
 
+function ProviderButton({
+  title,
+  icon,
+  tinted,
+  onPress,
+  pending,
+  disabled,
+}: {
+  title: string
+  icon: ImageSource
+  tinted?: boolean
+  onPress: () => void
+  pending: boolean
+  disabled: boolean
+}) {
+  const theme = useTheme()
+  return (
+    <Pressable
+      onPress={onPress}
+      disabled={disabled}
+      accessibilityRole="button"
+      accessibilityLabel={`Continue with ${title}`}
+      accessibilityState={{ disabled, busy: pending }}
+      style={({ pressed }) => [
+        styles.provider,
+        { borderColor: theme.hairline, backgroundColor: pressed ? theme.background : theme.surface },
+        disabled && !pending && styles.dimmed,
+      ]}>
+      {pending ? (
+        <ActivityIndicator color={theme.text} />
+      ) : (
+        <>
+          <Image source={icon} style={styles.icon} tintColor={tinted ? theme.text : undefined} />
+          <AppText style={[styles.providerText, { color: theme.text }]}>{title}</AppText>
+        </>
+      )}
+    </Pressable>
+  )
+}
+
 const styles = StyleSheet.create({
-  container: { gap: Spacing.two },
-  apple: { height: 50 },
+  container: { gap: 14, marginTop: 1 },
+  divider: { marginVertical: 0 },
+  row: { flexDirection: 'row', gap: 10 },
+  provider: {
+    flex: 1,
+    height: 49,
+    borderRadius: 14,
+    borderWidth: 1.5,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 10,
+  },
+  dimmed: { opacity: 0.5 },
+  icon: { width: 20, height: 20 },
+  providerText: { fontSize: 16, lineHeight: 21, fontWeight: '600' },
+  apple: { height: 49 },
 })

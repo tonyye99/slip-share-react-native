@@ -506,6 +506,17 @@ export function ChevronDownIcon({ color, size = 10, up }: { color: string; size?
   )
 }
 
+/** An eye, for showing a password. `off` crosses it out, for hiding it again. */
+export function EyeIcon({ color, size = 20, off }: { color: string; size?: number; off?: boolean }) {
+  return (
+    <Image
+      source={off ? require('@/assets/images/eye-off.png') : require('@/assets/images/eye.png')}
+      style={{ width: size, height: size }}
+      tintColor={color}
+    />
+  )
+}
+
 /** The SlipShare mark: the app icon, so the logo in the app matches the home screen. */
 export function Logo({ size = 28 }: { size?: number }) {
   return (

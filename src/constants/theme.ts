@@ -19,6 +19,8 @@ export const Colors = {
     /** Pale blue behind something selected or highlighted. */
     primarySoft: '#E9F1FC',
     primaryTint: '#F4F7FE',
+    /** Blue-grey panel behind a picture, like the one at the top of sign-in. */
+    panelTint: '#ECF1F7',
     success: '#12715B',
     successSoft: '#E3F4EE',
     warning: '#9A4A08',
@@ -45,6 +47,7 @@ export const Colors = {
     onPrimary: '#FFFFFF',
     primarySoft: '#1B2C44',
     primaryTint: '#152234',
+    panelTint: '#152234',
     success: '#4CC29F',
     successSoft: '#143229',
     warning: '#F0A65A',

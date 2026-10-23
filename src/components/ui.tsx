@@ -72,9 +72,9 @@ export function Card({ style, dashed, ...rest }: ViewProps & { dashed?: boolean 
 interface ButtonProps {
   title: string
   onPress: () => void
-  /** primary: the one main action. secondary: outlined. danger: outlined, red text. */
-  variant?: 'primary' | 'secondary' | 'danger'
-  size?: 'default' | 'small'
+  /** primary: the one main action. strong: near-black, like Sign in. secondary: outlined. danger: outlined, red text. */
+  variant?: 'primary' | 'strong' | 'secondary' | 'danger'
+  size?: 'default' | 'small' | 'large'
   icon?: ReactNode
   loading?: boolean
   disabled?: boolean
@@ -94,8 +94,10 @@ export function Button({
   style,
 }: ButtonProps) {
   const theme = useTheme()
-  const filled = variant === 'primary'
-  const textColor = filled ? theme.onPrimary : variant === 'danger' ? theme.danger : theme.text
+  const filled = variant === 'primary' || variant === 'strong'
+  const fill = variant === 'strong' ? theme.text : theme.primary
+  const textColor =
+    variant === 'strong' ? theme.surface : filled ? theme.onPrimary : variant === 'danger' ? theme.danger : theme.text
   const inactive = disabled || loading
   return (
     <Pressable
@@ -107,8 +109,9 @@ export function Button({
       style={({ pressed }) => [
         styles.button,
         size === 'small' && styles.buttonSmall,
+        size === 'large' && styles.buttonLarge,
         filled
-          ? { backgroundColor: theme.primary }
+          ? { backgroundColor: fill }
           : { backgroundColor: theme.surface, borderColor: theme.border, borderWidth: 1 },
         { opacity: inactive ? 0.5 : pressed ? 0.8 : 1 },
         style,
@@ -118,7 +121,13 @@ export function Button({
       ) : (
         <View style={styles.buttonInner}>
           {icon}
-          <Text style={[styles.buttonText, size === 'small' && styles.buttonTextSmall, { color: textColor }]}>
+          <Text
+            style={[
+              styles.buttonText,
+              size === 'small' && styles.buttonTextSmall,
+              size === 'large' && styles.buttonTextLarge,
+              { color: textColor },
+            ]}>
             {title}
           </Text>
         </View>
@@ -175,11 +184,11 @@ export function Row({ label, value, bold }: { label: string; value: string; bold
 }
 
 /** A thin line, with optional words in the middle ("or", "Not on the list?"). */
-export function Divider({ label }: { label?: string }) {
+export function Divider({ label, style }: { label?: string; style?: StyleProp<ViewStyle> }) {
   const theme = useTheme()
-  if (!label) return <View style={[styles.line, { backgroundColor: theme.hairline }]} />
+  if (!label) return <View style={[styles.line, { backgroundColor: theme.hairline }, style]} />
   return (
-    <View style={styles.divider}>
+    <View style={[styles.divider, style]}>
       <View style={[styles.line, styles.flex, { backgroundColor: theme.hairline }]} />
       <AppText variant="caption">{label}</AppText>
       <View style={[styles.line, styles.flex, { backgroundColor: theme.hairline }]} />
@@ -342,9 +351,11 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   buttonSmall: { minHeight: 38, paddingHorizontal: Spacing.three - 2, borderRadius: Radius.medium - 2 },
+  buttonLarge: { minHeight: 52, borderRadius: Radius.large },
   buttonInner: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
   buttonText: { fontSize: 16, fontWeight: '600' },
   buttonTextSmall: { fontSize: 14 },
+  buttonTextLarge: { fontSize: 17, fontWeight: '700' },
   textLink: { alignSelf: 'flex-start' },
   // minWidth 0 lets a browser shrink the box to make room for a button beside it.
   input: { borderWidth: 1, borderRadius: Radius.medium, paddingHorizontal: Spacing.three, minHeight: 50, fontSize: 16, minWidth: 0 },
