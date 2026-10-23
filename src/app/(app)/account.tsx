@@ -4,7 +4,7 @@ import { ActivityIndicator, Linking, Platform, Pressable, ScrollView, StyleSheet
 import { AccountPhoto } from '@/components/account-photo'
 import { SettingsGroup, SettingsRow } from '@/components/account/settings-list'
 import { GlobeIcon, ScanIcon, ShieldIcon, SignOutIcon, SlidersIcon } from '@/components/icons'
-import { LanguageSwitch } from '@/components/language-switch'
+import { LanguagePicker } from '@/components/language-picker'
 import { ScreenHeader } from '@/components/screen-header'
 import { Toggle } from '@/components/toggle'
 import { AppText } from '@/components/ui'
@@ -131,7 +131,7 @@ export default function AccountScreen() {
           <SettingsRow
             icon={(color) => <GlobeIcon color={color} />}
             title={t.language.title}
-            right={<LanguageSwitch track={theme.backgroundElement} />}
+            right={<LanguagePicker background={theme.backgroundElement} />}
           />
           {/* Browsers can't open the phone's settings, so the website leaves this out. */}
           {Platform.OS !== 'web' && (

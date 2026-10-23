@@ -8,9 +8,9 @@ import { useTheme } from '@/hooks/use-theme'
 import { useT } from '@/i18n'
 import { signInWithApple, signInWithProvider } from '@/lib/auth-links'
 
-type Provider = 'apple' | 'google' | 'github'
+type Provider = 'apple' | 'google'
 
-/** "or continue with" Google and GitHub side by side, and Apple under them on iPhone. The session change moves the app on. */
+/** "or continue with" Google across the width, and Apple under it on iPhone. The session change moves the app on. */
 export function SocialSignIn({ onError }: { onError: (message: string | null) => void }) {
   const isDark = useColorScheme() === 'dark'
   const t = useT()
@@ -46,15 +46,6 @@ export function SocialSignIn({ onError }: { onError: (message: string | null) =>
           pending={pendingProvider === 'google'}
           disabled={pendingProvider !== null}
         />
-        <ProviderButton
-          title="GitHub"
-          icon={require('@/assets/images/github.png')}
-          // The GitHub mark is black, so it takes the text colour to show up in dark mode.
-          tinted
-          onPress={() => signIn('github')}
-          pending={pendingProvider === 'github'}
-          disabled={pendingProvider !== null}
-        />
       </View>
       {appleAvailable && (
         <AppleAuthentication.AppleAuthenticationButton
@@ -76,14 +67,12 @@ export function SocialSignIn({ onError }: { onError: (message: string | null) =>
 function ProviderButton({
   title,
   icon,
-  tinted,
   onPress,
   pending,
   disabled,
 }: {
   title: string
   icon: ImageSource
-  tinted?: boolean
   onPress: () => void
   pending: boolean
   disabled: boolean
@@ -106,7 +95,7 @@ function ProviderButton({
         <ActivityIndicator color={theme.text} />
       ) : (
         <>
-          <Image source={icon} style={styles.icon} tintColor={tinted ? theme.text : undefined} />
+          <Image source={icon} style={styles.icon} />
           <AppText style={[styles.providerText, { color: theme.text }]}>{title}</AppText>
         </>
       )}

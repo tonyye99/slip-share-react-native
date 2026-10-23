@@ -47,13 +47,13 @@ export function completeAuthRedirect(params: AuthRedirectParams): Promise<void> 
 }
 
 /**
- * Google and GitHub sign-in through Supabase in an in-app browser.
+ * Google sign-in through Supabase in an in-app browser.
  * Resolves false if the person closed the browser.
  *
  * On the website the whole page goes to the provider instead of a popup
  * (which browsers often block) and comes back to auth/callback.
  */
-export async function signInWithProvider(provider: 'google' | 'github'): Promise<boolean> {
+export async function signInWithProvider(provider: 'google'): Promise<boolean> {
   const redirectTo = authCallbackUrl()
   if (Platform.OS === 'web') {
     const { error } = await supabase.auth.signInWithOAuth({ provider, options: { redirectTo } })
@@ -109,13 +109,13 @@ export async function signInWithApple(): Promise<boolean> {
 
 /**
  * The profiles trigger only copies `display_name` from sign-up metadata, so
- * Google, GitHub and Apple accounts start without one. Fill it in once from
+ * Google and Apple accounts start without one. Fill it in once from
  * whatever the provider gave us, so friends see a name on shared bills.
  */
 async function ensureDisplayName(user: User | null, preferred?: string): Promise<void> {
   if (!user) return
   const metadata = user.user_metadata ?? {}
-  const name = [preferred, metadata.display_name, metadata.full_name, metadata.name, metadata.user_name, user.email?.split('@')[0]]
+  const name = [preferred, metadata.display_name, metadata.full_name, metadata.name, user.email?.split('@')[0]]
     .map((value) => (typeof value === 'string' ? value.trim() : ''))
     .find(Boolean)
   if (!name) return

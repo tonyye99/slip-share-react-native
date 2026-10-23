@@ -20,7 +20,7 @@ Built with Expo (SDK 57, Expo Router) and TypeScript. It uses the same Supabase 
 
 | Route | What it does |
 |---|---|
-| `sign-in`, `sign-up` | Email and password, plus Continue with Apple (iOS app only), Google and GitHub |
+| `sign-in`, `sign-up` | Email and password, plus Continue with Apple (iOS app only) and Google |
 | `forgot-password`, `reset-password` | Emails a reset link; the link opens the app to choose a new password |
 | `auth/callback` | Where email confirmation and OAuth links land |
 | `(app)/index` | Your receipts (pull to refresh, infinite scroll, swipe one left to delete it) and "Scan a receipt" |
@@ -51,7 +51,7 @@ Built with Expo (SDK 57, Expo Router) and TypeScript. It uses the same Supabase 
 Auth links use PKCE: they come back to the app as `slipshare://…?code=…`, and `src/lib/auth-links.ts` exchanges the code for a session.
 
 - **Authentication → URL Configuration → Redirect URLs**: add `slipshare://**`. For Expo Go during development, also add `exp://**`.
-- **Google** and **GitHub** providers: these are the same ones the web app uses. Nothing else is needed, because the app signs in through Supabase's web flow in an in-app browser.
+- **Google** provider: the same one the web app uses. Nothing else is needed, because the app signs in through Supabase's web flow in an in-app browser.
 - **Apple** provider: enable it and add the bundle ID `com.tonyye99.slipshare` under *Client IDs*. iOS uses native Sign in with Apple (`usesAppleSignIn` in `app.json`), so test it in a development build. In Expo Go the token is issued to `host.exp.Exponent`, which you would also have to list. The App Store requires Apple sign-in when other social logins are offered.
 - **Password reset** and **email confirmation** links use the same redirect URLs. Open them on the phone that asked for them, because the PKCE verifier is stored there.
 
@@ -89,7 +89,7 @@ Builds use the `slipshare://` redirect URL, so `exp://**` in Supabase is only ne
 
 The same app runs in a browser. `app.json` uses `web.output: "server"`, so every screen, including `receipts/<id>`, opens straight from a link. Try it locally with `npm run web`.
 
-Differences from the phone app: no Sign in with Apple; Google and GitHub sign-in go to the provider in the same tab and come back to `/auth/callback`; Camera opens the phone's camera in a mobile browser and a file picker on a computer; pop-up messages use the browser's own dialogs (`src/lib/alert.ts`).
+Differences from the phone app: no Sign in with Apple; Google sign-in goes to Google in the same tab and come back to `/auth/callback`; Camera opens the phone's camera in a mobile browser and a file picker on a computer; pop-up messages use the browser's own dialogs (`src/lib/alert.ts`).
 
 To publish it:
 
