@@ -6,6 +6,7 @@ import { Sheet } from '@/components/sheet'
 import { AppText, Button, Stepper } from '@/components/ui'
 import { Radius, Spacing } from '@/constants/theme'
 import { useTheme } from '@/hooks/use-theme'
+import { useT } from '@/i18n'
 import { bothNames } from '@/lib/names'
 import { isCountable } from '@/lib/split'
 import type { Item, ItemStatus, Money, PersonView } from '@/lib/split-view'
@@ -41,13 +42,14 @@ export function WhoHadSheet({
   onSetCount: (personId: string, units: number) => void
 }) {
   const theme = useTheme()
+  const t = useT()
   const names = item ? bothNames(item.name, item.name_en, showEnglish) : null
   const had = Object.keys(counts)
   const everyoneOn = people.every((person) => had.includes(person.id))
   // "Split between 2 · ฿144.50 each"
   const summary =
     had.length > 1 && !status.warn
-      ? `Split between ${had.length}${status.text.endsWith(' each') ? ` · ${status.text}` : ''}`
+      ? `${t.split.splitBetween(had.length)}${status.even ? ` · ${status.text}` : ''}`
       : status.text
 
   return (
@@ -68,26 +70,26 @@ export function WhoHadSheet({
           <AppText variant="caption" style={[styles.flex, status.warn && { color: theme.warning, fontWeight: '600' }]}>
             {summary}
           </AppText>
-          <Button title="Done" onPress={onClose} style={styles.done} />
+          <Button title={t.common.done} onPress={onClose} style={styles.done} />
         </View>
       }>
       {item && names && (
         <>
           <View style={styles.header}>
             <AppText variant="label" style={styles.flex}>
-              Who had this?
+              {t.split.whoHadThis}
             </AppText>
             <Pressable
               onPress={onToggleEveryone}
               accessibilityRole="checkbox"
               accessibilityState={{ checked: everyoneOn }}
-              accessibilityLabel="Everyone"
+              accessibilityLabel={t.split.everyone}
               style={({ pressed }) => [
                 styles.everyone,
                 { backgroundColor: everyoneOn ? theme.text : theme.backgroundElement, opacity: pressed ? 0.8 : 1 },
               ]}>
               <AppText variant="label" style={{ color: everyoneOn ? theme.background : theme.text }}>
-                Everyone
+                {t.split.everyone}
               </AppText>
             </Pressable>
           </View>
@@ -121,7 +123,7 @@ export function WhoHadSheet({
                     min={0}
                     max={item.qty}
                     onChange={(next) => onSetCount(person.id, next)}
-                    label={`${names.main} for ${person.name}`}
+                    label={t.split.countFor(names.main, person.name)}
                   />
                 </View>
               )
@@ -132,7 +134,7 @@ export function WhoHadSheet({
                 onPress={() => onTogglePerson(person.id)}
                 accessibilityRole="checkbox"
                 accessibilityState={{ checked: on }}
-                accessibilityLabel={`${person.name} had ${names.main}`}
+                accessibilityLabel={t.split.hadItem(person.name, names.main)}
                 style={({ pressed }) => [rowStyle, { opacity: pressed ? 0.85 : 1 }]}>
                 {nameAndShare}
                 <View

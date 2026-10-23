@@ -1,5 +1,6 @@
 import { Platform } from 'react-native'
 
+import { strings } from '@/i18n/strings'
 import { secureStorage } from '@/lib/secure-storage'
 import { supabase } from '@/lib/supabase'
 
@@ -122,5 +123,5 @@ export const isIdentityRejected = (e: unknown) => (e as { code?: string })?.code
 export function joinErrorMessage(e: unknown): string {
   const { code, message } = (e as { code?: string; message?: string }) ?? {}
   if (message && (code === 'P0002' || code === '23505' || code === '54000')) return `${message}.`
-  return 'Check your connection and try again.'
+  return strings().common.checkConnection
 }

@@ -6,7 +6,8 @@ import { SendIcon } from '@/components/icons'
 import { AppText, Button } from '@/components/ui'
 import { MaxContentWidth, Radius, Spacing } from '@/constants/theme'
 import { useTheme } from '@/hooks/use-theme'
-import { countLabel, type Money } from '@/lib/split-view'
+import { useT } from '@/i18n'
+import type { Money } from '@/lib/split-view'
 
 // The footer is see-through; browsers can also blur the list behind it.
 const glassBlur = Platform.OS === 'web' ? ({ backdropFilter: 'blur(16px)' } as unknown as ViewStyle) : null
@@ -34,6 +35,7 @@ export function SplitFooter({
   onSend: () => void
 }) {
   const theme = useTheme()
+  const t = useT().split
   const insets = useSafeAreaInsets()
   const [pullUp] = useState(() =>
     PanResponder.create({
@@ -49,27 +51,27 @@ export function SplitFooter({
     summary = (
       <>
         <AppText variant="heading" style={styles.amount}>
-          You {money(myTotal)}
+          {t.youTotal(money(myTotal))}
         </AppText>
-        <AppText variant="caption">Just you so far</AppText>
+        <AppText variant="caption">{t.justYou}</AppText>
       </>
     )
   } else if (Math.abs(left) >= 0.005) {
     summary = (
       <>
         <AppText variant="heading" style={[styles.amount, { color: theme.warning }]} numberOfLines={1}>
-          {money(left)} left
+          {t.left(money(left))}
         </AppText>
-        <AppText variant="caption">{countLabel(leftItems, 'item')} to go</AppText>
+        <AppText variant="caption">{t.toGo(leftItems)}</AppText>
       </>
     )
   } else {
     summary = (
       <>
         <AppText variant="heading" style={{ color: theme.success }}>
-          ✓ All assigned
+          {t.allAssigned}
         </AppText>
-        <AppText variant="caption">See the breakdown</AppText>
+        <AppText variant="caption">{t.seeBreakdown}</AppText>
       </>
     )
   }
@@ -77,10 +79,10 @@ export function SplitFooter({
   return (
     <View pointerEvents="box-none" style={[styles.wrap, { paddingBottom: insets.bottom + Spacing.three - 4 }]}>
       <View style={[styles.footer, { backgroundColor: theme.glass, borderColor: theme.hairline }, glassBlur]} {...pullUp.panHandlers}>
-        <Pressable onPress={onOpenBreakdown} accessibilityRole="button" accessibilityLabel="See the breakdown" style={styles.summary}>
+        <Pressable onPress={onOpenBreakdown} accessibilityRole="button" accessibilityLabel={t.seeBreakdown} style={styles.summary}>
           {summary}
         </Pressable>
-        <Button title="Send totals" onPress={onSend} icon={<SendIcon color={theme.onPrimary} />} style={styles.send} />
+        <Button title={t.sendTotals} onPress={onSend} icon={<SendIcon color={theme.onPrimary} />} style={styles.send} />
       </View>
     </View>
   )

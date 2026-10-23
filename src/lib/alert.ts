@@ -1,5 +1,7 @@
 import { Alert, Platform } from 'react-native'
 
+import { strings } from '@/i18n/strings'
+
 // React Native Web's Alert does nothing, so the website uses the browser's own dialogs.
 
 export function showAlert(title: string, message: string) {
@@ -20,7 +22,7 @@ export function confirmAction(
     return
   }
   Alert.alert(title, message, [
-    { text: 'Cancel', style: 'cancel' },
+    { text: strings().common.cancel, style: 'cancel' },
     { text: confirmText, style, onPress: onConfirm },
   ])
 }

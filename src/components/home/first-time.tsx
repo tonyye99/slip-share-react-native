@@ -4,27 +4,27 @@ import { SplitIllustration } from '@/components/home/illustration'
 import { AppText, Card } from '@/components/ui'
 import { Radius, Spacing } from '@/constants/theme'
 import { useTheme } from '@/hooks/use-theme'
-
-const STEPS = ['Snap the receipt', 'Tap who had what', 'Send totals to the group']
+import { useT } from '@/i18n'
 
 /** Home before the first bill: what SlipShare does, in three steps. */
 export function FirstTime() {
   const theme = useTheme()
+  const t = useT().home
   return (
     <View style={styles.wrap}>
       <Card style={styles.hero}>
         <SplitIllustration />
         <View style={styles.heroText}>
           <AppText variant="title" style={styles.title} accessibilityRole="header">
-            Split a bill in a minute
+            {t.firstTitle}
           </AppText>
           <AppText variant="muted" style={styles.subtitle}>
-            No more calculators at the table.
+            {t.firstSubtitle}
           </AppText>
         </View>
       </Card>
       <View style={styles.steps}>
-        {STEPS.map((step, index) => (
+        {t.firstSteps.map((step, index) => (
           <Card key={step} style={styles.step}>
             <View style={[styles.number, { backgroundColor: theme.primarySoft }]}>
               <AppText variant="caption" style={[styles.numberText, { color: theme.primary }]}>
@@ -38,7 +38,7 @@ export function FirstTime() {
         ))}
       </View>
       <AppText variant="caption" style={styles.center}>
-        Your bills will show up here.
+        {t.billsShowHere}
       </AppText>
     </View>
   )

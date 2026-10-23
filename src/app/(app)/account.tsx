@@ -3,12 +3,14 @@ import { ActivityIndicator, Linking, Platform, Pressable, ScrollView, StyleSheet
 
 import { AccountPhoto } from '@/components/account-photo'
 import { SettingsGroup, SettingsRow } from '@/components/account/settings-list'
-import { ScanIcon, ShieldIcon, SignOutIcon, SlidersIcon } from '@/components/icons'
+import { GlobeIcon, ScanIcon, ShieldIcon, SignOutIcon, SlidersIcon } from '@/components/icons'
+import { LanguageSwitch } from '@/components/language-switch'
 import { ScreenHeader } from '@/components/screen-header'
 import { Toggle } from '@/components/toggle'
 import { AppText } from '@/components/ui'
 import { MaxContentWidth, Radius, Spacing } from '@/constants/theme'
 import { useTheme } from '@/hooks/use-theme'
+import { dateLocale, useT } from '@/i18n'
 import { deleteAccount } from '@/lib/account'
 import { confirmAction, confirmDestructive, showAlert } from '@/lib/alert'
 import { useAuth } from '@/lib/auth'
@@ -16,10 +18,11 @@ import { getAiConsent, giveAiConsent, openPrivacyPolicy, withdrawAiConsent } fro
 import { supabase } from '@/lib/supabase'
 
 const longDate = (iso: string) =>
-  new Date(iso).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })
+  new Date(iso).toLocaleDateString(dateLocale(), { month: 'short', day: 'numeric', year: 'numeric' })
 
 export default function AccountScreen() {
   const theme = useTheme()
+  const t = useT()
   const { session } = useAuth()
   const [deleting, setDeleting] = useState(false)
   // 'checking' until loaded, 'unknown' if it couldn't be checked, null when scanning is off.
@@ -51,7 +54,7 @@ export default function AccountScreen() {
       }
     } catch (e) {
       console.error('Changing receipt scanning failed', e)
-      showAlert(`Could not turn ${on ? 'on' : 'off'} scanning`, 'Please check your connection and try again.')
+      showAlert(t.account.scanningFailed(on), t.common.checkConnection)
     } finally {
       setSaving(false)
     }
@@ -60,21 +63,16 @@ export default function AccountScreen() {
   // Turning it on is agreeing to send photos to OpenAI, so say what that means first.
   const toggleScanning = (on: boolean) =>
     on
-      ? confirmAction(
-          'Turn on receipt scanning?',
-          "When you scan, the photo is sent to OpenAI to read the items. SlipShare doesn't keep it. OpenAI doesn't train on it and may keep it for up to 30 days to check for abuse.",
-          'Turn on',
-          () => setScanning(true),
-        )
+      ? confirmAction(t.account.turnOnTitle, t.account.turnOnMessage, t.account.turnOn, () => setScanning(true))
       : setScanning(false)
 
   const scanningText = !known
     ? consentedAt === 'unknown'
-      ? "Photos are read by OpenAI. We couldn't check this right now."
-      : 'Photos are read by OpenAI.'
+      ? t.account.scanningUnknown
+      : t.account.scanningChecking
     : consentedAt
-      ? `Photos are read by OpenAI. You allowed this on ${longDate(consentedAt)}.`
-      : 'Off. Photos are read by OpenAI, so the app asks first.'
+      ? t.account.scanningAllowed(longDate(consentedAt))
+      : t.account.scanningOff
 
   // Signing out locally sends the app back to the sign-in screen.
   const runDelete = async () => {
@@ -84,70 +82,70 @@ export default function AccountScreen() {
     } catch (e) {
       console.error('Delete account failed', e)
       setDeleting(false)
-      showAlert('Could not delete your account', 'Please check your connection and try again.')
+      showAlert(t.account.deleteFailed, t.common.checkConnection)
     }
   }
 
   const confirmDelete = () =>
-    confirmDestructive(
-      'Delete your account?',
-      "Your receipts, and the names and payments on them, will be deleted for good. This can't be undone.",
-      'Delete account',
-      runDelete,
-    )
+    confirmDestructive(t.account.deleteTitle, t.account.deleteMessage, t.account.deleteAccount, runDelete)
 
   return (
     <View style={[styles.flex, { backgroundColor: theme.background }]}>
-      <ScreenHeader title="Account" plain />
+      <ScreenHeader title={t.screens.account} plain />
       <ScrollView style={styles.flex} contentContainerStyle={styles.content}>
         <View style={styles.profile}>
           <AccountPhoto user={session?.user} size={76} ring={4} style={styles.photo} />
           <AppText style={[styles.email, { color: theme.text }]} numberOfLines={1} adjustsFontSizeToFit>
-            {session?.user.email ?? 'Unknown'}
+            {session?.user.email ?? t.common.unknown}
           </AppText>
           <AppText variant="muted" style={[styles.signedIn, { color: theme.textSecondary }]}>
-            Signed in
+            {t.account.signedIn}
           </AppText>
         </View>
 
-        <SettingsGroup title="Privacy">
+        <SettingsGroup title={t.account.privacy}>
           <SettingsRow
             tone="primary"
             icon={(color) => <ScanIcon color={color} size={16} lines={2} />}
-            title="Receipt scanning"
+            title={t.account.scanning}
             subtitle={scanningText}
             right={
               <Toggle
                 value={scanningOn}
                 onValueChange={toggleScanning}
                 disabled={!known || saving || deleting}
-                accessibilityLabel="Receipt scanning"
+                accessibilityLabel={t.account.scanning}
               />
             }
           />
           <SettingsRow
             icon={(color) => <ShieldIcon color={color} />}
-            title="Privacy policy"
+            title={t.account.privacyPolicy}
             chevron
             onPress={openPrivacyPolicy}
-            accessibilityHint="Opens the privacy policy"
+            accessibilityHint={t.account.privacyPolicyHint}
           />
         </SettingsGroup>
 
-        <SettingsGroup title="App">
+        <SettingsGroup title={t.account.app}>
+          <SettingsRow
+            icon={(color) => <GlobeIcon color={color} />}
+            title={t.language.title}
+            right={<LanguageSwitch track={theme.backgroundElement} />}
+          />
           {/* Browsers can't open the phone's settings, so the website leaves this out. */}
           {Platform.OS !== 'web' && (
             <SettingsRow
               icon={(color, tile) => <SlidersIcon color={color} background={tile} />}
-              title="Settings"
+              title={t.account.settings}
               chevron
               onPress={() => Linking.openSettings()}
-              accessibilityHint="Opens SlipShare in your phone's Settings, like camera and photo access"
+              accessibilityHint={t.account.settingsHint}
             />
           )}
           <SettingsRow
             icon={(color) => <SignOutIcon color={color} />}
-            title="Sign out"
+            title={t.account.signOut}
             onPress={() => supabase.auth.signOut()}
             disabled={deleting}
           />
@@ -158,17 +156,17 @@ export default function AccountScreen() {
             onPress={confirmDelete}
             disabled={deleting}
             accessibilityRole="button"
-            accessibilityLabel="Delete account"
+            accessibilityLabel={t.account.deleteAccount}
             accessibilityState={{ busy: deleting }}
             style={({ pressed }) => [styles.delete, { backgroundColor: pressed ? theme.dangerSoft : theme.surface }]}>
             {deleting ? (
               <ActivityIndicator color={theme.danger} />
             ) : (
-              <AppText style={[styles.deleteText, { color: theme.danger }]}>Delete account</AppText>
+              <AppText style={[styles.deleteText, { color: theme.danger }]}>{t.account.deleteAccount}</AppText>
             )}
           </Pressable>
           <AppText variant="caption" style={[styles.note, { color: theme.textSecondary }]}>
-            Deletes your account, every bill you scanned and the names and payments on them, on the app and the website.
+            {t.account.deleteNote}
           </AppText>
         </View>
       </ScrollView>

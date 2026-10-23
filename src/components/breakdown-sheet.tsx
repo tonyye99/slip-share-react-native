@@ -7,6 +7,7 @@ import { Sheet } from '@/components/sheet'
 import { AppText } from '@/components/ui'
 import { Radius, Spacing } from '@/constants/theme'
 import { useTheme } from '@/hooks/use-theme'
+import { useT } from '@/i18n'
 import type { SplitResult } from '@/lib/split'
 
 export interface BreakdownPerson {
@@ -41,13 +42,14 @@ export function BreakdownSheet({
   footer: ReactNode
 }) {
   const theme = useTheme()
+  const t = useT()
   const [open, setOpen] = useState<string | null>(people[0]?.id ?? null)
 
   return (
     <Sheet
       visible={visible}
       onClose={onClose}
-      title="Breakdown"
+      title={t.split.breakdown}
       right={<AppText variant="muted">{money(total)}</AppText>}
       footer={footer}>
       {people.map((person) => {
@@ -55,9 +57,9 @@ export function BreakdownSheet({
         const { result } = person
         const lines = [
           ...person.items,
-          ...(result.service ? [{ label: `Service ${servicePercent}%`, amount: result.service }] : []),
-          ...(result.tax ? [{ label: `VAT ${taxPercent}%`, amount: result.tax }] : []),
-          ...(Math.abs(result.rounding) > 0.001 ? [{ label: 'Rounding', amount: result.rounding }] : []),
+          ...(result.service ? [{ label: t.common.service(servicePercent), amount: result.service }] : []),
+          ...(result.tax ? [{ label: t.common.vat(taxPercent), amount: result.tax }] : []),
+          ...(Math.abs(result.rounding) > 0.001 ? [{ label: t.common.rounding, amount: result.rounding }] : []),
         ]
         return (
           <View key={person.id} style={[styles.person, { backgroundColor: theme.backgroundElement }]}>
@@ -71,9 +73,7 @@ export function BreakdownSheet({
               <View style={styles.flex}>
                 <AppText variant="heading">{person.name}</AppText>
                 {!expanded && (
-                  <AppText variant="caption">
-                    {person.items.length} item{person.items.length === 1 ? '' : 's'}
-                  </AppText>
+                  <AppText variant="caption">{t.common.items(person.items.length)}</AppText>
                 )}
               </View>
               <AppText variant="heading" style={styles.amount}>
@@ -84,7 +84,7 @@ export function BreakdownSheet({
             {expanded && (
               <View style={styles.lines}>
                 {lines.length === 0 ? (
-                  <AppText variant="caption">Nothing yet</AppText>
+                  <AppText variant="caption">{t.split.nothingYet}</AppText>
                 ) : (
                   lines.map((line, index) => (
                     <View key={`${line.label}-${index}`} style={styles.line}>
@@ -105,7 +105,7 @@ export function BreakdownSheet({
       {unassigned.amount >= 0.005 && (
         <View style={[styles.unassigned, { borderColor: theme.warning, backgroundColor: theme.warningSoft }]}>
           <AppText variant="label" style={[styles.flex, { color: theme.warning }]}>
-            Not assigned · {unassigned.items} item{unassigned.items === 1 ? '' : 's'}
+            {t.split.notAssignedItems(unassigned.items)}
           </AppText>
           <AppText variant="label" style={[styles.amount, { color: theme.warning }]}>
             {money(unassigned.amount)}

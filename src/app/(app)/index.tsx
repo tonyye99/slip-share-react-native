@@ -13,6 +13,7 @@ import { ScreenHeader } from '@/components/screen-header'
 import { AppText } from '@/components/ui'
 import { MaxContentWidth, Spacing } from '@/constants/theme'
 import { useTheme } from '@/hooks/use-theme'
+import { dateLocale, useT, type Strings } from '@/i18n'
 import { showAlert } from '@/lib/alert'
 import { useAuth } from '@/lib/auth'
 import {
@@ -29,16 +30,15 @@ import { pickedPhoto, pickPhoto } from '@/lib/photo'
 import { confirmDeleteReceipt, deleteReceipt, listBills } from '@/lib/receipts'
 import { shareText } from '@/lib/share-text'
 import { formatMoney } from '@/lib/split'
-import { countLabel } from '@/lib/split-view'
 
 const PAGE_SIZE = 30
 
 type Filter = 'all' | BillState
-const FILTERS: { key: Filter; label: string }[] = [
-  { key: 'all', label: 'All' },
-  { key: 'to-split', label: 'To split' },
-  { key: 'waiting', label: 'Waiting' },
-  { key: 'settled', label: 'Settled' },
+const FILTERS: { key: Filter; label: (t: Strings['home']) => string }[] = [
+  { key: 'all', label: (t) => t.all },
+  { key: 'to-split', label: (t) => t.toSplit },
+  { key: 'waiting', label: (t) => t.waiting },
+  { key: 'settled', label: (t) => t.settled },
 ]
 
 const sameDay = (a: Date, b: Date) =>
@@ -46,7 +46,7 @@ const sameDay = (a: Date, b: Date) =>
 
 /** "Wed, Oct 15", with the year when it isn't this year. */
 const dateLabel = (date: Date, now: Date) =>
-  date.toLocaleDateString(undefined, {
+  date.toLocaleDateString(dateLocale(), {
     weekday: 'short',
     month: 'short',
     day: 'numeric',
@@ -54,15 +54,16 @@ const dateLabel = (date: Date, now: Date) =>
   })
 
 /** "Today", "Yesterday" or the date. */
-function dayLabel(date: Date, now: Date) {
-  if (sameDay(date, now)) return 'Today'
+function dayLabel(date: Date, now: Date, t: Strings['home']) {
+  if (sameDay(date, now)) return t.today
   const yesterday = new Date(now)
   yesterday.setDate(now.getDate() - 1)
-  return sameDay(date, yesterday) ? 'Yesterday' : dateLabel(date, now)
+  return sameDay(date, yesterday) ? t.yesterday : dateLabel(date, now)
 }
 
 export default function HomeScreen() {
   const theme = useTheme()
+  const t = useT()
   const insets = useSafeAreaInsets()
   const personColor = usePersonColor()
   const { session } = useAuth()
@@ -73,6 +74,7 @@ export default function HomeScreen() {
   const [error, setError] = useState<string | null>(null)
   const [filter, setFilter] = useState<Filter>('all')
 
+  const loadFailed = t.home.loadFailed
   const loadFirstPage = useCallback(async () => {
     try {
       const page = await listBills(0, PAGE_SIZE)
@@ -80,11 +82,11 @@ export default function HomeScreen() {
       setTotal(page.total)
       setError(null)
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Could not load your bills')
+      setError(e instanceof Error ? e.message : loadFailed)
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [loadFailed])
 
   // Reload when coming back from a bill, which may have changed.
   useFocusEffect(
@@ -101,7 +103,7 @@ export default function HomeScreen() {
       setBills((prev) => [...prev, ...page.bills])
       setTotal(page.total)
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Could not load your bills')
+      setError(e instanceof Error ? e.message : t.home.loadFailed)
     } finally {
       setLoadingMore(false)
     }
@@ -115,7 +117,7 @@ export default function HomeScreen() {
         setTotal((prev) => prev - 1)
       } catch (e) {
         console.error('Delete receipt failed', e)
-        showAlert('Could not delete this receipt', 'Check your connection and try again.')
+        showAlert(t.home.deleteFailed, t.common.checkConnection)
       }
     })
 
@@ -169,7 +171,7 @@ export default function HomeScreen() {
           refreshControl={<RefreshControl refreshing={false} onRefresh={loadFirstPage} />}>
           <FirstTime />
         </ScrollView>
-        <ScanFooter title="Scan your first receipt" onCamera={() => scan('camera')} onLibrary={() => scan('library')} />
+        <ScanFooter title={t.home.scanFirst} onCamera={() => scan('camera')} onLibrary={() => scan('library')} />
       </View>
     )
   }
@@ -199,13 +201,13 @@ export default function HomeScreen() {
             )}
             <View style={styles.pair}>
               <MonthCard
-                month={now.toLocaleDateString(undefined, { month: 'long' })}
+                month={now.toLocaleDateString(dateLocale(), { month: 'long' })}
                 amount={monthMoney(month.total)}
-                count={countLabel(month.count, 'bill')}
+                count={t.common.bills(month.count)}
               />
               {toSplit.length > 0 && (
                 <ToSplitCard
-                  count={countLabel(toSplit.length, 'bill')}
+                  count={t.common.bills(toSplit.length)}
                   onPress={() => (toSplit.length === 1 ? openBill(toSplit[0].bill.id) : setFilter('to-split'))}
                 />
               )}
@@ -213,19 +215,25 @@ export default function HomeScreen() {
             {error && <AppText variant="error">{error}</AppText>}
             <View style={styles.bills}>
               <AppText variant="title" style={styles.heading} accessibilityRole="header">
-                Your bills
+                {t.home.yourBills}
               </AppText>
-              <View style={styles.filters} accessibilityRole="radiogroup">
+              {/* One line that scrolls sideways when the words don't fit, as in Thai on a small phone. */}
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                style={styles.filterRow}
+                contentContainerStyle={styles.filters}
+                accessibilityRole="radiogroup">
                 {FILTERS.map(({ key, label }) => (
-                  <Chip key={key} label={label} role="radio" selected={filter === key} onPress={() => setFilter(key)} />
+                  <Chip key={key} label={label(t.home)} role="radio" selected={filter === key} onPress={() => setFilter(key)} />
                 ))}
-              </View>
+              </ScrollView>
             </View>
           </View>
         }
         ListEmptyComponent={
           <AppText variant="muted" style={styles.none}>
-            No bills here right now.
+            {t.home.noneHere}
           </AppText>
         }
         ListFooterComponent={loadingMore ? <ActivityIndicator style={styles.more} /> : null}
@@ -234,7 +242,7 @@ export default function HomeScreen() {
           return (
             <BillRow
               name={billName(bill)}
-              caption={`${dayLabel(new Date(bill.created_at), now)} · ${countLabel(status.itemCount, 'item')}`}
+              caption={`${dayLabel(new Date(bill.created_at), now, t.home)} · ${t.common.items(status.itemCount)}`}
               amount={money(bill.total)}
               state={status.state}
               badge={badgeText(status, money)}
@@ -246,7 +254,7 @@ export default function HomeScreen() {
           )
         }}
       />
-      <ScanFooter title="Scan receipt" onCamera={() => scan('camera')} onLibrary={() => scan('library')} />
+      <ScanFooter title={t.home.scanReceipt} onCamera={() => scan('camera')} onLibrary={() => scan('library')} />
     </View>
   )
 }
@@ -265,7 +273,9 @@ const styles = StyleSheet.create({
   pair: { flexDirection: 'row', gap: Spacing.three - 5 },
   bills: { gap: Spacing.two + 2, marginTop: 3 },
   heading: { fontSize: 20, lineHeight: 26, marginLeft: 3 },
-  filters: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.two },
+  // Runs to the screen edges, so a chip that doesn't fit shows it scrolls.
+  filterRow: { flexGrow: 0, marginHorizontal: -Spacing.three },
+  filters: { gap: Spacing.two, paddingHorizontal: Spacing.three },
   none: { textAlign: 'center', paddingVertical: Spacing.four },
   more: { marginVertical: Spacing.three },
 })

@@ -1,5 +1,6 @@
 import type { Receipt, ReceiptPerson } from '@/lib/types'
 
+import { strings } from '../i18n/strings.ts'
 import { itemShares, peopleInOrder, picksFrom, splitByPicks } from './split.ts'
 
 // Where each bill on the home screen stands: still to split, waiting on
@@ -74,18 +75,19 @@ export function billStatus(bill: Bill): BillStatus {
 
 /** What a bill's badge says, like "Not split yet" or "Ben owes ฿715.67". */
 export function badgeText(status: BillStatus, money: (amount: number) => string) {
-  if (status.state === 'to-split') return 'Not split yet'
-  if (status.state === 'settled') return 'Settled'
+  const t = strings().bills
+  if (status.state === 'to-split') return t.notSplit
+  if (status.state === 'settled') return t.settled
   const owed = status.owedToYou
-  if (owed.length === 1) return `${owed[0].name} owes ${money(owed[0].amount)}`
-  if (owed.length > 1) return `${owed.length} people owe ${money(owed.reduce((sum, debt) => sum + debt.amount, 0))}`
-  if (status.youOwe >= SMALL) return `You owe ${money(status.youOwe)}`
-  return 'Waiting'
+  if (owed.length === 1) return t.owes(owed[0].name, money(owed[0].amount))
+  if (owed.length > 1) return t.peopleOwe(owed.length, money(owed.reduce((sum, debt) => sum + debt.amount, 0)))
+  if (status.youOwe >= SMALL) return t.youOwe(money(status.youOwe))
+  return t.waiting
 }
 
 /** The bill's name: its own name, the English one, or just "Receipt". */
 export const billName = (bill: Pick<Bill, 'merchant_name' | 'merchant_name_en'>) =>
-  bill.merchant_name || bill.merchant_name_en || 'Receipt'
+  bill.merchant_name || bill.merchant_name_en || strings().common.receipt
 
 /** The biggest amount anyone still owes you, and on which bill. */
 export function biggestDebt(bills: { bill: Bill; status: BillStatus }[]) {
@@ -110,5 +112,5 @@ export function monthTotal(bills: Bill[], now: Date) {
 
 /** The message Remind shares, naming the amount and the bill. */
 export function reminderText(debt: Pick<Debt, 'name' | 'amount'>, bill: string, date: string, money: (amount: number) => string) {
-  return `Hi ${debt.name}! A quick reminder: ${money(debt.amount)} for ${bill} on ${date}. Thank you!`
+  return strings().bills.reminder(debt.name, money(debt.amount), bill, date)
 }

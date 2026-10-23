@@ -5,6 +5,7 @@ import { CheckIcon } from '@/components/icons'
 import { AppText, ProgressBar } from '@/components/ui'
 import { Radius, Spacing } from '@/constants/theme'
 import { useTheme } from '@/hooks/use-theme'
+import { useT } from '@/i18n'
 import type { Money, PersonView } from '@/lib/split-view'
 
 export interface PersonCard extends PersonView {
@@ -33,6 +34,7 @@ export function PersonCards({
   onAdd: () => void
 }) {
   const theme = useTheme()
+  const t = useT()
   return (
     <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.scroll} contentContainerStyle={styles.cards}>
       {people.map((person) => {
@@ -43,7 +45,7 @@ export function PersonCards({
             onPress={() => onToggle(person.id)}
             accessibilityRole="button"
             accessibilityState={{ expanded: open }}
-            accessibilityLabel={`${person.name}, ${money(person.total)}${person.paidBack ? ', paid back' : ''}`}
+            accessibilityLabel={`${person.name}, ${money(person.total)}${person.paidBack ? t.split.paidBackA11y : ''}`}
             style={({ pressed }) => [
               styles.card,
               { backgroundColor: theme.surface, borderColor: open ? person.color : 'transparent', opacity: pressed ? 0.85 : 1 },
@@ -65,7 +67,7 @@ export function PersonCards({
       <Pressable
         onPress={onAdd}
         accessibilityRole="button"
-        accessibilityLabel="Add people"
+        accessibilityLabel={t.split.addPeople}
         style={({ pressed }) => [styles.card, styles.addCard, { borderColor: theme.border, opacity: pressed ? 0.7 : 1 }]}>
         <View style={[styles.addIcon, { backgroundColor: theme.primarySoft }]}>
           <AppText variant="heading" style={[styles.addPlus, { color: theme.primary }]}>
@@ -73,7 +75,7 @@ export function PersonCards({
           </AppText>
         </View>
         <AppText variant="label" style={{ color: theme.primary }}>
-          Add
+          {t.common.add}
         </AppText>
       </Pressable>
     </ScrollView>

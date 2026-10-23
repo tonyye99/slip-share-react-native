@@ -10,6 +10,7 @@ import { SocialSignIn } from '@/components/social-sign-in'
 import { AppText, Button, Card } from '@/components/ui'
 import { Spacing } from '@/constants/theme'
 import { useTheme } from '@/hooks/use-theme'
+import { useT } from '@/i18n'
 import { openPrivacyPolicy } from '@/lib/consent'
 
 // Forms read best narrow, even on a wide browser window.
@@ -53,6 +54,7 @@ export const authStyles = StyleSheet.create({
 /** Shared email/password form for the sign-in and sign-up screens, after Ye's "Sign in · v2" design. */
 export function AuthForm({ mode, onSubmit }: AuthFormProps) {
   const theme = useTheme()
+  const t = useT()
   const router = useRouter()
   const { width } = useWindowDimensions()
   const insets = useSafeAreaInsets()
@@ -66,7 +68,7 @@ export function AuthForm({ mode, onSubmit }: AuthFormProps) {
 
   const submit = async () => {
     if (!email.trim() || password.length < 6) {
-      setError('Enter your email and a password of at least 6 characters.')
+      setError(t.auth.needEmailAndPassword)
       return
     }
     setSubmitting(true)
@@ -74,7 +76,7 @@ export function AuthForm({ mode, onSubmit }: AuthFormProps) {
     setNotice(null)
     const result = await onSubmit({ name: name.trim(), email: email.trim(), password })
     setSubmitting(false)
-    setError(result.error ?? null)
+    setError(result.error ? t.auth.errorText(result.error) : null)
     setNotice(result.notice ?? null)
   }
 
@@ -89,35 +91,41 @@ export function AuthForm({ mode, onSubmit }: AuthFormProps) {
           <View style={styles.body}>
             <View>
               <AppText style={[styles.headline, { color: theme.text }]} accessibilityRole="header">
-                {isSignUp ? 'Create your account' : 'Snap. Tap. Split.'}
+                {isSignUp ? t.auth.signUpHeadline : t.auth.headline}
               </AppText>
               <AppText style={[styles.subtitle, { color: theme.textSecondary }]}>
-                Scan the receipt, tap who had what, send everyone their share.
+                {t.auth.subtitle}
               </AppText>
             </View>
 
             <View style={styles.fields}>
               {isSignUp && (
-                <AuthField label="Name" value={name} onChangeText={setName} autoComplete="name" placeholder="Your name" />
+                <AuthField
+                  label={t.auth.name}
+                  value={name}
+                  onChangeText={setName}
+                  autoComplete="name"
+                  placeholder={t.auth.namePlaceholder}
+                />
               )}
               <AuthField
-                label="Email"
+                label={t.auth.email}
                 value={email}
                 onChangeText={setEmail}
-                placeholder="you@example.com"
+                placeholder={t.auth.emailPlaceholder}
                 autoCapitalize="none"
                 autoComplete="email"
                 keyboardType="email-address"
               />
               <AuthField
-                label="Password"
+                label={t.auth.password}
                 value={password}
                 onChangeText={setPassword}
                 secureTextEntry
                 autoComplete={isSignUp ? 'new-password' : 'current-password'}
-                placeholder={isSignUp ? 'At least 6 characters' : undefined}
+                placeholder={isSignUp ? t.auth.passwordPlaceholder : undefined}
                 onSubmitEditing={submit}
-                action={!isSignUp && <FieldAction title="Forgot?" onPress={() => router.push('/forgot-password')} />}
+                action={!isSignUp && <FieldAction title={t.auth.forgot} onPress={() => router.push('/forgot-password')} />}
               />
             </View>
 
@@ -125,7 +133,7 @@ export function AuthForm({ mode, onSubmit }: AuthFormProps) {
             {notice && <AppText>{notice}</AppText>}
 
             <Button
-              title={isSignUp ? 'Create account' : 'Sign in'}
+              title={isSignUp ? t.auth.createAccount : t.auth.signIn}
               variant="strong"
               size="large"
               onPress={submit}
@@ -139,22 +147,22 @@ export function AuthForm({ mode, onSubmit }: AuthFormProps) {
 
           <View style={styles.footer}>
             <AppText style={[styles.switch, { color: theme.textSecondary }]}>
-              {isSignUp ? 'Already have an account? ' : 'New here? '}
+              {isSignUp ? t.auth.haveAccount : t.auth.newHere}
               <AppText
                 style={[styles.switch, styles.switchLink, { color: theme.primary }]}
                 onPress={() => router.replace(isSignUp ? '/sign-in' : '/sign-up')}
                 accessibilityRole="link">
-                {isSignUp ? 'Sign in' : 'Create account'}
+                {isSignUp ? t.auth.signIn : t.auth.createAccount}
               </AppText>
             </AppText>
             {/* Social sign-in creates an account on either screen, so both show this. */}
             <AppText style={[styles.legal, { color: theme.textSecondary }]}>
-              By continuing, you agree to the{' '}
+              {t.auth.agree}
               <AppText
                 style={[styles.legal, styles.legalLink, { color: theme.primary }]}
                 onPress={openPrivacyPolicy}
                 accessibilityRole="link">
-                Privacy Policy
+                {t.auth.privacyPolicy}
               </AppText>
             </AppText>
           </View>

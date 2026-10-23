@@ -4,6 +4,7 @@ import { Pressable, StyleSheet, TextInput, View, type TextInputProps } from 'rea
 import { EyeIcon } from '@/components/icons'
 import { AppText } from '@/components/ui'
 import { useTheme } from '@/hooks/use-theme'
+import { useT } from '@/i18n'
 
 /**
  * A labelled box for the signed-out screens. `action` sits at the right of the label (like "Forgot?"),
@@ -17,6 +18,7 @@ export function AuthField({
   ...rest
 }: TextInputProps & { label: string; action?: ReactNode }) {
   const theme = useTheme()
+  const t = useT()
   const [shown, setShown] = useState(false)
   return (
     <View style={styles.field}>
@@ -38,7 +40,7 @@ export function AuthField({
             hitSlop={8}
             style={styles.eye}
             accessibilityRole="button"
-            accessibilityLabel={shown ? 'Hide password' : 'Show password'}>
+            accessibilityLabel={shown ? t.auth.hidePassword : t.auth.showPassword}>
             <EyeIcon color={theme.textSecondary} off={shown} />
           </Pressable>
         )}

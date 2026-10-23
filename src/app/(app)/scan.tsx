@@ -11,6 +11,7 @@ import { ScreenHeader } from '@/components/screen-header'
 import { AppText, Button, Card, TextLink } from '@/components/ui'
 import { MaxContentWidth, Radius, Spacing } from '@/constants/theme'
 import { useTheme } from '@/hooks/use-theme'
+import { useT } from '@/i18n'
 import { useAuth } from '@/lib/auth'
 import { getAiConsent, giveAiConsent, openPrivacyPolicy } from '@/lib/consent'
 import { receiptDraft } from '@/lib/draft'
@@ -19,11 +20,9 @@ import { pickedPhoto, pickPhoto } from '@/lib/photo'
 import { checkScan } from '@/lib/split'
 import type { ParsedReceipt } from '@/lib/types'
 
-// Shown under the photo as things to check, not detected from it.
-const PHOTO_TIPS = ['All items in frame', 'Total visible', 'Sharp, no glare']
-
 export default function ScanScreen() {
   const theme = useTheme()
+  const t = useT()
   const { session } = useAuth()
   // Photos go to OpenAI, so the user agrees once before the first scan.
   const [consent, setConsent] = useState<'checking' | 'needed' | 'given'>('checking')
@@ -61,7 +60,7 @@ export default function ScanScreen() {
       setConsent('given')
     } catch (e) {
       console.error('Saving consent failed', e)
-      setError('Could not save your choice. Check your connection and try again.')
+      setError(t.scan.saveChoiceFailed)
     } finally {
       setAllowing(false)
     }
@@ -87,7 +86,7 @@ export default function ScanScreen() {
       if (controller.signal.aborted) return
       if (!parsed.is_receipt) {
         setReading(null)
-        setError("This doesn't look like a receipt. Try a clearer photo of the bill.")
+        setError(t.scan.notAReceipt)
         return
       }
       setReading({ stage: 'reading', receipt: checkScan(parsed) })
@@ -100,9 +99,7 @@ export default function ScanScreen() {
         return
       }
       console.error('Parse failed', e)
-      setError(
-        e instanceof ScanLimitError ? e.message : 'Could not read the receipt. Check your connection and try again.',
-      )
+      setError(e instanceof ScanLimitError ? t.scan.scanLimit : t.scan.readFailed)
     }
   }
 
@@ -120,7 +117,7 @@ export default function ScanScreen() {
   if (consent === 'checking') {
     return (
       <View style={[styles.flex, { backgroundColor: theme.background }]}>
-        <ScreenHeader title="Scan receipt" />
+        <ScreenHeader title={t.screens.scan} />
         <View style={styles.centered}>
           <ActivityIndicator />
         </View>
@@ -131,30 +128,26 @@ export default function ScanScreen() {
   if (consent === 'needed') {
     return (
       <View style={[styles.flex, { backgroundColor: theme.background }]}>
-      <ScreenHeader title="Scan receipt" />
+      <ScreenHeader title={t.screens.scan} />
       <ScrollView style={styles.flex} contentContainerStyle={styles.content}>
         <Card>
-          <AppText variant="overline">Once only</AppText>
-          <AppText variant="title">Before you scan</AppText>
-          <AppText>
-            SlipShare uses OpenAI to read receipts. When you tap Read receipt, your photo is sent to OpenAI to pick out
-            the shop name, items and prices.
-          </AppText>
+          <AppText variant="overline">{t.scan.onceOnly}</AppText>
+          <AppText variant="title">{t.scan.beforeYouScan}</AppText>
+          <AppText>{t.scan.consentIntro}</AppText>
           <View style={styles.points}>
-            <AppText variant="muted">• SlipShare doesn&apos;t keep the photo, only the items you save.</AppText>
-            <AppText variant="muted">
-              • OpenAI doesn&apos;t use it to train its models. It may keep it for up to 30 days to check for abuse, then
-              deletes it.
-            </AppText>
-            <AppText variant="muted">• You can turn this off any time in Account.</AppText>
+            {t.scan.consentPoints.map((point) => (
+              <AppText key={point} variant="muted">
+                • {point}
+              </AppText>
+            ))}
           </View>
-          <TextLink title="Read the privacy policy" onPress={openPrivacyPolicy} />
+          <TextLink title={t.scan.readPolicy} onPress={openPrivacyPolicy} />
         </Card>
 
         {error && <AppText variant="error">{error}</AppText>}
 
-        <Button title="Allow and continue" onPress={allowScanning} loading={allowing} />
-        <Button title="Not now" variant="secondary" onPress={() => router.back()} disabled={allowing} />
+        <Button title={t.scan.allowAndContinue} onPress={allowScanning} loading={allowing} />
+        <Button title={t.scan.notNow} variant="secondary" onPress={() => router.back()} disabled={allowing} />
       </ScrollView>
       </View>
     )
@@ -175,13 +168,13 @@ export default function ScanScreen() {
   return (
     <View style={[styles.flex, { backgroundColor: theme.background }]}>
       <ScreenHeader
-        title={asset ? 'Check your photo' : 'Scan receipt'}
+        title={asset ? t.scan.checkPhoto : t.screens.scan}
         right={
           <Pressable
             onPress={() => router.push('/account')}
             hitSlop={10}
             accessibilityRole="button"
-            accessibilityLabel="Account and settings">
+            accessibilityLabel={t.scan.accountAndSettings}>
             <GearIcon color={theme.text} background={theme.surface} />
           </Pressable>
         }
@@ -193,11 +186,11 @@ export default function ScanScreen() {
               source={{ uri: asset.uri }}
               style={[styles.photoImage, { aspectRatio: Math.max(asset.width / asset.height, 0.5) }]}
               contentFit="contain"
-              accessibilityLabel="Your receipt photo"
+              accessibilityLabel={t.scan.yourPhoto}
             />
             <View style={styles.photoButtons}>
-              <PhotoButton title="Retake" icon={<CameraIcon color="#FFFFFF" />} onPress={() => pickImage('camera')} />
-              <PhotoButton title="Photo library" icon={<ImageIcon color="#FFFFFF" />} onPress={() => pickImage('library')} />
+              <PhotoButton title={t.scan.retake} icon={<CameraIcon color="#FFFFFF" />} onPress={() => pickImage('camera')} />
+              <PhotoButton title={t.scan.library} icon={<ImageIcon color="#FFFFFF" />} onPress={() => pickImage('library')} />
             </View>
           </View>
         ) : (
@@ -206,20 +199,20 @@ export default function ScanScreen() {
               <CameraIcon color={theme.primary} size={28} />
             </View>
             <AppText variant="title" style={styles.center}>
-              Take a photo of the bill
+              {t.scan.takePhoto}
             </AppText>
             <AppText variant="muted" style={styles.center}>
-              Keep the whole receipt in frame, flat and well lit.
+              {t.scan.keepInFrame}
             </AppText>
             <View style={styles.buttons}>
               <Button
-                title="Camera"
+                title={t.scan.camera}
                 icon={<CameraIcon color={theme.onPrimary} />}
                 onPress={() => pickImage('camera')}
                 style={styles.flex}
               />
               <Button
-                title="Photo library"
+                title={t.scan.library}
                 variant="secondary"
                 icon={<ImageIcon color={theme.text} />}
                 onPress={() => pickImage('library')}
@@ -231,9 +224,9 @@ export default function ScanScreen() {
 
         {asset && (
           <View style={styles.tips}>
-            <AppText variant="heading">Can you read every line?</AppText>
+            <AppText variant="heading">{t.scan.readEveryLine}</AppText>
             <View style={styles.tipList}>
-              {PHOTO_TIPS.map((tip) => (
+              {t.scan.tips.map((tip) => (
                 <View key={tip} style={styles.tip}>
                   <AppText variant="label" style={{ color: theme.success }}>
                     ✓
@@ -252,14 +245,14 @@ export default function ScanScreen() {
             </AppText>
           </View>
           <View style={styles.flex}>
-            <AppText variant="heading">Add English names</AppText>
-            <AppText variant="muted">For Thai, Korean or other receipts. You can switch between both later.</AppText>
+            <AppText variant="heading">{t.scan.englishNames}</AppText>
+            <AppText variant="muted">{t.scan.englishNamesHint}</AppText>
           </View>
           <Switch
             value={translateToEnglish}
             onValueChange={setTranslateToEnglish}
             trackColor={{ true: theme.primary }}
-            accessibilityLabel="Add English names"
+            accessibilityLabel={t.scan.englishNames}
           />
         </Card>
 
@@ -269,7 +262,7 @@ export default function ScanScreen() {
       {asset && (
         <SafeAreaView edges={['bottom']} style={[styles.footerBar, { backgroundColor: theme.surface, borderColor: theme.hairline }]}>
           <View style={styles.footer}>
-            <Button title="Read receipt" icon={<ScanIcon color={theme.onPrimary} />} onPress={readReceipt} />
+            <Button title={t.scan.readReceipt} icon={<ScanIcon color={theme.onPrimary} />} onPress={readReceipt} />
           </View>
         </SafeAreaView>
       )}

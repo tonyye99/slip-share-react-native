@@ -1,6 +1,7 @@
 import { FunctionsHttpError } from '@supabase/supabase-js'
 import { ImageManipulator, SaveFormat } from 'expo-image-manipulator'
 
+import { strings } from '@/i18n/strings'
 import { supabase } from '@/lib/supabase'
 import type { ParsedReceipt } from '@/lib/types'
 
@@ -20,14 +21,14 @@ export async function prepareImage(uri: string, width: number): Promise<string> 
 /** The parse-receipt function allows a limited number of scans per user per day. */
 export class ScanLimitError extends Error {
   constructor() {
-    super("You've reached today's scan limit. Try again tomorrow.")
+    super(strings().scan.scanLimit)
   }
 }
 
 /** parse-receipt won't send a photo to OpenAI until the user has agreed (see lib/consent). */
 export class ConsentRequiredError extends Error {
   constructor() {
-    super('Allow receipt scanning to read this receipt.')
+    super(strings().scan.consentRequired)
   }
 }
 

@@ -3,10 +3,12 @@ import { useState } from 'react'
 
 import { AuthLayout, authStyles } from '@/components/auth-form'
 import { AppText, Button, TextField } from '@/components/ui'
+import { useT } from '@/i18n'
 import { resetPasswordUrl } from '@/lib/auth-links'
 import { supabase } from '@/lib/supabase'
 
 export default function ForgotPasswordScreen() {
+  const t = useT()
   const [email, setEmail] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -14,7 +16,7 @@ export default function ForgotPasswordScreen() {
 
   const submit = async () => {
     if (!email.trim()) {
-      setError('Enter the email you signed up with.')
+      setError(t.auth.enterSignUpEmail)
       return
     }
     setSubmitting(true)
@@ -23,18 +25,18 @@ export default function ForgotPasswordScreen() {
       redirectTo: resetPasswordUrl(),
     })
     setSubmitting(false)
-    if (resetError) setError(resetError.message)
+    if (resetError) setError(t.auth.errorText(resetError.message))
     else setSent(true)
   }
 
   return (
-    <AuthLayout subtitle="We'll email you a link to choose a new password.">
+    <AuthLayout subtitle={t.auth.forgotSubtitle}>
       {sent ? (
-        <AppText>Check your email and open the link on this phone to set a new password.</AppText>
+        <AppText>{t.auth.checkEmailForReset}</AppText>
       ) : (
         <>
           <TextField
-            label="Email"
+            label={t.auth.email}
             value={email}
             onChangeText={setEmail}
             autoCapitalize="none"
@@ -42,11 +44,11 @@ export default function ForgotPasswordScreen() {
             keyboardType="email-address"
           />
           {error && <AppText variant="error">{error}</AppText>}
-          <Button title="Send reset link" onPress={submit} loading={submitting} />
+          <Button title={t.auth.sendResetLink} onPress={submit} loading={submitting} />
         </>
       )}
       <Link href="/sign-in" replace style={authStyles.link}>
-        <AppText variant="muted">Back to sign in</AppText>
+        <AppText variant="muted">{t.auth.backToSignIn}</AppText>
       </Link>
     </AuthLayout>
   )

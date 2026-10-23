@@ -20,6 +20,7 @@ import { WhoHadSheet } from '@/components/split/who-had-sheet'
 import { AppText, Button, Card, TextLink } from '@/components/ui'
 import { MaxContentWidth, Radius, Spacing } from '@/constants/theme'
 import { useTheme } from '@/hooks/use-theme'
+import { dateLocale, useT } from '@/i18n'
 import { confirmDestructive, showAlert } from '@/lib/alert'
 import { friendLinksAvailable, friendLinkUrl } from '@/lib/link-picks'
 import { bothNames, cleanName, originalLabel } from '@/lib/names'
@@ -38,7 +39,7 @@ import {
 } from '@/lib/receipts'
 import { shareText } from '@/lib/share-text'
 import { evenCount, formatMoney, itemShares, picksFrom, splitByPicks, totalsMessage, type Counts, type SplitResult } from '@/lib/split'
-import { afterSheet, countLabel, itemStatus, nameOf, partOf, type Item } from '@/lib/split-view'
+import { afterSheet, itemStatus, nameOf, partOf, type Item } from '@/lib/split-view'
 import type { ReceiptPerson, ReceiptWithPeople } from '@/lib/types'
 
 const MAX_SUGGESTIONS = 6
@@ -52,6 +53,7 @@ const NO_STATUS = { text: '', warn: false }
 export default function SplitScreen() {
   const { id } = useLocalSearchParams<{ id: string }>()
   const theme = useTheme()
+  const t = useT()
   const personColor = usePersonColor()
   const insets = useSafeAreaInsets()
   const [receipt, setReceipt] = useState<ReceiptWithPeople | null>(null)
@@ -86,17 +88,18 @@ export default function SplitScreen() {
     setPicks(picksFrom(receipt.receipts_items))
   }, [])
 
+  const notFound = t.split.notFound
   useEffect(() => {
     getReceipt(id)
       .then(show)
       .catch((e) => {
         console.error('Load failed', e)
-        setError("This receipt doesn't exist or you don't have access to it.")
+        setError(notFound)
       })
     getRecentNames()
       .then(setRecentNames)
       .catch((e) => console.error('Could not load recent names', e))
-  }, [id, show])
+  }, [id, show, notFound])
 
   const split = useMemo(
     () =>
@@ -107,7 +110,7 @@ export default function SplitScreen() {
   if (error || !receipt || !split) {
     return (
       <View style={[styles.flex, { backgroundColor: theme.background }]}>
-        <ScreenHeader title="Split bill" />
+        <ScreenHeader title={t.screens.split} />
         <View style={styles.centered}>{error ? <AppText variant="error">{error}</AppText> : <ActivityIndicator />}</View>
       </View>
     )
@@ -121,9 +124,9 @@ export default function SplitScreen() {
   const views = people.map((person) => ({ id: person.id, name: nameOf(person), color: colorOf(person) }))
   const alone = people.length === 1
   const payer = people.find((person) => person.is_payer) ?? null
-  const payerName = payer?.is_me ? 'you' : payer?.name
-  const title = bothNames(receipt.merchant_name, receipt.merchant_name_en, showEnglish).main || 'Receipt'
-  const date = new Date(receipt.created_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
+  const payerName = payer?.is_me ? t.common.youInSentence : payer?.name
+  const title = bothNames(receipt.merchant_name, receipt.merchant_name_en, showEnglish).main || t.common.receipt
+  const date = new Date(receipt.created_at).toLocaleDateString(dateLocale(), { month: 'short', day: 'numeric' })
   const items = receipt.receipts_items
   const everyoneIds = people.map((person) => person.id)
   const onBill = new Set(people.map((person) => person.name.toLowerCase()))
@@ -144,12 +147,11 @@ export default function SplitScreen() {
   const paidBack = owesPayer.filter((person) => person.paid_at).reduce((sum, person) => sum + totalOf(person), 0)
   const settled = owesPayer.length > 0 && owesPayer.every((person) => person.paid_at)
 
-  const included = [receipt.service_percent > 0 ? 'service' : null, receipt.tax_percent > 0 ? 'VAT' : null].filter(Boolean)
-  const charges = [
-    receipt.service_percent > 0 ? `${receipt.service_percent}% service` : null,
-    receipt.tax_percent > 0 ? `${receipt.tax_percent}% VAT` : null,
-  ].filter(Boolean)
-  const summaryCaption = [payer ? `Paid by ${payerName}` : null, included.length ? `incl. ${included.join(' and ')}` : null]
+  const hasCharges = receipt.service_percent > 0 || receipt.tax_percent > 0
+  const summaryCaption = [
+    payer && payerName ? t.split.paidBy(payerName) : null,
+    hasCharges ? t.split.includes(receipt.service_percent > 0, receipt.tax_percent > 0) : null,
+  ]
     .filter(Boolean)
     .join(' · ')
 
@@ -171,7 +173,7 @@ export default function SplitScreen() {
     saves.current = saves.current.then(() =>
       write().catch((e) => {
         console.error('Save failed', e)
-        showAlert('Could not save that change', 'Check your connection and try again.')
+        showAlert(t.split.saveFailed, t.common.checkConnection)
         return getReceipt(receipt.id)
           .then(show)
           .catch((loadError) => console.error('Reload failed', loadError))
@@ -227,24 +229,19 @@ export default function SplitScreen() {
       save(() => addItemPeople(Object.entries(even).flatMap(([itemId, had]) => rowsFor(itemId, had))))
     }
     if (!Object.values(picks).some((had) => Object.keys(had).length > 0)) return run()
-    confirmDestructive(
-      'Split everything evenly?',
-      'Everyone will share every item, including the ones you already ticked.',
-      'Split evenly',
-      run,
-    )
+    confirmDestructive(t.split.splitEvenlyTitle, t.split.splitEvenlyMessage, t.split.splitEvenly, run)
   }
 
   const add = async (typed: string) => {
     const name = cleanName(typed)
     if (!name || adding) return false
     const key = name.toLowerCase()
-    if (key === 'you' || key === 'me') {
-      showAlert('Already on this bill', "You're on every bill you scan.")
+    if (key === 'you' || key === 'me' || key === t.common.you.toLowerCase()) {
+      showAlert(t.split.alreadyOnBill, t.split.youreOnEveryBill)
       return false
     }
     if (onBill.has(key)) {
-      showAlert('Already on this bill', `${name} is already on this bill.`)
+      showAlert(t.split.alreadyOnBill, t.split.nameAlreadyOnBill(name))
       return false
     }
     setAdding(true)
@@ -254,7 +251,7 @@ export default function SplitScreen() {
       return true
     } catch (e) {
       console.error('Add person failed', e)
-      showAlert(`Could not add ${name}`, 'Check your connection and try again.')
+      showAlert(t.split.couldNotAdd(name), t.common.checkConnection)
       return false
     } finally {
       setAdding(false)
@@ -276,12 +273,7 @@ export default function SplitScreen() {
       save(() => removePerson(person.id))
     }
     if (!Object.values(picks).some((had) => person.id in had)) return remove()
-    confirmDestructive(
-      `Remove ${person.name}?`,
-      'Items they shared will be split between the others who had them. Items only they had will be unassigned.',
-      'Remove',
-      remove,
-    )
+    confirmDestructive(t.split.removeTitle(person.name), t.split.removeMessage, t.common.remove, remove)
   }
 
   const choosePayer = (personId: string) => {
@@ -315,9 +307,9 @@ export default function SplitScreen() {
       total: receipt.total,
       service_percent: receipt.service_percent,
       tax_percent: receipt.tax_percent,
-      payer: payer ? (payer.is_me ? 'me' : payer.name) : null,
+      payer: payer ? (payer.is_me ? t.totals.paidByMe : payer.name) : null,
       people: people.map((person) => ({
-        name: person.is_me ? 'Me' : person.name,
+        name: person.is_me ? t.totals.me : person.name,
         total: totalOf(person),
         paid: !!person.paid_at,
       })),
@@ -347,20 +339,20 @@ export default function SplitScreen() {
         setReceipt({ ...receipt, link_enabled: true, share_token: token })
       } catch (e) {
         console.error('Link on failed', e)
-        showAlert('Could not make a link', 'Check your connection and try again.')
+        showAlert(t.split.linkFailed, t.common.checkConnection)
         return
       } finally {
         setLinkBusy(false)
       }
     }
-    await shareText(`Tick what you had at ${title}, and SlipShare works out your share: ${friendLinkUrl(token)}`)
+    await shareText(t.split.linkMessage(title, friendLinkUrl(token)))
   }
 
   const turnOffLink = () =>
     confirmDestructive(
-      'Turn off the link?',
-      'It stops working for everyone you sent it to. Their picks stay. Sharing again makes a new link.',
-      'Turn off',
+      t.split.turnOffTitle,
+      t.split.turnOffMessage,
+      t.split.turnOff,
       async () => {
         setLinkBusy(true)
         try {
@@ -368,7 +360,7 @@ export default function SplitScreen() {
           setReceipt({ ...receipt, link_enabled: false })
         } catch (e) {
           console.error('Link off failed', e)
-          showAlert('Could not turn off the link', 'Check your connection and try again.')
+          showAlert(t.split.turnOffFailed, t.common.checkConnection)
         } finally {
           setLinkBusy(false)
         }
@@ -387,7 +379,7 @@ export default function SplitScreen() {
       } catch (e) {
         console.error('Delete receipt failed', e)
         setDeleting(false)
-        showAlert('Could not delete this receipt', 'Check your connection and try again.')
+        showAlert(t.split.deleteFailed, t.common.checkConnection)
       }
     })
 
@@ -415,10 +407,8 @@ export default function SplitScreen() {
       <ScreenHeader
         plain
         title={title}
-        subtitle={`${date} · ${countLabel(items.length, 'item')}`}
-        right={
-<MenuButton onPress={() => setMenuOpen(true)} />
-        }
+        subtitle={`${date} · ${t.common.items(items.length)}`}
+        right={<MenuButton onPress={() => setMenuOpen(true)} />}
       />
 
       <ScrollView
@@ -501,17 +491,17 @@ export default function SplitScreen() {
           {alone ? (
             <>
               <AppText variant="heading" style={styles.flex}>
-                Step 2 · Who had what
+                {t.split.stepTwo}
               </AppText>
-              <AppText variant="caption">{countLabel(items.length, 'item')}</AppText>
+              <AppText variant="caption">{t.common.items(items.length)}</AppText>
             </>
           ) : (
             <>
               <AppText variant="title" style={[styles.flex, styles.sectionTitle]}>
-                Who had what
+                {t.split.whoHadWhat}
               </AppText>
               <View>
-                <TextLink title="Split all evenly" onPress={splitEvenly} />
+                <TextLink title={t.split.splitAllEvenly} onPress={splitEvenly} />
               </View>
             </>
           )}
@@ -533,9 +523,9 @@ export default function SplitScreen() {
           ))}
         </Card>
 
-        {charges.length > 0 && (
+        {hasCharges && (
           <AppText variant="caption" style={styles.footnote}>
-            Totals include {charges.join(' and ')}, shared in proportion.
+            {t.split.sharedCharges(receipt.service_percent, receipt.tax_percent)}
           </AppText>
         )}
       </ScrollView>
@@ -565,7 +555,7 @@ export default function SplitScreen() {
         money={money}
         footer={
           <Button
-            title="Send totals"
+            title={t.split.sendTotals}
             icon={<SendIcon color={theme.onPrimary} />}
             onPress={() => {
               setBreakdownOpen(false)
@@ -605,7 +595,7 @@ export default function SplitScreen() {
           hasTranslation
             ? {
                 showEnglish,
-                originalLanguage: originalLabel([receipt.merchant_name, ...items.map((item) => item.name)]),
+                originalLanguage: originalLabel([receipt.merchant_name, ...items.map((item) => item.name)], t.names.original),
               }
             : null
         }
@@ -634,7 +624,7 @@ export default function SplitScreen() {
         onClose={() => setSettledOpen(false)}
         title={title}
         date={date}
-        payerName={payerName ?? 'you'}
+        payerName={payerName ?? t.common.youInSentence}
         paidBack={owedBack}
         people={people.map((person, index) => ({
           ...views[index],
@@ -643,7 +633,7 @@ export default function SplitScreen() {
         }))}
         total={receipt.total}
         money={money}
-        onShare={() => shareText(`All settled ✓\n\n${totalsText()}`)}
+        onShare={() => shareText(t.split.settledMessage(totalsText()))}
       />
     </View>
   )

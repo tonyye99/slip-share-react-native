@@ -7,6 +7,7 @@ import { Sheet, SheetOption } from '@/components/sheet'
 import { AppText } from '@/components/ui'
 import { Spacing } from '@/constants/theme'
 import { useTheme } from '@/hooks/use-theme'
+import { useT } from '@/i18n'
 import type { PersonView } from '@/lib/split-view'
 
 const MenuIcon = ({ children }: { children: ReactNode }) => <View style={styles.icon}>{children}</View>
@@ -14,12 +15,13 @@ const MenuIcon = ({ children }: { children: ReactNode }) => <View style={styles.
 /** The ⋯ button in the header that opens the menu. */
 export function MenuButton({ onPress }: { onPress: () => void }) {
   const theme = useTheme()
+  const t = useT()
   return (
     <Pressable
       onPress={onPress}
       hitSlop={6}
       accessibilityRole="button"
-      accessibilityLabel="More options"
+      accessibilityLabel={t.split.moreOptions}
       style={({ pressed }) => [styles.button, { backgroundColor: theme.surface, opacity: pressed ? 0.7 : 1 }]}>
       <DotsIcon color={theme.text} size={18} />
     </Pressable>
@@ -60,14 +62,17 @@ export function SplitMenu({
   onDelete: () => void
 }) {
   const theme = useTheme()
+  const t = useT().split
   return (
     <Sheet visible={visible} onClose={onClose}>
       {translation && (
         <SheetOption
           label={
             translation.showEnglish
-              ? `Show ${translation.originalLanguage === 'ไทย' ? 'Thai' : 'original'} names`
-              : 'Show English names'
+              ? translation.originalLanguage === 'ไทย'
+                ? t.showThaiNames
+                : t.showOriginalNames
+              : t.showEnglishNames
           }
           icon={
             <MenuIcon>
@@ -78,7 +83,7 @@ export function SplitMenu({
         />
       )}
       <SheetOption
-        label="Add or remove people"
+        label={t.editPeople}
         icon={
           <MenuIcon>
             <PeopleIcon color={theme.text} size={18} />
@@ -88,8 +93,8 @@ export function SplitMenu({
       />
       {canChangePayer && (
         <SheetOption
-          label="Change who paid"
-          detail={payerName ? `Now: ${payerName}` : 'Nobody yet'}
+          label={t.changePayer}
+          detail={payerName ? t.payerNow(payerName) : t.nobodyYet}
           icon={
             <MenuIcon>
               <PersonIcon color={theme.text} size={18} />
@@ -102,12 +107,8 @@ export function SplitMenu({
         (link.on ? (
           <>
             <SheetOption
-              label="Share the friend link again"
-              detail={
-                link.pickedNames.length > 0
-                  ? `On · ${link.pickedNames.join(', ')} picked their own items`
-                  : 'On · pull down on this screen to see new picks'
-              }
+              label={t.shareLinkAgain}
+              detail={link.pickedNames.length > 0 ? t.linkOnPicked(link.pickedNames.join(', ')) : t.linkOnPullDown}
               icon={
                 <MenuIcon>
                   <LinkIcon color={theme.text} size={18} />
@@ -116,7 +117,7 @@ export function SplitMenu({
               onPress={onShareLink}
             />
             <SheetOption
-              label="Turn off the friend link"
+              label={t.turnOffLink}
               destructive
               icon={
                 <MenuIcon>
@@ -128,8 +129,8 @@ export function SplitMenu({
           </>
         ) : (
           <SheetOption
-            label="Share a friend link"
-            detail="Friends tick their own items. No app or sign-up."
+            label={t.shareFriendLink}
+            detail={t.linkTileCaption}
             icon={
               <MenuIcon>
                 <LinkIcon color={theme.text} size={18} />
@@ -139,7 +140,7 @@ export function SplitMenu({
           />
         ))}
       <SheetOption
-        label={deleting ? 'Deleting…' : 'Delete receipt'}
+        label={deleting ? t.deleting : t.deleteReceipt}
         destructive
         icon={
           <MenuIcon>
@@ -166,10 +167,11 @@ export function PayerSheet({
   payerId: string | undefined
   onChoose: (personId: string) => void
 }) {
+  const t = useT().split
   return (
-    <Sheet visible={visible} onClose={onClose} title="Who paid the bill?">
+    <Sheet visible={visible} onClose={onClose} title={t.whoPaid}>
       <AppText variant="muted" style={styles.note}>
-        Everyone else pays them back.
+        {t.everyoneElsePays}
       </AppText>
       {people.map((person) => (
         <SheetOption

@@ -395,6 +395,38 @@ export function SignOutIcon({ color, size = 20, weight = 1.8 }: { color: string;
   )
 }
 
+/** A globe, for the app's language. */
+export function GlobeIcon({ color, size = 20, weight = 1.8 }: { color: string; size?: number; weight?: number }) {
+  const ball = size * 0.86
+  return (
+    <View style={{ width: size, height: size, alignItems: 'center', justifyContent: 'center' }}>
+      <View
+        style={{
+          width: ball,
+          height: ball,
+          borderRadius: ball / 2,
+          borderWidth: weight,
+          borderColor: color,
+          alignItems: 'center',
+          justifyContent: 'center',
+          overflow: 'hidden',
+        }}>
+        <View
+          style={{
+            position: 'absolute',
+            width: ball * 0.48,
+            height: ball + weight,
+            borderRadius: ball,
+            borderWidth: weight,
+            borderColor: color,
+          }}
+        />
+        <View style={{ position: 'absolute', width: ball, height: weight, backgroundColor: color }} />
+      </View>
+    </View>
+  )
+}
+
 /** A cog, for settings. `background` fills its middle so the teeth read as an outline. */
 export function GearIcon({ color, background, size = 22 }: { color: string; background: string; size?: number }) {
   const tooth = { position: 'absolute', width: size * 0.24, height: size * 0.92, borderRadius: 2, backgroundColor: color } as const

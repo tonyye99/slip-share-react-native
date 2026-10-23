@@ -4,6 +4,7 @@ import { Avatar } from '@/components/chip'
 import { AppText, Button } from '@/components/ui'
 import { Radius, Spacing } from '@/constants/theme'
 import { useTheme } from '@/hooks/use-theme'
+import { useT } from '@/i18n'
 
 /** The biggest amount someone still owes you, with a Remind button. */
 export function WaitingCard({
@@ -22,16 +23,17 @@ export function WaitingCard({
   onRemind: () => void
 }) {
   const theme = useTheme()
+  const t = useT().home
   // Tapping the card opens the bill; Remind sits beside it rather than inside, as a button can't hold another.
   return (
     <View style={[styles.waiting, { backgroundColor: theme.surface }]}>
       <Pressable
         onPress={onOpen}
         accessibilityRole="button"
-        accessibilityLabel={`Waiting to be paid back, ${amount}, ${name} from ${billName}`}
+        accessibilityLabel={t.waitingA11y(amount, name, billName)}
         style={({ pressed }) => ({ opacity: pressed ? 0.7 : 1 })}>
         <AppText variant="caption" style={styles.label}>
-          Waiting to be paid back
+          {t.waitingLabel}
         </AppText>
         <AppText style={[styles.big, { color: theme.text }]} numberOfLines={1} adjustsFontSizeToFit>
           {amount}
@@ -44,10 +46,10 @@ export function WaitingCard({
           style={({ pressed }) => [styles.whoTap, { opacity: pressed ? 0.7 : 1 }]}>
           <Avatar name={name} color={color} size={30} />
           <AppText variant="muted" numberOfLines={1} style={styles.whoText}>
-            {name} · from {billName}
+            {t.waitingWho(name, billName)}
           </AppText>
         </Pressable>
-        <Button title="Remind" variant="secondary" size="small" onPress={onRemind} style={styles.remind} />
+        <Button title={t.remind} variant="secondary" size="small" onPress={onRemind} style={styles.remind} />
       </View>
     </View>
   )
@@ -72,23 +74,24 @@ export function MonthCard({ month, amount, count }: { month: string; amount: str
 /** Bills with items nobody has been given yet. */
 export function ToSplitCard({ count, onPress }: { count: string; onPress: () => void }) {
   const theme = useTheme()
+  const t = useT().home
   return (
     <Pressable
       onPress={onPress}
       accessibilityRole="button"
-      accessibilityLabel={`Not split yet, ${count}`}
-      accessibilityHint="Opens the bills to finish"
+      accessibilityLabel={t.notSplitA11y(count)}
+      accessibilityHint={t.notSplitHint}
       style={({ pressed }) => [
         styles.small,
         styles.toSplit,
         { backgroundColor: theme.warningSoft, borderColor: `${theme.warning}33`, opacity: pressed ? 0.85 : 1 },
       ]}>
       <AppText variant="caption" style={[styles.label, { color: theme.warning }]}>
-        Not split yet
+        {t.notSplitLabel}
       </AppText>
       <AppText style={[styles.medium, { color: theme.warning }]}>{count}</AppText>
       <AppText variant="caption" style={{ color: theme.warning }}>
-        Tap to finish
+        {t.tapToFinish}
       </AppText>
     </Pressable>
   )

@@ -7,6 +7,7 @@ import { ScreenHeader } from '@/components/screen-header'
 import { AppText, Button, Card } from '@/components/ui'
 import { MaxContentWidth, Radius, Spacing } from '@/constants/theme'
 import { useTheme } from '@/hooks/use-theme'
+import { useT } from '@/i18n'
 import { bothNames } from '@/lib/names'
 import { billTotal, formatMoney, receiptSubtotal } from '@/lib/split'
 import type { ParsedReceipt } from '@/lib/types'
@@ -45,6 +46,7 @@ export function ReadingReceipt({
   onDone: (receipt: ParsedReceipt) => void
 }) {
   const theme = useTheme()
+  const t = useT()
   const [shown, setShown] = useState(0)
   const [checked, setChecked] = useState(false)
   const [sweep] = useState(() => new Animated.Value(0))
@@ -80,31 +82,31 @@ export function ReadingReceipt({
   const count = receipt?.items.length ?? 0
 
   const totalStep = (): { state: StepState; text: string } => {
-    if (!receipt) return { state: 'pending', text: 'Check the total' }
-    if (!checked) return { state: 'active', text: 'Checking the total' }
-    if (receipt.total <= 0) return { state: 'done', text: 'Total added up' }
+    if (!receipt) return { state: 'pending', text: t.scan.checkTotal }
+    if (!checked) return { state: 'active', text: t.scan.checkingTotal }
+    if (receipt.total <= 0) return { state: 'done', text: t.scan.totalAddedUp }
     const addsUp = Math.abs(billTotal(receipt, receiptSubtotal(receipt.items)) - receipt.total) < 0.5
     return addsUp
-      ? { state: 'done', text: `Total matches ${money(receipt.total)}` }
-      : { state: 'warn', text: "Total doesn't match. Check it next." }
+      ? { state: 'done', text: t.scan.totalMatches(money(receipt.total)) }
+      : { state: 'warn', text: t.scan.totalDoesntMatch }
   }
 
   const steps: { id: string; state: StepState; text: string }[] = [
     {
       id: 'photo',
       ...(stage === 'preparing'
-        ? { state: 'active', text: 'Getting the photo ready' }
-        : { state: 'done', text: 'Photo ready' }),
+        ? { state: 'active', text: t.scan.photoGettingReady }
+        : { state: 'done', text: t.scan.photoReady }),
     },
     {
       id: 'items',
       ...(receipt
       ? count > 0
-        ? { state: 'done', text: `Found ${count} item${count === 1 ? '' : 's'}` }
-        : { state: 'warn', text: 'No items found' }
+        ? { state: 'done', text: t.scan.foundItems(count) }
+        : { state: 'warn', text: t.scan.noItems }
       : stage === 'reading'
-        ? { state: 'active', text: 'Reading the items' }
-        : { state: 'pending', text: 'Find the items' }),
+        ? { state: 'active', text: t.scan.readingItems }
+        : { state: 'pending', text: t.scan.findItems }),
     },
     { id: 'total', ...totalStep() },
   ]
@@ -115,7 +117,7 @@ export function ReadingReceipt({
 
   return (
     <View style={[styles.flex, { backgroundColor: theme.background }]}>
-      <ScreenHeader title="Reading receipt" />
+      <ScreenHeader title={t.scan.readingTitle} />
       <ScrollView style={styles.flex} contentContainerStyle={styles.content}>
         <View style={styles.top}>
           <View style={[styles.thumb, { backgroundColor: theme.backgroundElement }]}>
@@ -176,14 +178,14 @@ export function ReadingReceipt({
             </Animated.View>
           ))}
           <AppText variant="caption" style={[styles.note, { borderTopColor: theme.hairline }]}>
-            You&apos;ll be able to fix anything we misread.
+            {t.scan.fixLater}
           </AppText>
         </Card>
       </ScrollView>
 
       <SafeAreaView edges={['bottom']} style={[styles.footerBar, { backgroundColor: theme.surface, borderColor: theme.hairline }]}>
         <View style={styles.footer}>
-          <Button title="Cancel" variant="secondary" onPress={onCancel} />
+          <Button title={t.common.cancel} variant="secondary" onPress={onCancel} />
         </View>
       </SafeAreaView>
     </View>

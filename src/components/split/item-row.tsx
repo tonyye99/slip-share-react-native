@@ -5,6 +5,7 @@ import { justSwiped, SwipeActions } from '@/components/swipe-actions'
 import { AppText } from '@/components/ui'
 import { Spacing } from '@/constants/theme'
 import { useTheme } from '@/hooks/use-theme'
+import { useT } from '@/i18n'
 import { bothNames } from '@/lib/names'
 import type { Item, ItemStatus, Money } from '@/lib/split-view'
 
@@ -36,10 +37,11 @@ export function ItemRow({
   onOpen: () => void
 }) {
   const theme = useTheme()
+  const t = useT()
   const lineTotal = item.qty * item.unit_price
   const names = bothNames(item.name, item.name_en, showEnglish)
   const nobody = had.length === 0
-  const who = nobody ? 'No one yet' : `${had.length} ${had.length === 1 ? 'person' : 'people'}`
+  const who = nobody ? t.split.noOneYet : t.common.people(had.length)
   const whoColor = nobody ? theme.warning : theme.textSecondary
   // On your own there's no one to pick, so the line just says what it is.
   const caption = alone
@@ -55,7 +57,7 @@ export function ItemRow({
       accessibilityLabel={[names.main, money(lineTotal), alone ? null : who, alone || nobody ? null : status.text]
         .filter(Boolean)
         .join(', ')}
-      accessibilityHint={alone ? undefined : 'Choose who had it'}
+      accessibilityHint={alone ? undefined : t.split.chooseWhoHadIt}
       style={({ pressed }) => [
         styles.row,
         { backgroundColor: pressed && !alone ? theme.backgroundElement : theme.surface },
@@ -98,7 +100,7 @@ export function ItemRow({
   return (
     <SwipeActions
       start={{
-        label: 'Pick who',
+        label: t.split.pickWho,
         color: theme.primary,
         textColor: theme.onPrimary,
         icon: <PersonIcon color={theme.onPrimary} size={18} />,

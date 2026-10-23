@@ -9,6 +9,7 @@ import { ScreenHeader } from '@/components/screen-header'
 import { AppText, Button, Card, Divider, Input, Row, Segmented, Stepper } from '@/components/ui'
 import { MaxContentWidth, Radius, Spacing } from '@/constants/theme'
 import { useTheme } from '@/hooks/use-theme'
+import { useT } from '@/i18n'
 import { showAlert } from '@/lib/alert'
 import {
   forgetIdentity,
@@ -26,19 +27,18 @@ import {
 import { bothNames, cleanName, MAX_NAME_LENGTH, originalLabel } from '@/lib/names'
 import { formatMoney, isCountable, itemShares, splitByPicks } from '@/lib/split'
 
-const LINK_ERROR = "This link doesn't work. It may have been turned off, so ask whoever sent it for a new one."
-
 // Opened from a friend link (https://<site>/pick/<token>), usually on the
 // website by someone without the app. They type their name, or tap one the
 // owner already added, and tick what they had. No sign-up.
 export default function PickScreen() {
   const { token } = useLocalSearchParams<{ token: string }>()
   const theme = useTheme()
+  const t = useT()
   const personColor = usePersonColor()
   const validToken = isLinkToken(token)
   const [receipt, setReceipt] = useState<LinkReceipt | null>(null)
   const [identity, setIdentity] = useState<LinkIdentity | null>(null)
-  const [error, setError] = useState<string | null>(null)
+  const [broken, setBroken] = useState(false)
   const [name, setName] = useState('')
   const [joining, setJoining] = useState(false)
   const [refreshing, setRefreshing] = useState(false)
@@ -56,14 +56,14 @@ export default function PickScreen() {
       })
       .catch((e) => {
         console.error('Link load failed', e)
-        setError(LINK_ERROR)
+        setBroken(true)
       })
   }, [token])
 
-  if (!validToken || error) {
+  if (!validToken || broken) {
     return (
       <Centered>
-        <AppText variant="error">{LINK_ERROR}</AppText>
+        <AppText variant="error">{t.pick.linkBroken}</AppText>
       </Centered>
     )
   }
@@ -76,11 +76,14 @@ export default function PickScreen() {
   }
 
   const money = (amount: number) => formatMoney(amount, receipt.currency)
-  const title = bothNames(receipt.merchant_name, receipt.merchant_name_en, showEnglish).main || 'Receipt'
-  const originalLanguage = originalLabel([receipt.merchant_name, ...receipt.items.map((item) => item.name)])
+  const title = bothNames(receipt.merchant_name, receipt.merchant_name_en, showEnglish).main || t.common.receipt
+  const originalLanguage = originalLabel(
+    [receipt.merchant_name, ...receipt.items.map((item) => item.name)],
+    t.names.original,
+  )
   const hasTranslation = !!receipt.merchant_name_en || receipt.items.some((item) => item.name_en)
   const people = receipt.people
-  const nameOf = (personId: string) => people.find((person) => person.id === personId)?.name ?? 'Someone'
+  const nameOf = (personId: string) => people.find((person) => person.id === personId)?.name ?? t.common.someone
   const owner = people.find((person) => person.is_owner)
   const payer = people.find((person) => person.is_payer)
   const me = identity ? people.find((person) => person.id === identity.person_id) : undefined
@@ -98,7 +101,7 @@ export default function PickScreen() {
       .then(setReceipt)
       .catch((e) => {
         console.error('Link reload failed', e)
-        setError(LINK_ERROR)
+        setBroken(true)
       })
 
   const refresh = async () => {
@@ -115,7 +118,7 @@ export default function PickScreen() {
       setName('')
     } catch (e) {
       console.error('Join failed', e)
-      showAlert('Could not add you', joinErrorMessage(e))
+      showAlert(t.pick.couldNotAddYou, joinErrorMessage(e))
     } finally {
       setJoining(false)
     }
@@ -149,9 +152,9 @@ export default function PickScreen() {
         if (isIdentityRejected(e)) {
           await forgetIdentity(token)
           setIdentity(null)
-          showAlert('Pick your name again', 'The person who shared this bill may have removed you from it.')
+          showAlert(t.pick.pickNameAgain, t.pick.removedYou)
         } else {
-          showAlert('Could not save that', 'Check your connection and try again.')
+          showAlert(t.pick.couldNotSave, t.common.checkConnection)
         }
         await reload()
       }),
@@ -170,14 +173,14 @@ export default function PickScreen() {
   }
 
   const colorOf = (personId: string) => personColor(people.findIndex((person) => person.id === personId))
-  const ownerName = owner?.name ?? 'The payer'
-  const payerName = payer ? (payer.id === me?.id ? 'you' : payer.name) : null
+  const ownerName = owner?.name ?? t.pick.thePayer
+  const payerName = payer ? (payer.id === me?.id ? t.common.youInSentence : payer.name) : null
   const mineCount = me ? receipt.items.filter((item) => item.person_ids.includes(me.id)).length : 0
   const owes = !!payer && !!me && payer.id !== me.id
 
   const languageSwitch = (
     <Segmented
-      accessibilityLabel="Item names"
+      accessibilityLabel={t.names.itemNames}
       options={[
         { value: 'original', label: originalLanguage },
         { value: 'en', label: 'EN' },
@@ -202,7 +205,7 @@ export default function PickScreen() {
               </AppText>
               <Pressable onPress={notMe} hitSlop={8} accessibilityRole="button">
                 <AppText variant="caption" style={{ color: theme.primary, textDecorationLine: 'underline' }}>
-                  Not you?
+                  {t.pick.notYou}
                 </AppText>
               </Pressable>
             </View>
@@ -222,18 +225,16 @@ export default function PickScreen() {
             <View style={styles.header}>
               <AppText variant="title">{title}</AppText>
               <AppText variant="muted">
-                Total {money(receipt.total)}
-                {owner ? ` · Shared by ${owner.name}` : ''}
-                {payer ? ` · Paid by ${payer.name}` : ''}
+                {t.pick.total(money(receipt.total))}
+                {owner ? t.pick.sharedBy(owner.name) : ''}
+                {payer ? t.pick.paidBy(payer.name) : ''}
               </AppText>
             </View>
 
             <Card style={styles.stepCard}>
-              <AppText variant="overline">Step 1 of 2</AppText>
-              <AppText variant="title">Who are you?</AppText>
-              <AppText variant="muted">
-                {openNames.length > 0 ? `${ownerName} already added these names. Tap yours.` : 'Type your name to join.'}
-              </AppText>
+              <AppText variant="overline">{t.pick.stepOne}</AppText>
+              <AppText variant="title">{t.pick.whoAreYou}</AppText>
+              <AppText variant="muted">{openNames.length > 0 ? t.pick.tapYours(ownerName) : t.pick.typeYourName}</AppText>
               {openNames.length > 0 && (
                 <>
                   <View style={styles.nameGrid}>
@@ -243,7 +244,7 @@ export default function PickScreen() {
                         disabled={joining}
                         onPress={() => join({ personId: person.id })}
                         accessibilityRole="button"
-                        accessibilityLabel={`I'm ${person.name}`}
+                        accessibilityLabel={t.pick.imName(person.name)}
                         style={({ pressed }) => [
                           styles.nameCard,
                           {
@@ -259,7 +260,7 @@ export default function PickScreen() {
                       </Pressable>
                     ))}
                   </View>
-                  <Divider label="Not on the list?" />
+                  <Divider label={t.pick.notOnList} />
                 </>
               )}
               <View style={styles.addRow}>
@@ -267,37 +268,37 @@ export default function PickScreen() {
                   value={name}
                   onChangeText={setName}
                   onSubmitEditing={joinWithName}
-                  placeholder="Your name"
+                  placeholder={t.pick.yourName}
                   maxLength={MAX_NAME_LENGTH}
                   autoCapitalize="words"
                   autoCorrect={false}
                   returnKeyType="done"
                   editable={!joining}
-                  accessibilityLabel="Your name"
+                  accessibilityLabel={t.pick.yourName}
                   style={styles.flex}
                 />
-                <Button title="Join" onPress={joinWithName} loading={joining} disabled={!name.trim()} />
+                <Button title={t.pick.join} onPress={joinWithName} loading={joining} disabled={!name.trim()} />
               </View>
             </Card>
 
             <Card dashed>
-              <AppText variant="heading">Step 2 · Tick what you had</AppText>
+              <AppText variant="heading">{t.pick.stepTwo}</AppText>
               <View style={styles.point}>
                 <CheckBoxIcon color={theme.textSecondary} />
                 <AppText variant="caption" style={styles.flex}>
-                  Shared dishes split evenly with whoever else ticks them
+                  {t.pick.sharedSplitEvenly}
                 </AppText>
               </View>
               <View style={styles.point}>
                 <ClockIcon color={theme.textSecondary} />
                 <AppText variant="caption" style={styles.flex}>
-                  Saves as you tap. {ownerName} sees it right away
+                  {t.pick.savesAsYouTap(ownerName)}
                 </AppText>
               </View>
             </Card>
 
             <AppText variant="caption" style={styles.center}>
-              No app or sign-up needed.
+              {t.pick.noAppNeeded}
             </AppText>
           </>
         ) : (
@@ -306,12 +307,12 @@ export default function PickScreen() {
               <View style={styles.titleRow}>
                 <AppText variant="caption" style={styles.flex}>
                   {title} · {money(receipt.total)}
-                  {payer ? ` · Paid by ${payerName}` : ''}
+                  {payerName ? t.pick.paidBy(payerName) : ''}
                 </AppText>
                 {hasTranslation && languageSwitch}
               </View>
-              <AppText variant="title">What did you have?</AppText>
-              <AppText variant="muted">Tick everything you ate or drank. Shared dishes split evenly.</AppText>
+              <AppText variant="title">{t.pick.whatDidYouHave}</AppText>
+              <AppText variant="muted">{t.pick.tickEverything}</AppText>
             </View>
 
             <Card style={styles.list}>
@@ -329,11 +330,11 @@ export default function PickScreen() {
                 const caption =
                   countable && counted <= item.qty
                     ? units === item.qty
-                      ? 'all yours'
-                      : `${units} of ${item.qty}`
+                      ? t.pick.allYours
+                      : t.common.unitsOf(units, item.qty)
                     : others.length > 0
-                      ? 'your share'
-                      : 'all yours'
+                      ? t.pick.yourShare
+                      : t.pick.allYours
                 return (
                   <View
                     key={item.id}
@@ -359,7 +360,7 @@ export default function PickScreen() {
                           {names.other ? `${names.other} · ` : ''}
                           {item.qty} × {money(item.unit_price)}
                         </AppText>
-                        {others.length > 0 && <AppText variant="caption">Also {others.join(', ')}</AppText>}
+                        {others.length > 0 && <AppText variant="caption">{t.pick.also(others.join(', '))}</AppText>}
                       </View>
                       <View style={styles.priceColumn}>
                         <AppText variant="heading" style={[styles.amount, !had && { color: theme.textSecondary, fontWeight: '400' }]}>
@@ -371,7 +372,7 @@ export default function PickScreen() {
                     {had && countable && (
                       <View style={styles.countRow}>
                         <AppText variant="label" style={styles.flex}>
-                          How many did you have?
+                          {t.pick.howMany}
                         </AppText>
                         <Stepper value={units} max={item.qty} onChange={(next) => pick(item, next)} label={names.main} />
                       </View>
@@ -389,23 +390,23 @@ export default function PickScreen() {
           <View style={styles.footer}>
             {mine.subtotal !== 0 && (
               <>
-                <Row label={`Your items (${mineCount})`} value={money(mine.subtotal)} />
+                <Row label={t.pick.yourItems(mineCount)} value={money(mine.subtotal)} />
                 {receipt.service_percent > 0 && (
-                  <Row label={`Service ${receipt.service_percent}%`} value={money(mine.service)} />
+                  <Row label={t.common.service(receipt.service_percent)} value={money(mine.service)} />
                 )}
-                {receipt.tax_percent > 0 && <Row label={`VAT ${receipt.tax_percent}%`} value={money(mine.tax)} />}
-                {Math.abs(mine.rounding) > 0.001 && <Row label="Rounding" value={money(mine.rounding)} />}
+                {receipt.tax_percent > 0 && <Row label={t.common.vat(receipt.tax_percent)} value={money(mine.tax)} />}
+                {Math.abs(mine.rounding) > 0.001 && <Row label={t.common.rounding} value={money(mine.rounding)} />}
                 <Divider />
               </>
             )}
             <View style={styles.oweRow}>
               <AppText variant="heading" style={styles.flex}>
-                {owes ? `You owe ${payer.name}` : 'Your share'}
+                {owes ? t.pick.youOwe(payer.name) : t.pick.yourShareTitle}
               </AppText>
               <AppText variant="display">{money(mine.total)}</AppText>
             </View>
             <AppText variant="caption" style={{ color: theme.success, fontWeight: '600' }}>
-              {me.paid && owes ? `✓ ${payer.name} marked you as paid.` : `✓ Saved. ${ownerName} can see your picks.`}
+              {me.paid && owes ? t.pick.markedPaid(payer.name) : t.pick.saved(ownerName)}
             </AppText>
           </View>
         </SafeAreaView>

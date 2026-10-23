@@ -7,6 +7,7 @@ import { CheckIcon, CloseIcon, ShareIcon } from '@/components/icons'
 import { AppText, TextLink } from '@/components/ui'
 import { MaxContentWidth, Radius, Spacing } from '@/constants/theme'
 import { useTheme } from '@/hooks/use-theme'
+import { useT } from '@/i18n'
 
 export interface SettledPerson {
   id: string
@@ -47,6 +48,7 @@ export function AllSettled({
   onShare: () => void
 }) {
   const theme = useTheme()
+  const t = useT()
   const insets = useSafeAreaInsets()
   const [pop] = useState(() => new Animated.Value(0))
 
@@ -64,7 +66,7 @@ export function AllSettled({
             onPress={onClose}
             hitSlop={8}
             accessibilityRole="button"
-            accessibilityLabel="Close"
+            accessibilityLabel={t.common.close}
             style={[styles.close, { backgroundColor: theme.surface }]}>
             <CloseIcon color={theme.text} />
           </Pressable>
@@ -77,10 +79,10 @@ export function AllSettled({
               </View>
             </Animated.View>
             <AppText variant="title" style={styles.heading} accessibilityRole="header">
-              All settled
+              {t.split.allSettled}
             </AppText>
             <AppText variant="muted" style={styles.center}>
-              Everyone paid {payerName} back{' '}
+              {t.split.everyonePaid(payerName)}
               <AppText variant="muted" style={{ color: theme.success, fontWeight: '700' }}>
                 {money(paidBack)}
               </AppText>
@@ -102,7 +104,7 @@ export function AllSettled({
                       <AppText
                         variant="caption"
                         style={!person.paidTheBill && { color: theme.success, fontWeight: '600' }}>
-                        {person.paidTheBill ? 'Paid the bill' : 'Paid back'}
+                        {person.paidTheBill ? t.split.paidTheBill : t.split.paidBackShort}
                       </AppText>
                     </View>
                     <AppText variant="label" style={styles.amount}>
@@ -113,7 +115,7 @@ export function AllSettled({
                 <View style={[styles.dashed, { borderColor: theme.border }]} />
                 <View style={styles.totalRow}>
                   <AppText variant="muted" style={styles.flex}>
-                    Total
+                    {t.common.total}
                   </AppText>
                   <AppText variant="title" style={styles.amount}>
                     {money(total)}
@@ -135,11 +137,11 @@ export function AllSettled({
               style={({ pressed }) => [styles.share, { backgroundColor: theme.text, opacity: pressed ? 0.85 : 1 }]}>
               <ShareIcon color={theme.background} />
               <AppText variant="label" style={[styles.shareText, { color: theme.background }]}>
-                Share to the group
+                {t.split.shareToGroup}
               </AppText>
             </Pressable>
             <View style={styles.done}>
-              <TextLink title="Done" color={theme.success} onPress={onClose} />
+              <TextLink title={t.common.done} color={theme.success} onPress={onClose} />
             </View>
           </View>
         </View>
