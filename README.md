@@ -2,7 +2,7 @@
 
 Mobile app and website for [SlipShare](https://github.com/tonyye99/slip-share): scan a receipt, tick who had what, and send everyone their total, including their share of tax, service charge and rounding.
 
-Built with Expo (SDK 57, Expo Router) and TypeScript. It uses the same Supabase project as the web app.
+Built with Expo (SDK 58, Expo Router) and TypeScript. It uses the same Supabase project as the web app.
 
 ## How it fits together
 

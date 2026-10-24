@@ -1,6 +1,6 @@
 import { router, useLocalSearchParams } from 'expo-router'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { ActivityIndicator, RefreshControl, ScrollView, StyleSheet, View } from 'react-native'
+import { ActivityIndicator, RefreshControl, ScrollView, StyleSheet, View, type ScrollViewInstance } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import { AllSettled } from '@/components/all-settled'
@@ -80,7 +80,7 @@ export default function SplitScreen() {
   // Changes save as you tap. They reach the database one at a time and in
   // order, so quick taps on the same name can't land out of order.
   const saves = useRef<Promise<void>>(Promise.resolve())
-  const scroll = useRef<ScrollView>(null)
+  const scroll = useRef<ScrollViewInstance>(null)
 
   const show = useCallback((receipt: ReceiptWithPeople) => {
     setReceipt(receipt)

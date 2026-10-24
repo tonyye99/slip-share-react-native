@@ -7,6 +7,7 @@ import {
   TextInput,
   View,
   type StyleProp,
+  type TextInputInstance,
   type TextInputProps,
   type TextProps,
   type ViewProps,
@@ -150,7 +151,7 @@ export function TextLink({ title, onPress, color }: { title: string; onPress: ()
 }
 
 /** A text box without a label, for inline rows like "Friend's name  [Add]". */
-export const Input = forwardRef<TextInput, TextInputProps>(function Input({ style, ...rest }, ref) {
+export const Input = forwardRef<TextInputInstance, TextInputProps>(function Input({ style, ...rest }, ref) {
   const theme = useTheme()
   return (
     <TextInput
