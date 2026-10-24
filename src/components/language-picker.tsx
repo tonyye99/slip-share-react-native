@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react'
-import { Modal, Pressable, StyleSheet, useWindowDimensions, View, type StyleProp, type ViewStyle } from 'react-native'
+import { Modal, Pressable, StyleSheet, useWindowDimensions, View, type StyleProp, type ViewInstance, type ViewStyle } from 'react-native'
 
 import { CheckIcon, ChevronDownIcon, GlobeIcon } from '@/components/icons'
 import { AppText } from '@/components/ui'
@@ -28,7 +28,7 @@ export function LanguagePicker({ background, style }: { background?: string; sty
   const t = useT()
   const { language, setLanguage } = useLanguage()
   const { width: windowWidth } = useWindowDimensions()
-  const button = useRef<View>(null)
+  const button = useRef<ViewInstance>(null)
   const [anchor, setAnchor] = useState<Anchor | null>(null)
   const current = LANGUAGES.find((option) => option.value === language) ?? LANGUAGES[0]
 

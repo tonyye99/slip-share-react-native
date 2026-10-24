@@ -3,7 +3,7 @@ import { Stack } from 'expo-router'
 import { useT } from '@/i18n'
 
 // Keeps the receipt list underneath a screen opened straight from a link.
-export const unstable_settings = { initialRouteName: 'index' }
+export const unstable_settings = { anchor: 'index' }
 
 // Each screen draws its own ScreenHeader, so the bars match on phone and web.
 export default function AppLayout() {

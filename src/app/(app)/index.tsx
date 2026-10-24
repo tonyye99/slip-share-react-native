@@ -236,7 +236,7 @@ export default function HomeScreen() {
             {t.home.noneHere}
           </AppText>
         }
-        ListFooterComponent={loadingMore ? <ActivityIndicator style={styles.more} /> : null}
+        ListFooterComponent={loadingMore ? <ActivityIndicator style={styles.more} /> : undefined}
         renderItem={({ item: { bill, status }, index }) => {
           const money = (amount: number) => formatMoney(amount, bill.currency)
           return (
