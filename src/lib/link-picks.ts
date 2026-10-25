@@ -2,6 +2,7 @@ import { Platform } from 'react-native'
 
 import { strings } from '@/i18n/strings'
 import { secureStorage } from '@/lib/secure-storage'
+import { readSavedCharges } from '@/lib/split'
 import { supabase } from '@/lib/supabase'
 
 // The friend link: https://<site>/pick/<token> opens the website, where
@@ -68,7 +69,7 @@ export function friendLinkUrl(token: string): string {
 export async function getLinkReceipt(token: string): Promise<LinkReceipt> {
   const { data, error } = await supabase.rpc('get_link_receipt', { p_token: token })
   if (error) throw error
-  return data as LinkReceipt
+  return readSavedCharges(data as LinkReceipt)
 }
 
 /** Joins as a name the owner already added, or as a new person. */

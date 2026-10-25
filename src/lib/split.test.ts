@@ -3,16 +3,17 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
 
-import { calculateSplit, checkScan, dropIncludedCharges, receiptSubtotal } from './split.ts'
+import { billTotal, calculateSplit, checkScan, dropIncludedCharges, receiptSubtotal, readSavedCharges } from './split.ts'
 
-// The example receipt from slip-share's CLAUDE.md.
+// The example receipt from slip-share's CLAUDE.md: 5% service, then 7% VAT on
+// the items plus service (slip-share stored that VAT as 7.35% of the items).
 const items = [
   { id: 'a', qty: 1, unit_price: 289 },
   { id: 'b', qty: 1, unit_price: 279 },
   { id: 'c', qty: 1, unit_price: 239 },
   { id: 'd', qty: 1, unit_price: 20 },
 ]
-const receipt = { subtotal: 827, tax_percent: 7.35, service_percent: 5, rounding: 0 }
+const receipt = { subtotal: 827, tax_percent: 7, service_percent: 5, rounding: 0 }
 
 test('subtotal sums qty * unit price', () => {
   assert.equal(receiptSubtotal(items), 827)
@@ -28,8 +29,13 @@ test('everything selected matches the receipt total', () => {
 test('shared item is divided by share count before tax and service', () => {
   const split = calculateSplit(receipt, items, ['a', 'd'], { a: 2 })
   assert.equal(split.subtotal, 289 / 2 + 20)
-  assert.ok(Math.abs(split.tax - split.subtotal * 0.0735) < 1e-9)
   assert.ok(Math.abs(split.service - split.subtotal * 0.05) < 1e-9)
+  assert.ok(Math.abs(split.tax - split.subtotal * 1.05 * 0.07) < 1e-9)
+})
+
+test('VAT is charged on the service charge too', () => {
+  // 10% service, then 7% VAT on ฿1,100: the receipt says ฿1,177, not ฿1,170.
+  assert.ok(Math.abs(billTotal({ tax_percent: 7, service_percent: 10, rounding: 0 }, 1000) - 1177) < 1e-9)
 })
 
 test('rounding is split by share of subtotal', () => {
@@ -58,8 +64,31 @@ test('VAT already in the prices is dropped', () => {
 })
 
 test('charges added on top of the prices are kept', () => {
-  const parsed = { tax_percent: 7.35, service_percent: 5, rounding: 0, total: 929.13 }
+  const parsed = { tax_percent: 7, service_percent: 5, rounding: 0, total: 929.13 }
   assert.equal(dropIncludedCharges(parsed, 827), parsed)
+})
+
+test('a tax rate read as a share of the items goes back to the printed rate', () => {
+  const parsed = { tax_percent: 7.35, service_percent: 5, rounding: 0, total: 929.13 }
+  assert.deepEqual(dropIncludedCharges(parsed, 827), { ...parsed, tax_percent: 7 })
+})
+
+test('saved bills: tax on service unless only the items add up', () => {
+  const current = { subtotal: 1000, tax_percent: 7, service_percent: 10, rounding: 0, total: 1177 }
+  assert.equal(readSavedCharges(current), current)
+  // Kept as a share of the items: back to the printed 7%.
+  const asShare = { ...current, tax_percent: 7.7 }
+  assert.deepEqual(readSavedCharges(asShare), current)
+  // Total of 7% on the items alone (7 / 1.1 isn't a printed rate): tax stays on the items.
+  const itemsOnly = { ...current, total: 1170 }
+  assert.deepEqual(readSavedCharges(itemsOnly), { ...itemsOnly, tax_on_items_only: true })
+  const misread = { ...current, total: 1500 }
+  assert.equal(readSavedCharges(misread), misread)
+})
+
+test('a scan whose total has tax on the items alone keeps it there', () => {
+  const parsed = { tax_percent: 7, service_percent: 10, rounding: 0, total: 1170 }
+  assert.deepEqual(dropIncludedCharges(parsed, 1000), { ...parsed, tax_on_items_only: true })
 })
 
 test('service on top with VAT included keeps only the service', () => {

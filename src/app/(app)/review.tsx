@@ -2,6 +2,7 @@ import { Redirect, router } from 'expo-router'
 import { useState } from 'react'
 import { Platform, Pressable, ScrollView, StyleSheet, View } from 'react-native'
 
+import { ChargeRow, ChargeSheet, type ChargeKind } from '@/components/charge-sheet'
 import { ScreenHeader } from '@/components/screen-header'
 import { AppText, Button, Card, Divider, Row, TextField } from '@/components/ui'
 import { MaxContentWidth, Spacing } from '@/constants/theme'
@@ -12,15 +13,18 @@ import { useUserId } from '@/lib/auth'
 import { receiptDraft } from '@/lib/draft'
 import {
   amountsOf,
+  chargePercent,
   hasErrors,
   itemErrors,
   newItemInput,
+  toChargeInput,
   toItemInputs,
   toParsedItems,
+  type ChargeInput,
   type ItemInput,
 } from '@/lib/item-edits'
 import { createReceipt } from '@/lib/receipts'
-import { billTotal, formatMoney, receiptSubtotal } from '@/lib/split'
+import { billTotal, chargesFor, formatMoney, receiptSubtotal } from '@/lib/split'
 
 // iOS's decimal pad has no minus key, which discount lines need.
 const PRICE_KEYBOARD = Platform.OS === 'ios' ? 'numbers-and-punctuation' : 'numeric'
@@ -31,6 +35,13 @@ export default function ReviewScreen() {
   const userId = useUserId()
   const [draft] = useState(receiptDraft.get)
   const [items, setItems] = useState(() => toItemInputs(draft?.items ?? []))
+  const [charges, setCharges] = useState(() => ({
+    service: toChargeInput(draft?.service_percent ?? 0),
+    tax: toChargeInput(draft?.tax_percent ?? 0),
+  }))
+  // The charge being changed, and how it was before, to put back if it's left half-typed.
+  const [chargeKind, setChargeKind] = useState<ChargeKind>('service')
+  const [chargeBefore, setChargeBefore] = useState<ChargeInput | null>(null)
   const [editing, setEditing] = useState(false)
   const [edited, setEdited] = useState(false)
   // Field errors show once you try to leave edit mode or save, not while typing.
@@ -42,10 +53,14 @@ export default function ReviewScreen() {
 
   const money = (amount: number) => formatMoney(amount, draft.currency || 'THB')
   const subtotal = receiptSubtotal(items.map(amountsOf))
-  const service = (subtotal * draft.service_percent) / 100
-  const tax = (subtotal * draft.tax_percent) / 100
-  const itemsTotal = billTotal(draft, subtotal)
-  // Once you change the items, the total follows them rather than the printed one.
+  const priced = {
+    ...draft,
+    service_percent: chargePercent(charges.service) ?? 0,
+    tax_percent: chargePercent(charges.tax) ?? 0,
+  }
+  const { service, tax } = chargesFor(priced, subtotal)
+  const itemsTotal = billTotal(priced, subtotal)
+  // Once you change the items or charges, the total follows them rather than the printed one.
   const total = edited ? itemsTotal : draft.total
   const doesNotAddUp = draft.total > 0 && Math.abs(itemsTotal - draft.total) >= 0.5
   const showEnglish = draft.original_language !== 'en'
@@ -65,6 +80,20 @@ export default function ReviewScreen() {
   const addItem = () => {
     setEdited(true)
     setItems((prev) => [...prev, newItemInput()])
+  }
+  const openCharge = (kind: ChargeKind) => {
+    setChargeKind(kind)
+    setChargeBefore(charges[kind])
+  }
+  const changeCharge = (input: ChargeInput) => {
+    setEdited(true)
+    setCharges((prev) => ({ ...prev, [chargeKind]: input }))
+  }
+  const closeCharge = () => {
+    if (chargeBefore && chargePercent(charges[chargeKind]) === null) {
+      setCharges((prev) => ({ ...prev, [chargeKind]: chargeBefore }))
+    }
+    setChargeBefore(null)
   }
   const finishEditing = () => {
     if (toParsedItems(items)) {
@@ -87,7 +116,7 @@ export default function ReviewScreen() {
     setSaving(true)
     setError(null)
     try {
-      const id = await createReceipt({ ...draft, items: parsedItems, total }, userId)
+      const id = await createReceipt({ ...priced, items: parsedItems, total }, userId)
       track('split_created', { items: parsedItems.length, currency: draft.currency || null })
       receiptDraft.clear()
       router.replace(`/receipts/${id}`)
@@ -197,8 +226,18 @@ export default function ReviewScreen() {
 
       <Card>
         <Row label={t.common.subtotal} value={money(subtotal)} />
-        {service > 0 && <Row label={t.common.service(draft.service_percent)} value={money(service)} />}
-        {tax > 0 && <Row label={t.common.vat(draft.tax_percent)} value={money(tax)} />}
+        <ChargeRow
+          label={priced.service_percent > 0 ? t.common.service(priced.service_percent) : t.review.serviceCharge}
+          value={priced.service_percent > 0 ? money(service) : t.review.notAdded}
+          off={priced.service_percent === 0}
+          onPress={() => openCharge('service')}
+        />
+        <ChargeRow
+          label={priced.tax_percent > 0 ? t.common.vat(priced.tax_percent) : t.review.tax}
+          value={priced.tax_percent > 0 ? money(tax) : t.review.notAdded}
+          off={priced.tax_percent === 0}
+          onPress={() => openCharge('tax')}
+        />
         {draft.rounding !== 0 && <Row label={t.common.rounding} value={money(draft.rounding)} />}
         <Divider />
         <Row label={t.common.total} value={money(total)} bold />
@@ -213,6 +252,17 @@ export default function ReviewScreen() {
 
       {error && <AppText variant="error">{error}</AppText>}
 
+      <ChargeSheet
+        kind={chargeKind}
+        visible={chargeBefore !== null}
+        input={charges[chargeKind]}
+        amount={chargeKind === 'service' ? service : tax}
+        base={chargeKind === 'service' || priced.tax_on_items_only ? subtotal : subtotal + service}
+        withService={service > 0 && !priced.tax_on_items_only}
+        money={money}
+        onChange={changeCharge}
+        onClose={closeCharge}
+      />
       <Button title={t.review.continue} onPress={save} loading={saving} />
       <Button title={t.review.startOver} variant="secondary" onPress={() => router.replace('/scan')} disabled={saving} />
     </ScrollView>

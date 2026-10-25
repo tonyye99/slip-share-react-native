@@ -1,6 +1,7 @@
 // Bill-splitting math, ported from slip-share's cost-calculator and selections API.
-// Tax and service apply to the person's share of items; rounding is split
-// in proportion to their share of the receipt subtotal. An item several
+// Service and tax apply to the person's share of items, tax on top of the
+// service charge (see chargesFor); rounding is split in proportion to their
+// share of the receipt subtotal. An item several
 // people had is divided evenly between them, unless they say how many of a
 // line they each had (see itemShares).
 
@@ -17,6 +18,11 @@ export interface SplitReceipt {
   tax_percent: number
   service_percent: number
   rounding: number
+  /**
+   * Tax is on the item prices alone, not on the service charge as well. Not
+   * saved: it's worked out from the printed total (see readSavedCharges).
+   */
+  tax_on_items_only?: boolean
 }
 
 export interface SplitResult {
@@ -47,11 +53,23 @@ export function calculateSplit(
   return chargesOn(receipt, subtotal)
 }
 
+type Charges = Pick<SplitReceipt, 'service_percent' | 'tax_percent' | 'tax_on_items_only'>
+
+/**
+ * The service charge and tax on an amount of items. Tax (VAT, GST, sales tax)
+ * is usually charged on the service charge too, as on bills that print
+ * "Service 10%" and then "VAT 7%" of the new amount, so 10% and 7% come to 17.7%.
+ */
+export function chargesFor(receipt: Charges, items: number): { service: number; tax: number } {
+  const service = (receipt.service_percent / 100) * items
+  const tax = (receipt.tax_percent / 100) * (receipt.tax_on_items_only ? items : items + service)
+  return { service, tax }
+}
+
 /** Someone's items plus their part of tax, service and rounding. */
 function chargesOn(receipt: SplitReceipt, subtotal: number): SplitResult {
   const proportion = receipt.subtotal > 0 ? subtotal / receipt.subtotal : 0
-  const tax = (receipt.tax_percent / 100) * subtotal
-  const service = (receipt.service_percent / 100) * subtotal
+  const { service, tax } = chargesFor(receipt, subtotal)
   const rounding = receipt.rounding * proportion
 
   return {
@@ -153,26 +171,63 @@ export function receiptSubtotal(items: Pick<SplitItem, 'qty' | 'unit_price'>[]):
 
 /** What the whole bill comes to: items plus service, tax and rounding. */
 export function billTotal(receipt: Omit<SplitReceipt, 'subtotal'>, subtotal: number): number {
-  return subtotal + (subtotal * receipt.service_percent) / 100 + (subtotal * receipt.tax_percent) / 100 + receipt.rounding
+  const { service, tax } = chargesFor(receipt, subtotal)
+  return subtotal + service + tax + receipt.rounding
+}
+
+const addsUpTo = (receipt: Omit<SplitReceipt, 'subtotal'>, subtotal: number, total: number) =>
+  Math.abs(billTotal(receipt, subtotal) - total) < 0.5
+
+/**
+ * The tax rate as printed, for a rate given as a share of the items alone:
+ * 7% VAT on top of 10% service is 7.7% of the items. Scans sometimes report
+ * that, and bills saved before chargesFor charged tax on service kept it.
+ */
+function asPrintedTax<T extends Charges>(receipt: T): T {
+  if (receipt.service_percent <= 0 || receipt.tax_percent <= 0) return receipt
+  const printed = receipt.tax_percent / (1 + receipt.service_percent / 100)
+  // Printed rates are round numbers like 7 or 8.875. Anything else (7% read as
+  // 6.3636…) means the tax really was on the items alone, so it stays as read.
+  const rounded = Math.round(printed * 1000) / 1000
+  return Math.abs(printed - rounded) < 1e-6 ? { ...receipt, tax_percent: rounded } : receipt
+}
+
+/** Tax on the items alone, for bills whose total only adds up that way. */
+const onItemsOnly = <T extends Charges>(receipt: T): T =>
+  receipt.service_percent > 0 && receipt.tax_percent > 0 ? { ...receipt, tax_on_items_only: true } : receipt
+
+/**
+ * How a saved bill's tax was charged, worked out from its total: on the
+ * service charge too unless only the items add up. Bills saved before tax was
+ * charged on service may have it as a share of the items, which is put back
+ * to the printed rate.
+ */
+export function readSavedCharges<T extends SplitReceipt & { total: number }>(receipt: T): T {
+  const matches = (r: T) => addsUpTo(r, receipt.subtotal, receipt.total)
+  if (receipt.total <= 0 || matches(receipt)) return receipt
+  return [asPrintedTax(receipt), onItemsOnly(receipt)].find((r) => r !== receipt && matches(r)) ?? receipt
 }
 
 /**
  * Receipts often print VAT or a service charge that is already inside the item
  * prices ("VAT included"). If the charges as read don't reach the printed total
  * but leaving some of them out does, those were included, so they're dropped.
+ * A tax rate read as a share of the items alone is put back to the printed one.
  */
 export function dropIncludedCharges<T extends Omit<SplitReceipt, 'subtotal'> & { total: number }>(
   receipt: T,
   subtotal: number,
 ): T {
-  const matchesTotal = (r: T) => Math.abs(billTotal(r, subtotal) - receipt.total) < 0.5
+  const matchesTotal = (r: T) => addsUpTo(r, subtotal, receipt.total)
   if (receipt.total <= 0 || matchesTotal(receipt)) return receipt
-  const withoutCharges = [
+  const alternatives = [
+    asPrintedTax(receipt),
+    onItemsOnly(receipt),
     { ...receipt, tax_percent: 0 },
     { ...receipt, service_percent: 0 },
     { ...receipt, tax_percent: 0, service_percent: 0 },
   ]
-  return withoutCharges.find(matchesTotal) ?? receipt
+  return alternatives.find((r) => r !== receipt && matchesTotal(r)) ?? receipt
 }
 
 type ScannedReceipt = Omit<SplitReceipt, 'subtotal'> & { total: number; items: Omit<SplitItem, 'id'>[] }
@@ -186,7 +241,7 @@ type ScannedReceipt = Omit<SplitReceipt, 'subtotal'> & { total: number; items: O
  */
 export function checkScan<T extends ScannedReceipt>(receipt: T): T {
   const settle = (r: T) => dropIncludedCharges(r, receiptSubtotal(r.items))
-  const matchesTotal = (r: T) => Math.abs(billTotal(r, receiptSubtotal(r.items)) - r.total) < 0.5
+  const matchesTotal = (r: T) => addsUpTo(r, receiptSubtotal(r.items), r.total)
   const asRead = settle(receipt)
   if (receipt.total <= 0 || matchesTotal(asRead) || !receipt.items.some((item) => item.qty > 1)) return asRead
   const asLineTotals = settle({

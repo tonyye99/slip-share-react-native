@@ -77,4 +77,6 @@ export interface ParsedReceipt {
   subtotal: number
   total: number
   rounding: number
+  /** Tax on the items alone, worked out from the total by checkScan. Not saved. */
+  tax_on_items_only?: boolean
 }
