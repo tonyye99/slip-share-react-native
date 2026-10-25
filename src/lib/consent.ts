@@ -1,11 +1,22 @@
 import * as WebBrowser from 'expo-web-browser'
+import { Platform } from 'react-native'
 
 import { supabase } from '@/lib/supabase'
 
-export const PRIVACY_POLICY_URL = 'https://github.com/tonyye99/slip-share-react-native/blob/main/PRIVACY.md'
+const WEB_URL = process.env.EXPO_PUBLIC_WEB_URL?.trim().replace(/\/+$/, '')
+
+/**
+ * The website's privacy page (public/privacy.html, made from PRIVACY.md).
+ * Phone builds without the website's address fall back to PRIVACY.md on GitHub.
+ */
+export function privacyPolicyUrl(): string {
+  if (Platform.OS === 'web') return `${window.location.origin}/privacy.html`
+  if (WEB_URL) return `${WEB_URL}/privacy.html`
+  return 'https://github.com/tonyye99/slip-share-react-native/blob/main/PRIVACY.md'
+}
 
 export function openPrivacyPolicy() {
-  return WebBrowser.openBrowserAsync(PRIVACY_POLICY_URL)
+  return WebBrowser.openBrowserAsync(privacyPolicyUrl())
 }
 
 /**

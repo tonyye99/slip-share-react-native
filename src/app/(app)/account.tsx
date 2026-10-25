@@ -3,7 +3,7 @@ import { ActivityIndicator, Linking, Platform, Pressable, ScrollView, StyleSheet
 
 import { AccountPhoto } from '@/components/account-photo'
 import { SettingsGroup, SettingsRow } from '@/components/account/settings-list'
-import { GlobeIcon, ScanIcon, ShieldIcon, SignOutIcon, SlidersIcon } from '@/components/icons'
+import { ChartIcon, GlobeIcon, ScanIcon, ShieldIcon, SignOutIcon, SlidersIcon } from '@/components/icons'
 import { LanguagePicker } from '@/components/language-picker'
 import { ScreenHeader } from '@/components/screen-header'
 import { Toggle } from '@/components/toggle'
@@ -13,6 +13,7 @@ import { useTheme } from '@/hooks/use-theme'
 import { dateLocale, useT } from '@/i18n'
 import { deleteAccount } from '@/lib/account'
 import { confirmAction, confirmDestructive, showAlert } from '@/lib/alert'
+import { analyticsAvailable, analyticsOn, setAnalyticsOn } from '@/lib/analytics'
 import { useAuth } from '@/lib/auth'
 import { getAiConsent, giveAiConsent, openPrivacyPolicy, withdrawAiConsent } from '@/lib/consent'
 import { supabase } from '@/lib/supabase'
@@ -28,6 +29,12 @@ export default function AccountScreen() {
   // 'checking' until loaded, 'unknown' if it couldn't be checked, null when scanning is off.
   const [consentedAt, setConsentedAt] = useState<string | null | 'checking' | 'unknown'>('checking')
   const [saving, setSaving] = useState(false)
+  const [statsOn, setStatsOn] = useState(analyticsOn)
+
+  const toggleStats = (on: boolean) => {
+    setStatsOn(on)
+    setAnalyticsOn(on).catch((e) => console.error('Changing usage stats failed', e))
+  }
 
   useEffect(() => {
     getAiConsent()
@@ -118,6 +125,14 @@ export default function AccountScreen() {
               />
             }
           />
+          {analyticsAvailable && (
+            <SettingsRow
+              icon={(color) => <ChartIcon color={color} />}
+              title={t.account.analytics}
+              subtitle={statsOn ? t.account.analyticsOn : t.account.analyticsOff}
+              right={<Toggle value={statsOn} onValueChange={toggleStats} accessibilityLabel={t.account.analytics} />}
+            />
+          )}
           <SettingsRow
             icon={(color) => <ShieldIcon color={color} />}
             title={t.account.privacyPolicy}

@@ -22,6 +22,7 @@ import { MaxContentWidth, Radius, Spacing } from '@/constants/theme'
 import { useTheme } from '@/hooks/use-theme'
 import { dateLocale, useT } from '@/i18n'
 import { confirmDestructive, showAlert } from '@/lib/alert'
+import { track } from '@/lib/analytics'
 import { friendLinksAvailable, friendLinkUrl } from '@/lib/link-picks'
 import { bothNames, cleanName, originalLabel } from '@/lib/names'
 import {
@@ -296,8 +297,12 @@ export default function SplitScreen() {
     )
     setPeople(next)
     save(() => setPersonPaid(person.id, paid))
+    if (paid) track('marked_paid')
     // The last person to pay back settles the bill.
-    if (paid && next.filter(owesSomething).every((other) => other.paid_at)) setSettledOpen(true)
+    if (paid && next.filter(owesSomething).every((other) => other.paid_at)) {
+      track('all_settled', { people: next.length })
+      setSettledOpen(true)
+    }
   }
 
   const totalsText = () =>
@@ -315,7 +320,10 @@ export default function SplitScreen() {
       })),
       unassigned: split.unassigned.total,
     })
-  const sendTotals = () => shareText(totalsText())
+  const sendTotals = () => {
+    track('totals_sent')
+    return shareText(totalsText())
+  }
 
   // Friends who open the link pick their own items; pull down to see them.
   const refresh = async () => {
@@ -345,6 +353,7 @@ export default function SplitScreen() {
         setLinkBusy(false)
       }
     }
+    track('link_shared')
     await shareText(t.split.linkMessage(title, friendLinkUrl(token)))
   }
 
