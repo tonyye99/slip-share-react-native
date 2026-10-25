@@ -11,6 +11,8 @@ import type { Money, PersonView } from '@/lib/split-view'
 export interface PersonCard extends PersonView {
   total: number
   paidBack: boolean
+  /** Sent a transfer slip through the friend link. */
+  slipSent: boolean
 }
 
 /**
@@ -45,13 +47,19 @@ export function PersonCards({
             onPress={() => onToggle(person.id)}
             accessibilityRole="button"
             accessibilityState={{ expanded: open }}
-            accessibilityLabel={`${person.name}, ${money(person.total)}${person.paidBack ? t.split.paidBackA11y : ''}`}
+            accessibilityLabel={`${person.name}, ${money(person.total)}${person.paidBack ? t.split.paidBackA11y : person.slipSent ? t.split.slipA11y : ''}`}
             style={({ pressed }) => [
               styles.card,
               { backgroundColor: theme.surface, borderColor: open ? person.color : 'transparent', opacity: pressed ? 0.85 : 1 },
             ]}>
             <View style={styles.top}>
-              <Avatar name={person.name} color={person.color} size={24} />
+              <View>
+                <Avatar name={person.name} color={person.color} size={24} />
+                {/* A slip to check: a dot like an unread badge. */}
+                {person.slipSent && !person.paidBack && (
+                  <View style={[styles.slipDot, { backgroundColor: theme.primary, borderColor: theme.surface }]} />
+                )}
+              </View>
               <AppText variant="caption" numberOfLines={1} style={[styles.shrink, styles.name]}>
                 {person.name}
               </AppText>
@@ -97,6 +105,7 @@ const styles = StyleSheet.create({
     padding: Spacing.three - 4,
   },
   top: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
+  slipDot: { position: 'absolute', right: -3, bottom: -2, width: 11, height: 11, borderRadius: 6, borderWidth: 2 },
   amount: { fontVariant: ['tabular-nums'], fontSize: 20, lineHeight: 24, fontWeight: '700' },
   addCard: { borderStyle: 'dashed', alignItems: 'center', justifyContent: 'center' },
   addIcon: { width: 30, height: 30, borderRadius: 15, alignItems: 'center', justifyContent: 'center' },

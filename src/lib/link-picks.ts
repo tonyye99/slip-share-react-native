@@ -19,6 +19,8 @@ export interface LinkPerson {
   paid: boolean
   /** Someone already picked this name through the link. */
   claimed: boolean
+  /** They sent a transfer slip. Only the owner can see the photo. */
+  slip_sent?: boolean
 }
 
 export interface LinkItem {

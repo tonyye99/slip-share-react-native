@@ -1,9 +1,14 @@
 # Supabase project shared with the slip-share web app. This repo holds the
 # schema (supabase/migrations, copied from slip-share and extended here) and
-# the Edge Functions (parse-receipt, delete-account).
+# the Edge Functions (parse-receipt, delete-account, upload-slip).
 
 [functions.parse-receipt]
 verify_jwt = true
 
 [functions.delete-account]
 verify_jwt = true
+
+# Friends on the friend link aren't signed in; the function checks the link
+# token and their guest key itself.
+[functions.upload-slip]
+verify_jwt = false

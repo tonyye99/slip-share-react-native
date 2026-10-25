@@ -1,6 +1,7 @@
 import { strings } from '@/i18n/strings'
 import { confirmDestructive } from '@/lib/alert'
 import type { Bill } from '@/lib/bills'
+import { removeSlipFiles } from '@/lib/slips'
 import { billTotal, peopleInOrder, receiptSubtotal, readSavedCharges } from '@/lib/split'
 import { supabase } from '@/lib/supabase'
 import type { ParsedReceipt, ReceiptPerson, ReceiptWithPeople } from '@/lib/types'
@@ -90,8 +91,9 @@ export async function addPerson(receiptId: string, name: string): Promise<Receip
   return data as ReceiptPerson
 }
 
-/** Removes someone from a receipt; the items they had go back to nobody. */
-export async function removePerson(personId: string) {
+/** Removes someone from a receipt, with any transfer slip they sent; the items they had go back to nobody. */
+export async function removePerson(receiptId: string, personId: string) {
+  await removeSlipFiles(receiptId, personId)
   const { error } = await supabase.from('receipt_people').delete().eq('id', personId)
   if (error) throw error
 }
@@ -152,8 +154,9 @@ export function confirmDeleteReceipt(onConfirm: () => void) {
   confirmDestructive(t.bills.deleteTitle, t.bills.deleteMessage, t.common.delete, onConfirm)
 }
 
-/** Deletes a receipt for good, with its items, people and picks. */
+/** Deletes a receipt for good, with its items, people, picks and transfer slips. */
 export async function deleteReceipt(receiptId: string): Promise<void> {
+  await removeSlipFiles(receiptId)
   const { data, error } = await supabase.from('receipts').delete().eq('id', receiptId).select('id')
   if (error) throw error
   if (!data.length) throw new Error('Receipt not found')

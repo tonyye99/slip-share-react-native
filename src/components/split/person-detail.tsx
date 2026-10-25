@@ -3,6 +3,7 @@ import { StyleSheet, View } from 'react-native'
 
 import { Avatar } from '@/components/chip'
 import { CheckIcon } from '@/components/icons'
+import { SlipRow } from '@/components/split/slip-row'
 import { AppText, Button, Card } from '@/components/ui'
 import { Spacing } from '@/constants/theme'
 import { useTheme } from '@/hooks/use-theme'
@@ -74,6 +75,12 @@ export function PersonDetail({
           {money(total)}
         </AppText>
       </View>
+      {person.slip_path && (
+        <>
+          <SlipRow path={person.slip_path} sentAt={person.slip_at ?? null} name={nameOf(person)} />
+          {payer && !person.is_payer && !person.paid_at && <AppText variant="caption">{t.slipCheck}</AppText>}
+        </>
+      )}
       {action}
     </Card>
   )

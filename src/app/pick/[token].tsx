@@ -6,11 +6,12 @@ import { SafeAreaView } from 'react-native-safe-area-context'
 import { Avatar, usePersonColor } from '@/components/chip'
 import { CheckBoxIcon, ClockIcon } from '@/components/icons'
 import { ScreenHeader } from '@/components/screen-header'
+import { SlipCard } from '@/components/slip-card'
 import { AppText, Button, Card, Divider, Input, Row, Segmented, Stepper } from '@/components/ui'
 import { MaxContentWidth, Radius, Spacing } from '@/constants/theme'
 import { useTheme } from '@/hooks/use-theme'
 import { useT } from '@/i18n'
-import { showAlert } from '@/lib/alert'
+import { confirmDestructive, showAlert } from '@/lib/alert'
 import { track } from '@/lib/analytics'
 import {
   forgetIdentity,
@@ -26,6 +27,8 @@ import {
   type LinkReceipt,
 } from '@/lib/link-picks'
 import { bothNames, cleanName, MAX_NAME_LENGTH, originalLabel } from '@/lib/names'
+import { pickPhoto } from '@/lib/photo'
+import { prepareSlip, sendSlip, SlipError } from '@/lib/slips'
 import { formatMoney, isCountable, itemShares, splitByPicks } from '@/lib/split'
 
 // Opened from a friend link (https://<site>/pick/<token>), usually on the
@@ -44,6 +47,9 @@ export default function PickScreen() {
   const [joining, setJoining] = useState(false)
   const [refreshing, setRefreshing] = useState(false)
   const [showEnglish, setShowEnglish] = useState(false)
+  const [slipBusy, setSlipBusy] = useState(false)
+  // The slip you sent while this page is open. Only the owner can load it back.
+  const [slipPreview, setSlipPreview] = useState<string | null>(null)
   // Ticks save as you tap, one at a time and in order.
   const saves = useRef<Promise<void>>(Promise.resolve())
 
@@ -173,7 +179,63 @@ export default function PickScreen() {
     await saves.current
     await forgetIdentity(token)
     setIdentity(null)
+    setSlipPreview(null)
   }
+
+  const showSlipSent = (sent: boolean) =>
+    setReceipt((prev) =>
+      prev && {
+        ...prev,
+        people: prev.people.map((person) => (person.id === identity?.person_id ? { ...person, slip_sent: sent } : person)),
+      },
+    )
+
+  const slipFailed = async (e: unknown, title: string) => {
+    console.error('Slip failed', e)
+    const status = e instanceof SlipError ? e.status : 0
+    if (status === 403) {
+      await forgetIdentity(token)
+      setIdentity(null)
+      showAlert(t.pick.pickNameAgain, t.pick.removedYou)
+      await reload()
+    } else if (status === 404) {
+      setBroken(true)
+    } else {
+      showAlert(title, status === 413 || status === 400 ? t.pick.slipTooBig : t.common.checkConnection)
+    }
+  }
+
+  const addSlip = async () => {
+    if (!identity) return
+    const photo = await pickPhoto('library')
+    if (!photo) return
+    setSlipBusy(true)
+    try {
+      await sendSlip(token, identity, await prepareSlip(photo))
+      track('slip_sent', { replaced: !!me?.slip_sent })
+      setSlipPreview(photo.uri)
+      showSlipSent(true)
+    } catch (e) {
+      await slipFailed(e, t.pick.couldNotSendSlip)
+    } finally {
+      setSlipBusy(false)
+    }
+  }
+
+  const removeSlip = () =>
+    confirmDestructive(t.pick.removeSlipTitle, t.pick.removeSlipMessage(ownerName), t.common.remove, async () => {
+      if (!identity) return
+      setSlipBusy(true)
+      try {
+        await sendSlip(token, identity, null)
+        setSlipPreview(null)
+        showSlipSent(false)
+      } catch (e) {
+        await slipFailed(e, t.pick.couldNotRemoveSlip)
+      } finally {
+        setSlipBusy(false)
+      }
+    })
 
   const colorOf = (personId: string) => personColor(people.findIndex((person) => person.id === personId))
   const ownerName = owner?.name ?? t.pick.thePayer
@@ -384,6 +446,18 @@ export default function PickScreen() {
                 )
               })}
             </Card>
+
+            {owes && !me.paid && (mine?.total ?? 0) > 0 && (
+              <SlipCard
+                payerName={payer.name}
+                ownerName={ownerName}
+                sent={!!me.slip_sent}
+                preview={slipPreview}
+                busy={slipBusy}
+                onAdd={addSlip}
+                onRemove={removeSlip}
+              />
+            )}
           </>
         )}
       </ScrollView>
