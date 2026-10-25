@@ -392,6 +392,15 @@ export const en = {
     deleteMessage: "Your receipts, and the names and payments on them, will be deleted for good. This can't be undone.",
   },
 
+  feedback: {
+    title: 'Send feedback',
+    hint: 'Opens an email to the SlipShare team',
+    subject: 'SlipShare feedback',
+    body: 'Hi! Here is my idea, question or problem:',
+    noMailApp: 'No email app found',
+    writeTo: (email: string) => `Write to us at ${email}`,
+  },
+
   /** The friend link page, for people without the app. */
   pick: {
     linkBroken: "This link doesn't work. It may have been turned off, so ask whoever sent it for a new one.",
