@@ -47,6 +47,10 @@ export interface ReceiptPerson {
   paid_at: string | null
   /** Set when they picked this name through the friend link. */
   guest_key: string | null
+  /** The transfer slip they sent through the friend link, in the private "slips" bucket. */
+  slip_path?: string | null
+  /** When they sent it. */
+  slip_at?: string | null
   created_at: string
 }
 

@@ -271,7 +271,7 @@ export default function SplitScreen() {
         ),
       )
       if (detailFor === person.id) setDetailFor(null)
-      save(() => removePerson(person.id))
+      save(() => removePerson(receipt.id, person.id))
     }
     if (!Object.values(picks).some((had) => person.id in had)) return remove()
     confirmDestructive(t.split.removeTitle(person.name), t.split.removeMessage, t.common.remove, remove)
@@ -453,6 +453,7 @@ export default function SplitScreen() {
               ...views[index],
               total: totalOf(person),
               paidBack: !person.is_payer && !!person.paid_at,
+              slipSent: !!person.slip_path,
             }))}
             openId={detailFor}
             billTotal={receipt.total}

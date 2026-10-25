@@ -1,6 +1,6 @@
 // Shared by analytics.ts (phone) and analytics.web.ts (website).
 //
-// The funnel: split_created -> link_shared -> link_opened -> friend_joined -> marked_paid.
+// The funnel: split_created -> link_shared -> link_opened -> friend_joined -> slip_sent -> marked_paid.
 // Events never carry names, items, amounts or link tokens.
 
 export type AnalyticsEvent =
@@ -8,6 +8,7 @@ export type AnalyticsEvent =
   | 'link_shared'
   | 'link_opened'
   | 'friend_joined'
+  | 'slip_sent'
   | 'totals_sent'
   | 'marked_paid'
   | 'all_settled'
