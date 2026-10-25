@@ -3,7 +3,7 @@ import { ActivityIndicator, Linking, Platform, Pressable, ScrollView, StyleSheet
 
 import { AccountPhoto } from '@/components/account-photo'
 import { SettingsGroup, SettingsRow } from '@/components/account/settings-list'
-import { ChartIcon, GlobeIcon, ScanIcon, ShieldIcon, SignOutIcon, SlidersIcon } from '@/components/icons'
+import { ChartIcon, GlobeIcon, ScanIcon, SendIcon, ShieldIcon, SignOutIcon, SlidersIcon } from '@/components/icons'
 import { LanguagePicker } from '@/components/language-picker'
 import { ScreenHeader } from '@/components/screen-header'
 import { Toggle } from '@/components/toggle'
@@ -16,6 +16,7 @@ import { confirmAction, confirmDestructive, showAlert } from '@/lib/alert'
 import { analyticsAvailable, analyticsOn, setAnalyticsOn } from '@/lib/analytics'
 import { useAuth } from '@/lib/auth'
 import { getAiConsent, giveAiConsent, openPrivacyPolicy, withdrawAiConsent } from '@/lib/consent'
+import { sendFeedback } from '@/lib/feedback'
 import { supabase } from '@/lib/supabase'
 
 const longDate = (iso: string) =>
@@ -158,6 +159,13 @@ export default function AccountScreen() {
               accessibilityHint={t.account.settingsHint}
             />
           )}
+          <SettingsRow
+            icon={(color) => <SendIcon color={color} />}
+            title={t.feedback.title}
+            chevron
+            onPress={sendFeedback}
+            accessibilityHint={t.feedback.hint}
+          />
           <SettingsRow
             icon={(color) => <SignOutIcon color={color} />}
             title={t.account.signOut}
