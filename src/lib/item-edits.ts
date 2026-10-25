@@ -75,3 +75,22 @@ export function toParsedItems(inputs: ItemInput[]): ParsedItem[] | null {
     }
   })
 }
+
+/** The service charge or tax on the review screen: added or not, and its percent as typed. */
+export interface ChargeInput {
+  on: boolean
+  percent: string
+}
+
+export const toChargeInput = (percent: number): ChargeInput => ({
+  on: percent > 0,
+  percent: percent > 0 ? String(percent) : '',
+})
+
+/** The percent to charge: 0 when it's off, or null while it's on without a number from 0 to 100. */
+export function chargePercent(input: ChargeInput): number | null {
+  if (!input.on) return 0
+  const percent = parseNumber(input.percent)
+  if (percent === null || percent < 0 || percent > 100) return null
+  return Math.round(percent * 10000) / 10000
+}

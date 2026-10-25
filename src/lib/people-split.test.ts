@@ -5,20 +5,20 @@ import { test } from 'node:test'
 
 import { evenCount, peopleInOrder, picksFrom, splitByPerson, splitByPicks, totalsMessage } from './split.ts'
 
-// The example receipt from slip-share's CLAUDE.md.
+// The example receipt from slip-share's CLAUDE.md: 5% service, then 7% VAT on the items plus service.
 const items = [
   { id: 'a', qty: 1, unit_price: 289 },
   { id: 'b', qty: 1, unit_price: 279 },
   { id: 'c', qty: 1, unit_price: 239 },
   { id: 'd', qty: 1, unit_price: 20 },
 ]
-const receipt = { subtotal: 827, tax_percent: 7.35, service_percent: 5, rounding: 0 }
+const receipt = { subtotal: 827, tax_percent: 7, service_percent: 5, rounding: 0 }
 
 test('a shared item is split evenly between the people who had it', () => {
   const split = splitByPerson(receipt, items, ['me', 'alice'], { a: ['me', 'alice'], b: ['alice'], d: ['me'] })
   assert.equal(split.people.me.subtotal, 289 / 2 + 20)
   assert.equal(split.people.alice.subtotal, 289 / 2 + 279)
-  assert.ok(Math.abs(split.people.me.tax - (7.35 / 100) * (289 / 2 + 20)) < 1e-9)
+  assert.ok(Math.abs(split.people.me.tax - (7 / 100) * 1.05 * (289 / 2 + 20)) < 1e-9)
 })
 
 test('items nobody had are reported as unassigned', () => {
@@ -97,7 +97,7 @@ test('totals message lists everyone, who paid and the charges', () => {
     currency: 'USD',
     total: 929.13,
     service_percent: 5,
-    tax_percent: 7.35,
+    tax_percent: 7,
     payer: 'me',
     people: [
       { name: 'Me', total: 300, paid: false },
@@ -115,7 +115,7 @@ test('totals message lists everyone, who paid and the charges', () => {
       'Alice: $329.13 (paid)',
       'Not assigned yet: $300.00',
       '',
-      'Includes 5% service and 7.35% tax.',
+      'Includes 5% service and 7% tax.',
     ].join('\n'),
   )
 })

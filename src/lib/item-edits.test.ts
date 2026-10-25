@@ -3,7 +3,15 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
 
-import { itemErrors, newItemInput, parseNumber, toItemInputs, toParsedItems } from './item-edits.ts'
+import {
+  chargePercent,
+  itemErrors,
+  newItemInput,
+  parseNumber,
+  toChargeInput,
+  toItemInputs,
+  toParsedItems,
+} from './item-edits.ts'
 
 test('parseNumber reads plain, decimal-comma and negative numbers', () => {
   assert.equal(parseNumber('289'), 289)
@@ -31,4 +39,14 @@ test('edited items round to what the database stores, and invalid edits block sa
   ])
   assert.equal(toParsedItems([{ ...edited, name: '  ' }]), null)
   assert.equal(toParsedItems([]), null)
+})
+
+test('a charge is 0 when off, its percent when on, and null until the percent is valid', () => {
+  assert.deepEqual(toChargeInput(10), { on: true, percent: '10' })
+  assert.deepEqual(toChargeInput(0), { on: false, percent: '' })
+  assert.equal(chargePercent({ on: false, percent: '10' }), 0)
+  assert.equal(chargePercent({ on: true, percent: '7,5' }), 7.5)
+  assert.equal(chargePercent({ on: true, percent: '' }), null)
+  assert.equal(chargePercent({ on: true, percent: '120' }), null)
+  assert.equal(chargePercent({ on: true, percent: '-1' }), null)
 })
