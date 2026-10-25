@@ -11,6 +11,7 @@ import { MaxContentWidth, Radius, Spacing } from '@/constants/theme'
 import { useTheme } from '@/hooks/use-theme'
 import { useT } from '@/i18n'
 import { showAlert } from '@/lib/alert'
+import { track } from '@/lib/analytics'
 import {
   forgetIdentity,
   getLinkReceipt,
@@ -50,6 +51,7 @@ export default function PickScreen() {
     if (!isLinkToken(token)) return
     Promise.all([getLinkReceipt(token), loadIdentity(token)])
       .then(([receipt, saved]) => {
+        track('link_opened', { returning: !!saved })
         setReceipt(receipt)
         // A name the owner has since removed no longer counts.
         setIdentity(saved && receipt.people.some((person) => person.id === saved.person_id) ? saved : null)
@@ -115,6 +117,7 @@ export default function PickScreen() {
     setJoining(true)
     try {
       setIdentity(await joinLink(token, choice))
+      track('friend_joined', { new_name: 'name' in choice })
       setName('')
     } catch (e) {
       console.error('Join failed', e)

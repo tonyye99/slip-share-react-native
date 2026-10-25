@@ -7,6 +7,7 @@ import { AppText, Button, Card, Divider, Row, TextField } from '@/components/ui'
 import { MaxContentWidth, Spacing } from '@/constants/theme'
 import { useTheme } from '@/hooks/use-theme'
 import { useT } from '@/i18n'
+import { track } from '@/lib/analytics'
 import { useUserId } from '@/lib/auth'
 import { receiptDraft } from '@/lib/draft'
 import {
@@ -87,6 +88,7 @@ export default function ReviewScreen() {
     setError(null)
     try {
       const id = await createReceipt({ ...draft, items: parsedItems, total }, userId)
+      track('split_created', { items: parsedItems.length, currency: draft.currency || null })
       receiptDraft.clear()
       router.replace(`/receipts/${id}`)
     } catch (e) {

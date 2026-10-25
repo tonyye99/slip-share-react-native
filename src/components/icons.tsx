@@ -324,6 +324,23 @@ export function ShieldIcon({ color, size = 20, weight = 1.8 }: { color: string; 
   )
 }
 
+/** A small bar chart, for usage stats. */
+export function ChartIcon({ color, size = 20, weight = 1.8 }: { color: string; size?: number; weight?: number }) {
+  const edges: [Point, Point][] = [
+    [[4, 20], [20, 20]],
+    [[7, 20], [7, 13]],
+    [[12, 20], [12, 6]],
+    [[17, 20], [17, 10]],
+  ]
+  return (
+    <View style={{ width: size, height: size }}>
+      {edges.map(([from, to], index) => (
+        <Line key={index} from={from} to={to} scale={size / 24} color={color} weight={weight} />
+      ))}
+    </View>
+  )
+}
+
 /**
  * Three sliders, for settings. `background` fills each knob so the line
  * behind it is hidden.

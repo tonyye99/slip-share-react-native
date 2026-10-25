@@ -1,16 +1,24 @@
-import { DarkTheme, DefaultTheme, Stack, ThemeProvider } from 'expo-router'
+import { DarkTheme, DefaultTheme, Stack, ThemeProvider, useSegments } from 'expo-router'
 import * as SplashScreen from 'expo-splash-screen'
 import { useEffect } from 'react'
 import { useColorScheme } from 'react-native'
 
 import { Colors } from '@/constants/theme'
 import { LanguageProvider } from '@/i18n'
+import { trackScreen } from '@/lib/analytics'
+import { screenName } from '@/lib/analytics-events'
 import { AuthProvider, useAuth } from '@/lib/auth'
 
 SplashScreen.preventAutoHideAsync()
 
 function RootStack() {
   const { session, loading } = useAuth()
+  const segments = useSegments()
+  const screen = screenName(segments)
+
+  useEffect(() => {
+    trackScreen(screen)
+  }, [screen])
 
   useEffect(() => {
     if (!loading) SplashScreen.hideAsync()

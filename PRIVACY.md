@@ -1,8 +1,8 @@
 # SlipShare Privacy Policy
 
-Last updated: October 23, 2026
+Last updated: October 25, 2026
 
-SlipShare is an app for splitting restaurant bills with friends. This policy explains what the SlipShare mobile app collects, why, who can see it, and how to delete it.
+SlipShare is an app for splitting restaurant bills with friends. This policy explains what the SlipShare app and website collect, why, who can see it, and how to delete it.
 
 ## What we collect
 
@@ -11,8 +11,9 @@ SlipShare is an app for splitting restaurant bills with friends. This policy exp
 - **Your bill splits.** The names you type for the people you split a receipt with, who had each item, who paid the bill, who has paid back, and what each person owes. Friends' names are only used to show the split to you, and to friends you send a link to.
 - **Friend links.** If you send a friend link for a receipt, the names friends type when they open it and the items they tick.
 - **Scan counts.** How many receipts you scanned each day, so we can apply the daily scan limit.
+- **Usage stats and crash reports.** Unless you turn them off, the app and website send PostHog anonymous events such as "split created", "link shared", "friend joined" and "marked paid", which screen was open, and error reports when something breaks. These include a random ID for your phone or browser, the app version, the type of phone or browser, its language and your rough location worked out from your IP address. They never include your name, email, receipts, amounts, or the names you type. We use them to see which features people use and to fix bugs.
 
-We do **not** collect your location, contacts, advertising ID, or usage analytics, and the app has no ads or trackers.
+We do **not** collect your contacts or advertising ID, the app has no ads, and we don't track you across other companies' apps or websites.
 
 ## Receipt photos and AI
 
@@ -35,6 +36,7 @@ You can turn off receipt scanning at any time in **Account > Privacy**. The app 
 - **Service providers we use to run SlipShare:**
   - [Supabase](https://supabase.com/privacy) hosts our database, sign-in and server code.
   - [OpenAI](https://openai.com/policies/privacy-policy/) reads receipt photos, as described above.
+  - [PostHog](https://posthog.com/privacy) receives the usage stats and crash reports described above.
   - Apple and Google handle sign-in if you choose them.
 
 We do not sell your information or share it for advertising.
@@ -59,6 +61,7 @@ You don't need an account. When you type your name and tick items, they're saved
 - Turn a receipt's friend link on and off on that receipt.
 - Delete a receipt by swiping it left in your list, or with **Delete receipt** at the bottom of it.
 - Turn receipt scanning off and on in **Account > Privacy**.
+- Turn usage stats and crash reports off in **Account > Privacy**. On the website this applies to that browser.
 - Delete your account and all your data in **Account**.
 - Ask us a question about your data using the contact details below.
 
