@@ -25,8 +25,8 @@
     "expo-web-browser": "~58.0.6",
     "posthog-js": "^1.438.21",
     "posthog-react-native": "^4.83.0",
-    "react": "19.3.0",
-    "react-dom": "19.3.0",
+    "react": "19.3.1",
+    "react-dom": "19.3.1",
     "react-native": "0.88.0",
     "react-native-safe-area-context": "~5.10.1",
     "react-native-screens": "~4.30.0",
@@ -35,7 +35,7 @@
   },
   "devDependencies": {
     "@types/node": "^26.6.5",
-    "@types/react": "~19.2.2",
+    "@types/react": "~19.3.0",
     "eslint": "^9.39.5",
     "eslint-config-expo": "~58.0.4",
     "typescript": "~6.0.3"
