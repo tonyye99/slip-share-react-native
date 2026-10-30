@@ -90,7 +90,7 @@ Builds use the `slipshare://` redirect URL, so `exp://**` in Supabase is only ne
 
 ## Website (EAS Hosting)
 
-The same app runs in a browser. `app.json` uses `web.output: "server"`, so every screen, including `receipts/<id>`, opens straight from a link. Try it locally with `npm run web`.
+The same app runs in a browser. `app.json` uses `web.output: "static"` with `apiRoutes: true` on the expo-router plugin: every page is built ahead of time, and the routes file that comes with `apiRoutes` lets EAS Hosting open every screen straight from a link, including `receipts/<id>` and `pick/<token>`. Don't switch to `web.output: "server"`. Since SDK 58 that builds each page on the server when it's opened, and EAS Hosting can't run that yet: every page crashed with "Cannot read properties of undefined (reading 'generated')". Try it locally with `npm run web`, or test the real build with `npx expo export --platform web && npx expo serve`.
 
 Differences from the phone app: no Sign in with Apple; Google sign-in goes to Google in the same tab and come back to `/auth/callback`; Camera opens the phone's camera in a mobile browser and a file picker on a computer; pop-up messages use the browser's own dialogs (`src/lib/alert.ts`).
 
