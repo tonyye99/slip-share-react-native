@@ -1,9 +1,10 @@
-import { useEffect, useState } from 'react'
+import { router, useFocusEffect } from 'expo-router'
+import { useCallback, useEffect, useState } from 'react'
 import { ActivityIndicator, Linking, Platform, Pressable, ScrollView, StyleSheet, View } from 'react-native'
 
 import { AccountPhoto } from '@/components/account-photo'
 import { SettingsGroup, SettingsRow } from '@/components/account/settings-list'
-import { ChartIcon, GlobeIcon, ScanIcon, SendIcon, ShieldIcon, SignOutIcon, SlidersIcon } from '@/components/icons'
+import { ChartIcon, GlobeIcon, ScanIcon, SendIcon, ShieldIcon, SignOutIcon, SlidersIcon, WalletIcon } from '@/components/icons'
 import { LanguagePicker } from '@/components/language-picker'
 import { ScreenHeader } from '@/components/screen-header'
 import { Toggle } from '@/components/toggle'
@@ -17,6 +18,8 @@ import { analyticsAvailable, analyticsOn, setAnalyticsOn } from '@/lib/analytics
 import { useAuth } from '@/lib/auth'
 import { getAiConsent, giveAiConsent, openPrivacyPolicy, withdrawAiConsent } from '@/lib/consent'
 import { sendFeedback } from '@/lib/feedback'
+import { payTitle } from '@/lib/pay-lines'
+import { listPayMethods, type PayMethod } from '@/lib/pay-methods'
 import { supabase } from '@/lib/supabase'
 
 const longDate = (iso: string) =>
@@ -31,6 +34,23 @@ export default function AccountScreen() {
   const [consentedAt, setConsentedAt] = useState<string | null | 'checking' | 'unknown'>('checking')
   const [saving, setSaving] = useState(false)
   const [statsOn, setStatsOn] = useState(analyticsOn)
+  // Your ways to get paid, for the line under How to pay me; null until loaded.
+  const [payMethods, setPayMethods] = useState<PayMethod[] | null>(null)
+
+  // Comes back here after adding or changing one.
+  useFocusEffect(
+    useCallback(() => {
+      let live = true
+      listPayMethods()
+        .then((methods) => {
+          if (live) setPayMethods(methods)
+        })
+        .catch((e) => console.error('Loading ways to get paid failed', e))
+      return () => {
+        live = false
+      }
+    }, []),
+  )
 
   const toggleStats = (on: boolean) => {
     setStatsOn(on)
@@ -45,6 +65,14 @@ export default function AccountScreen() {
         setConsentedAt('unknown')
       })
   }, [])
+
+  // "PromptPay, Kasikorn Bank", or a nudge to add one.
+  const paySummary =
+    payMethods === null
+      ? ' '
+      : payMethods.length > 0
+        ? [...new Set(payMethods.map(payTitle))].join(', ')
+        : t.pay.rowEmpty
 
   const known = consentedAt !== 'checking' && consentedAt !== 'unknown'
   const scanningOn = known && consentedAt !== null
@@ -110,6 +138,17 @@ export default function AccountScreen() {
             {t.account.signedIn}
           </AppText>
         </View>
+
+        <SettingsGroup title={t.pay.gettingPaid}>
+          <SettingsRow
+            tone="primary"
+            icon={(color) => <WalletIcon color={color} size={18} />}
+            title={t.pay.title}
+            subtitle={paySummary}
+            chevron
+            onPress={() => router.push('/pay-methods')}
+          />
+        </SettingsGroup>
 
         <SettingsGroup title={t.account.privacy}>
           <SettingsRow

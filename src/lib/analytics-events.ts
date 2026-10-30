@@ -12,6 +12,8 @@ export type AnalyticsEvent =
   | 'totals_sent'
   | 'marked_paid'
   | 'all_settled'
+  | 'pay_method_saved'
+  | 'pay_qr_saved'
 
 export type AnalyticsProps = Record<string, string | number | boolean | null>
 

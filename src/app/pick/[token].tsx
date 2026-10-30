@@ -5,6 +5,7 @@ import { SafeAreaView } from 'react-native-safe-area-context'
 
 import { Avatar, usePersonColor } from '@/components/chip'
 import { CheckBoxIcon, ClockIcon } from '@/components/icons'
+import { PayCard } from '@/components/pay-card'
 import { ScreenHeader } from '@/components/screen-header'
 import { SlipCard } from '@/components/slip-card'
 import { AppText, Button, Card, Divider, Input, Row, Segmented, Stepper } from '@/components/ui'
@@ -242,6 +243,8 @@ export default function PickScreen() {
   const payerName = payer ? (payer.id === me?.id ? t.common.youInSentence : payer.name) : null
   const mineCount = me ? receipt.items.filter((item) => item.person_ids.includes(me.id)).length : 0
   const owes = !!payer && !!me && payer.id !== me.id
+  // The owner's ways to get paid come only on bills they paid.
+  const payMethods = payer?.is_owner ? (receipt.pay_methods ?? []) : []
 
   const languageSwitch = (
     <Segmented
@@ -448,15 +451,21 @@ export default function PickScreen() {
             </Card>
 
             {owes && !me.paid && (mine?.total ?? 0) > 0 && (
-              <SlipCard
-                payerName={payer.name}
-                ownerName={ownerName}
-                sent={!!me.slip_sent}
-                preview={slipPreview}
-                busy={slipBusy}
-                onAdd={addSlip}
-                onRemove={removeSlip}
-              />
+              <>
+                {payMethods.length > 0 && (
+                  <PayCard payerName={payer.name} methods={payMethods} amount={mine!.total} currency={receipt.currency} />
+                )}
+                <SlipCard
+                  payerName={payer.name}
+                  ownerName={ownerName}
+                  sent={!!me.slip_sent}
+                  preview={slipPreview}
+                  busy={slipBusy}
+                  step={payMethods.length > 0}
+                  onAdd={addSlip}
+                  onRemove={removeSlip}
+                />
+              </>
             )}
           </>
         )}

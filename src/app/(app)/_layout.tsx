@@ -15,6 +15,8 @@ export default function AppLayout() {
       <Stack.Screen name="review" options={{ title: t.review }} />
       <Stack.Screen name="receipts/[id]" options={{ title: t.split }} />
       <Stack.Screen name="account" options={{ title: t.account }} />
+      <Stack.Screen name="pay-methods" options={{ title: t.payMethods }} />
+      <Stack.Screen name="pay-method" options={{ title: t.payMethods }} />
     </Stack>
   )
 }

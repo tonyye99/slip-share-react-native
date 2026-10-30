@@ -279,11 +279,14 @@ export function Segmented<T extends string>({
   value,
   onChange,
   accessibilityLabel,
+  stretch,
 }: {
   options: { value: T; label: string }[]
   value: T
   onChange: (value: T) => void
   accessibilityLabel?: string
+  /** Fill the width, with taller options shared out evenly, like PromptPay | Bank. */
+  stretch?: boolean
 }) {
   const theme = useTheme()
   return (
@@ -300,8 +303,11 @@ export function Segmented<T extends string>({
             accessibilityRole="radio"
             accessibilityState={{ selected }}
             hitSlop={4}
-            style={[styles.segment, selected && { backgroundColor: theme.surface }]}>
-            <AppText variant="caption" style={{ color: selected ? theme.text : theme.textSecondary, fontWeight: '600' }}>
+            style={[styles.segment, stretch && styles.segmentStretch, selected && { backgroundColor: theme.surface }]}>
+            <AppText
+              variant={stretch ? 'label' : 'caption'}
+              numberOfLines={1}
+              style={{ color: selected ? theme.text : theme.textSecondary, fontWeight: '600' }}>
               {option.label}
             </AppText>
           </Pressable>
@@ -376,6 +382,7 @@ const styles = StyleSheet.create({
   stepValue: { minWidth: 20, textAlign: 'center' },
   segmented: { flexDirection: 'row', borderRadius: Radius.small + 2, borderWidth: 1, padding: 2 },
   segment: { borderRadius: Radius.small, paddingHorizontal: Spacing.two + 2, paddingVertical: Spacing.one + 1 },
+  segmentStretch: { flex: 1, alignItems: 'center', paddingVertical: Spacing.two },
   tabs: { flexDirection: 'row', gap: Spacing.four, borderBottomWidth: StyleSheet.hairlineWidth },
   tab: { paddingVertical: Spacing.two + 2, borderBottomWidth: 2, marginBottom: -StyleSheet.hairlineWidth },
 })

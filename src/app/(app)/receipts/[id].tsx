@@ -24,6 +24,8 @@ import { dateLocale, useT } from '@/i18n'
 import { confirmDestructive, showAlert } from '@/lib/alert'
 import { track } from '@/lib/analytics'
 import { friendLinksAvailable, friendLinkUrl } from '@/lib/link-picks'
+import { withPayMe } from '@/lib/pay-lines'
+import { listPayMethods, type PayMethod } from '@/lib/pay-methods'
 import { bothNames, cleanName, originalLabel } from '@/lib/names'
 import {
   addItemPeople,
@@ -61,6 +63,8 @@ export default function SplitScreen() {
   const [people, setPeople] = useState<ReceiptPerson[]>([])
   const [picks, setPicks] = useState<Counts>({})
   const [recentNames, setRecentNames] = useState<string[]>([])
+  // Your ways to get paid, added to Send totals on bills you paid.
+  const [payMethods, setPayMethods] = useState<PayMethod[]>([])
   const [adding, setAdding] = useState(false)
   const [showEnglish, setShowEnglish] = useState(false)
   const [linkBusy, setLinkBusy] = useState(false)
@@ -100,6 +104,9 @@ export default function SplitScreen() {
     getRecentNames()
       .then(setRecentNames)
       .catch((e) => console.error('Could not load recent names', e))
+    listPayMethods()
+      .then(setPayMethods)
+      .catch((e) => console.error('Could not load ways to get paid', e))
   }, [id, show, notFound])
 
   const split = useMemo(
@@ -320,9 +327,13 @@ export default function SplitScreen() {
       })),
       unassigned: split.unassigned.total,
     })
+  // On a bill you paid: "Pay me" and how, then the friend link, where each friend gets their own QR.
   const sendTotals = () => {
     track('totals_sent')
-    return shareText(totalsText())
+    if (!payer?.is_me) return shareText(totalsText())
+    const link =
+      receipt.link_enabled && receipt.share_token && friendLinksAvailable ? friendLinkUrl(receipt.share_token) : null
+    return shareText(withPayMe(totalsText(), payMethods, link))
   }
 
   // Friends who open the link pick their own items; pull down to see them.

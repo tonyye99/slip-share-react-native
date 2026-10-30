@@ -17,6 +17,7 @@ export function SlipCard({
   sent,
   preview,
   busy,
+  step,
   onAdd,
   onRemove,
 }: {
@@ -27,11 +28,13 @@ export function SlipCard({
   /** The photo you just sent, while this page is open. The page can't load it back later. */
   preview: string | null
   busy: boolean
+  /** Shown under the Pay card, as its second step. */
+  step?: boolean
   onAdd: () => void
   onRemove: () => void
 }) {
   const theme = useTheme()
-  const { common, pick: t } = useT()
+  const { common, pick: t, pay } = useT()
 
   if (!sent) {
     return (
@@ -41,8 +44,8 @@ export function SlipCard({
             <ReceiptIcon color={theme.primary} size={20} />
           </View>
           <View style={styles.flex}>
-            <AppText variant="heading">{t.slipTitle(payerName)}</AppText>
-            <AppText variant="caption">{t.slipHint(ownerName)}</AppText>
+            <AppText variant="heading">{step ? pay.slipStepTitle : t.slipTitle(payerName)}</AppText>
+            <AppText variant="caption">{step ? pay.slipStepHint(ownerName) : t.slipHint(ownerName)}</AppText>
           </View>
         </View>
         <Button

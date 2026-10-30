@@ -26,6 +26,8 @@ import {
   type Bill,
   type BillState,
 } from '@/lib/bills'
+import { withPayMe } from '@/lib/pay-lines'
+import { listPayMethods, type PayMethod } from '@/lib/pay-methods'
 import { pickedPhoto, pickPhoto } from '@/lib/photo'
 import { confirmDeleteReceipt, deleteReceipt, listBills } from '@/lib/receipts'
 import { shareText } from '@/lib/share-text'
@@ -88,10 +90,16 @@ export default function HomeScreen() {
     }
   }, [loadFailed])
 
+  // Your ways to get paid, for Remind. Loaded ahead so the share sheet opens straight from the tap.
+  const [payMethods, setPayMethods] = useState<PayMethod[]>([])
+
   // Reload when coming back from a bill, which may have changed.
   useFocusEffect(
     useCallback(() => {
       loadFirstPage()
+      listPayMethods()
+        .then(setPayMethods)
+        .catch((e) => console.error('Could not load ways to get paid', e))
     }, [loadFirstPage]),
   )
 
@@ -141,7 +149,8 @@ export default function HomeScreen() {
   const remind = () => {
     if (!top) return
     const money = (amount: number) => formatMoney(amount, top.bill.currency)
-    shareText(reminderText(top.debt, billName(top.bill), dateLabel(new Date(top.bill.created_at), now), money))
+    const text = reminderText(top.debt, billName(top.bill), dateLabel(new Date(top.bill.created_at), now), money)
+    shareText(withPayMe(text, payMethods))
   }
 
   const header = (
