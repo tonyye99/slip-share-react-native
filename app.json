@@ -16,7 +16,8 @@
       "usesAppleSignIn": true,
       "config": {
         "usesNonExemptEncryption": false
-      }
+      },
+      "infoPlist": {}
     },
     "android": {
       "adaptiveIcon": {
@@ -26,7 +27,10 @@
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
       "predictiveBackGestureEnabled": false,
-      "package": "com.tonyye99.slipshare"
+      "package": "com.tonyye99.slipshare",
+      "permissions": [
+        "android.permission.RECORD_AUDIO"
+      ]
     },
     "web": {
       "output": "server",
@@ -56,6 +60,16 @@
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
+    },
+    "extra": {
+      "router": {
+        "asyncRoutes": {
+          "web": true
+        }
+      },
+      "eas": {
+        "projectId": "dd0edd90-1468-4b04-8ffc-41e3c806e027"
+      }
     }
   }
 }
