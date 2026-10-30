@@ -1,6 +1,6 @@
 # SlipShare Privacy Policy
 
-Last updated: October 25, 2026
+Last updated: October 30, 2026
 
 SlipShare is an app for splitting restaurant bills with friends. This policy explains what the SlipShare app and website collect, why, who can see it, and how to delete it.
 
@@ -11,6 +11,7 @@ SlipShare is an app for splitting restaurant bills with friends. This policy exp
 - **Your bill splits.** The names you type for the people you split a receipt with, who had each item, who paid the bill, who has paid back, and what each person owes. Friends' names are only used to show the split to you, and to friends you send a link to.
 - **Friend links.** If you send a friend link for a receipt, the names friends type when they open it and the items they tick.
 - **Transfer slips.** On a friend link, a friend can add a screenshot of the bank transfer they made to pay back. We store that picture so the person who shared the bill can check it. It can show names, bank details, the amount and the time of the transfer.
+- **How to pay me.** The ways to pay you back that you add in **Account > How to pay me**: a PromptPay phone number, national ID or e-wallet ID, a bank account (bank, account number and the name on it), or a note in your own words, and the name you want friends to see.
 - **Scan counts.** How many receipts you scanned each day, so we can apply the daily scan limit.
 - **Usage stats and crash reports.** Unless you turn them off, the app and website send PostHog anonymous events such as "split created", "link shared", "friend joined" and "marked paid", which screen was open, and error reports when something breaks. These include a random ID for your phone or browser, the app version, the type of phone or browser, its language and your rough location worked out from your IP address. They never include your name, email, receipts, amounts, or the names you type. We use them to see which features people use and to fix bugs.
 
@@ -34,6 +35,7 @@ You can turn off receipt scanning at any time in **Account > Privacy**. The app 
 
 - **Only you can see your receipts and splits in SlipShare**, unless you send a friend link for a receipt. When you tap **Send totals**, your phone's share sheet opens and you choose where the text goes, for example LINE or WhatsApp. That app's privacy policy covers what happens next.
 - **People with a friend link.** A friend link opens that one receipt on the SlipShare website. Anyone who has the link can see the shop name, items, prices, the names on the receipt (your line shows your display name), who had each item and who paid, and can add their name and tick items. They don't need an account. The link only works while you have it turned on; turning it off stops it for everyone, and sharing again makes a new link.
+- **How to pay me.** On a bill you paid, everyone with its friend link can see your ways to get paid, including the full PromptPay number or account number, so they can pay you. They are not shown on bills someone else paid, or once you turn the link off. **Send totals** and **Remind** also add them to the text you share.
 - **Transfer slips** can only be seen by the person who shared the bill. Others with the link only see that a slip was sent, not the picture.
 - **Service providers we use to run SlipShare:**
   - [Supabase](https://supabase.com/privacy) hosts our database, sign-in and server code.
@@ -49,9 +51,9 @@ All data travels over encrypted connections (HTTPS). Your sign-in session is kep
 
 ## How long we keep it
 
-We keep your account and receipts until you delete them or your account. A transfer slip is deleted when the friend who sent it removes it, when that person is removed from the receipt, or when the receipt or your account is deleted.
+We keep your account, receipts and ways to get paid until you delete them or your account. A transfer slip is deleted when the friend who sent it removes it, when that person is removed from the receipt, or when the receipt or your account is deleted.
 
-To delete your account, open **Account** in the app and tap **Delete account**. This permanently deletes your account, every receipt you scanned with the names, payments and transfer slips on it, your scan counts and your permission for receipt scanning. Your SlipShare account also works on the SlipShare website, so this deletes it there too.
+To delete your account, open **Account** in the app and tap **Delete account**. This permanently deletes your account, every receipt you scanned with the names, payments and transfer slips on it, your ways to get paid, your scan counts and your permission for receipt scanning. Your SlipShare account also works on the SlipShare website, so this deletes it there too.
 
 ## If a friend sent you a link
 
@@ -63,6 +65,7 @@ If you add a screenshot of your transfer, only the friend who shared the bill ca
 
 - See and edit your receipts in the app.
 - Turn a receipt's friend link on and off on that receipt.
+- Add, change or remove your ways to get paid in **Account > How to pay me**.
 - Delete a receipt by swiping it left in your list, or with **Delete receipt** at the bottom of it.
 - Turn receipt scanning off and on in **Account > Privacy**.
 - Turn usage stats and crash reports off in **Account > Privacy**. On the website this applies to that browser.

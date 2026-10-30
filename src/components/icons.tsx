@@ -580,3 +580,147 @@ export function Logo({ size = 28 }: { size?: number }) {
 const styles = StyleSheet.create({
   round: { borderWidth: 1.5, alignItems: 'center', justifyContent: 'center' },
 })
+
+/** A wallet, for How to pay me. */
+export function WalletIcon({ color, size = 20, weight = 1.8 }: { color: string; size?: number; weight?: number }) {
+  const s = size / 24
+  return (
+    <View style={{ width: size, height: size }}>
+      <View
+        style={{
+          position: 'absolute',
+          left: 3 * s,
+          top: 6 * s,
+          width: 18 * s,
+          height: 13 * s,
+          borderWidth: weight,
+          borderColor: color,
+          borderRadius: 3 * s,
+        }}
+      />
+      <Line from={[6, 6]} to={[15, 3.5]} scale={s} color={color} weight={weight} />
+      <Line from={[15, 3.5]} to={[16.5, 6]} scale={s} color={color} weight={weight} />
+      <View
+        style={{
+          position: 'absolute',
+          right: 3 * s,
+          top: 10.5 * s,
+          width: 6 * s,
+          height: 4.5 * s,
+          borderWidth: weight,
+          borderColor: color,
+          borderTopLeftRadius: 2 * s,
+          borderBottomLeftRadius: 2 * s,
+        }}
+      />
+    </View>
+  )
+}
+
+/** Three corner squares and a few dots, for a QR code. */
+export function QrIcon({ color, size = 20, weight = 1.8 }: { color: string; size?: number; weight?: number }) {
+  const s = size / 24
+  const corner = (left: number, top: number) => (
+    <View
+      style={{
+        position: 'absolute',
+        left: left * s,
+        top: top * s,
+        width: 8 * s,
+        height: 8 * s,
+        borderWidth: weight,
+        borderColor: color,
+        borderRadius: 1.5 * s,
+      }}
+    />
+  )
+  const dot = (left: number, top: number) => (
+    <View style={{ position: 'absolute', left: left * s, top: top * s, width: 3 * s, height: 3 * s, backgroundColor: color, borderRadius: 0.5 * s }} />
+  )
+  return (
+    <View style={{ width: size, height: size }}>
+      {corner(3, 3)}
+      {corner(13, 3)}
+      {corner(3, 13)}
+      {dot(13.5, 13.5)}
+      {dot(17.5, 17.5)}
+      {dot(17.5, 13.5)}
+      {dot(13.5, 17.5)}
+    </View>
+  )
+}
+
+/** A bank: a roof, three pillars and a step. */
+export function BankIcon({ color, size = 20, weight = 1.8 }: { color: string; size?: number; weight?: number }) {
+  const lines: [Point, Point][] = [
+    [[3, 9], [12, 3.5]],
+    [[12, 3.5], [21, 9]],
+    [[3, 9], [21, 9]],
+    [[6, 11.5], [6, 17]],
+    [[12, 11.5], [12, 17]],
+    [[18, 11.5], [18, 17]],
+    [[3, 20], [21, 20]],
+  ]
+  return (
+    <View style={{ width: size, height: size }}>
+      {lines.map(([from, to], index) => (
+        <Line key={index} from={from} to={to} scale={size / 24} color={color} weight={weight} />
+      ))}
+    </View>
+  )
+}
+
+/** A page with lines on it, for a note in your own words. */
+export function NoteIcon({ color, size = 20, weight = 1.8 }: { color: string; size?: number; weight?: number }) {
+  const s = size / 24
+  return (
+    <View style={{ width: size, height: size }}>
+      <View
+        style={{
+          position: 'absolute',
+          left: 5 * s,
+          top: 3 * s,
+          width: 14 * s,
+          height: 18 * s,
+          borderWidth: weight,
+          borderColor: color,
+          borderRadius: 2.5 * s,
+        }}
+      />
+      <Line from={[8.5, 8.5]} to={[15.5, 8.5]} scale={s} color={color} weight={weight} />
+      <Line from={[8.5, 12]} to={[15.5, 12]} scale={s} color={color} weight={weight} />
+      <Line from={[8.5, 15.5]} to={[12.5, 15.5]} scale={s} color={color} weight={weight} />
+    </View>
+  )
+}
+
+/** Two pages, one over the other, for Copy. */
+export function CopyIcon({ color, size = 16, weight = 1.8 }: { color: string; size?: number; weight?: number }) {
+  const s = size / 24
+  const page = { position: 'absolute' as const, width: 13 * s, height: 13 * s, borderWidth: weight, borderColor: color, borderRadius: 2.5 * s }
+  return (
+    <View style={{ width: size, height: size }}>
+      <View style={[page, { left: 3 * s, top: 3 * s, borderRightColor: 'transparent', borderBottomColor: 'transparent' }]} />
+      <View style={[page, { left: 8 * s, top: 8 * s }]} />
+    </View>
+  )
+}
+
+/** An arrow down into a tray, for saving a picture. */
+export function DownloadIcon({ color, size = 18, weight = 2 }: { color: string; size?: number; weight?: number }) {
+  const lines: [Point, Point][] = [
+    [[12, 3], [12, 15]],
+    [[7, 10.5], [12, 15]],
+    [[17, 10.5], [12, 15]],
+    [[4, 15], [4, 20]],
+    [[4, 20], [20, 20]],
+    [[20, 20], [20, 15]],
+  ]
+  return (
+    <View style={{ width: size, height: size }}>
+      {lines.map(([from, to], index) => (
+        <Line key={index} from={from} to={to} scale={size / 24} color={color} weight={weight} />
+      ))}
+    </View>
+  )
+}

@@ -2,19 +2,21 @@ import { Children, type ReactNode } from 'react'
 import { Pressable, StyleSheet, View } from 'react-native'
 
 import { ChevronRight } from '@/components/icons'
-import { AppText } from '@/components/ui'
+import { AppText, Tag } from '@/components/ui'
 import { Radius, Spacing } from '@/constants/theme'
 import { useTheme } from '@/hooks/use-theme'
 
 /** A small grey heading, like "PRIVACY", over one card of rows split by thin lines. */
-export function SettingsGroup({ title, children }: { title: string; children: ReactNode }) {
+export function SettingsGroup({ title, children }: { title?: string; children: ReactNode }) {
   const theme = useTheme()
   const rows = Children.toArray(children)
   return (
     <View style={styles.group}>
-      <AppText variant="overline" style={[styles.groupTitle, { color: theme.textSecondary }]} accessibilityRole="header">
-        {title}
-      </AppText>
+      {title ? (
+        <AppText variant="overline" style={[styles.groupTitle, { color: theme.textSecondary }]} accessibilityRole="header">
+          {title}
+        </AppText>
+      ) : null}
       <View style={[styles.card, { backgroundColor: theme.surface }]}>
         {rows.map((row, index) => (
           <View
@@ -36,6 +38,7 @@ export function SettingsRow({
   icon,
   tone = 'neutral',
   title,
+  badge,
   subtitle,
   right,
   chevron,
@@ -47,6 +50,8 @@ export function SettingsRow({
   /** `primary` tints the tile blue. */
   tone?: 'neutral' | 'primary'
   title: string
+  /** A small blue label after the title, like "QR with amount". */
+  badge?: string
   subtitle?: string
   right?: ReactNode
   chevron?: boolean
@@ -60,9 +65,16 @@ export function SettingsRow({
     <View style={[styles.row, subtitle ? styles.tall : null, { backgroundColor: pressed ? theme.primaryTint : 'transparent' }]}>
       <View style={[styles.tile, { backgroundColor: tile }]}>{icon(ink, tile)}</View>
       <View style={styles.text}>
-        <AppText variant="heading">{title}</AppText>
+        {badge ? (
+          <View style={styles.titleRow}>
+            <AppText variant="heading">{title}</AppText>
+            <Tag label={badge} tone="primary" />
+          </View>
+        ) : (
+          <AppText variant="heading">{title}</AppText>
+        )}
         {subtitle ? (
-          <AppText variant="muted" style={[styles.subtitle, { color: theme.textSecondary }]}>
+          <AppText variant="muted" numberOfLines={2} style={[styles.subtitle, { color: theme.textSecondary }]}>
             {subtitle}
           </AppText>
         ) : null}
@@ -77,7 +89,7 @@ export function SettingsRow({
       onPress={onPress}
       disabled={disabled}
       accessibilityRole="button"
-      accessibilityLabel={title}
+      accessibilityLabel={badge ? `${title}, ${badge}` : title}
       accessibilityHint={accessibilityHint}
       style={{ opacity: disabled ? 0.5 : 1 }}>
       {({ pressed }) => body(pressed)}
@@ -100,5 +112,6 @@ const styles = StyleSheet.create({
   tall: { paddingVertical: Spacing.three - 4 },
   tile: { width: 36, height: 36, borderRadius: Radius.medium - 2, alignItems: 'center', justifyContent: 'center' },
   text: { flex: 1, gap: 2 },
+  titleRow: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: Spacing.two },
   subtitle: { lineHeight: 18 },
 })

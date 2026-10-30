@@ -1,6 +1,7 @@
 import { Platform } from 'react-native'
 
 import { strings } from '@/i18n/strings'
+import type { PayDetails } from '@/lib/pay-lines'
 import { secureStorage } from '@/lib/secure-storage'
 import { readSavedCharges } from '@/lib/split'
 import { supabase } from '@/lib/supabase'
@@ -45,6 +46,8 @@ export interface LinkReceipt {
   total: number
   items: LinkItem[]
   people: LinkPerson[]
+  /** How to pay the owner, first one first. Only on bills the owner paid; missing before that migration. */
+  pay_methods?: PayDetails[]
 }
 
 /** Who you are on a link. This device keeps it so you can come back later. */
