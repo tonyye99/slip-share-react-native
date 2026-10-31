@@ -380,8 +380,15 @@ export const en = {
     promptpay: (number: string, name: string | null) => `PromptPay ${number}${name ? ` (${name})` : ''}`,
     promptpayQr: (name: string | null) => `PromptPay QR${name ? ` (${name})` : ''}`,
     bank: (bank: string, account: string, name: string | null) => `${bank} ${account}${name ? ` (${name})` : ''}`,
-    link: (url: string, qr: boolean) =>
-      qr ? `Tick what you had and get your pay QR: ${url}` : `Tick what you had and see how to pay: ${url}`,
+    sendTitle: 'Send totals',
+    sendSubtitle: 'Send the message to the group, then your QR picture.',
+    messageStep: 'Message',
+    sendMessage: 'Send message',
+    qrStep: 'Your PromptPay QR',
+    sendQr: 'Send QR picture',
+    qrNoAmount: 'No amount in it, so it works for everyone. Friends scan it in their banking app and type what they owe.',
+    qrA11y: (name: string) => `PromptPay QR for ${name}`,
+    sent: 'Sent',
   },
 
   names: {

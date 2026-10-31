@@ -396,7 +396,15 @@ export const th: Strings = {
     promptpay: (number, name) => `พร้อมเพย์ ${number}${name ? ` (${name})` : ''}`,
     promptpayQr: (name) => `คิวอาร์พร้อมเพย์${name ? ` (${name})` : ''}`,
     bank: (bank, account, name) => `${bank} ${account}${name ? ` (${name})` : ''}`,
-    link: (url, qr) => (qr ? `ติ๊กสิ่งที่คุณกินและรับคิวอาร์จ่ายเงินได้ที่: ${url}` : `ติ๊กสิ่งที่คุณกินและดูวิธีจ่ายได้ที่: ${url}`),
+    sendTitle: 'ส่งยอด',
+    sendSubtitle: 'ส่งข้อความเข้ากลุ่ม แล้วส่งรูปคิวอาร์ของคุณ',
+    messageStep: 'ข้อความ',
+    sendMessage: 'ส่งข้อความ',
+    qrStep: 'คิวอาร์พร้อมเพย์ของคุณ',
+    sendQr: 'ส่งรูปคิวอาร์',
+    qrNoAmount: 'คิวอาร์นี้ไม่มียอดเงิน ใช้ได้กับทุกคน เพื่อนสแกนด้วยแอปธนาคารแล้วใส่ยอดที่ต้องจ่ายเอง',
+    qrA11y: (name) => `คิวอาร์พร้อมเพย์ของ${tail(name)}`,
+    sent: 'ส่งแล้ว',
   },
 
   names: {

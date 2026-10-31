@@ -65,6 +65,38 @@ export async function saveQrImage(
   caption: string[],
   fileName: string,
 ): Promise<'saved' | 'shared' | 'hold'> {
+  const blob = await qrPicture(text, caption)
+
+  if (isApplePhone()) {
+    const file = new File([blob], fileName, { type: 'image/png' })
+    if (!navigator.canShare?.({ files: [file] })) return 'hold'
+    try {
+      await navigator.share({ files: [file] })
+    } catch (e) {
+      if ((e as Error)?.name !== 'AbortError') throw e
+    }
+    return 'shared'
+  }
+
+  // Android and computers: straight to Downloads, no pop-up.
+  download(blob, fileName)
+  return 'saved'
+}
+
+/** Starts a download of the picture. */
+export function download(blob: Blob, fileName: string) {
+  const url = URL.createObjectURL(blob)
+  const link = document.createElement('a')
+  link.href = url
+  link.download = fileName
+  document.body.appendChild(link)
+  link.click()
+  link.remove()
+  setTimeout(() => URL.revokeObjectURL(url), 10_000)
+}
+
+/** The code as a PNG with a line or two of text under it. */
+export async function qrPicture(text: string, caption: string[]): Promise<Blob> {
   const modules = qrModules(text)
   const cell = 10
   const code = (modules.length + QUIET_ZONE * 2) * cell
@@ -87,26 +119,5 @@ export async function saveQrImage(
 
   const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, 'image/png'))
   if (!blob) throw new Error('Could not make the picture')
-
-  if (isApplePhone()) {
-    const file = new File([blob], fileName, { type: 'image/png' })
-    if (!navigator.canShare?.({ files: [file] })) return 'hold'
-    try {
-      await navigator.share({ files: [file] })
-    } catch (e) {
-      if ((e as Error)?.name !== 'AbortError') throw e
-    }
-    return 'shared'
-  }
-
-  // Android and computers: straight to Downloads, no pop-up.
-  const url = URL.createObjectURL(blob)
-  const link = document.createElement('a')
-  link.href = url
-  link.download = fileName
-  document.body.appendChild(link)
-  link.click()
-  link.remove()
-  setTimeout(() => URL.revokeObjectURL(url), 10_000)
-  return 'saved'
+  return blob
 }
