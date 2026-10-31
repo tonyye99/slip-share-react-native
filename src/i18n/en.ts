@@ -267,6 +267,8 @@ export const en = {
     whoHadWhat: 'Who had what',
     splitAllEvenly: 'Split all evenly',
     sendTotals: 'Send totals',
+    sendMyShare: 'Send my share',
+    youOweAmount: (amount: string) => `You owe ${amount}`,
     settledMessage: (totals: string) => `All settled ✓\n\n${totals}`,
 
     billTotal: 'Bill total',
