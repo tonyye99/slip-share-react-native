@@ -3,7 +3,7 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
 
-import { billTotal, calculateSplit, checkScan, dropIncludedCharges, receiptSubtotal, readSavedCharges } from './split.ts'
+import { billTotal, checkScan, dropIncludedCharges, receiptSubtotal, readSavedCharges, splitByPicks, type Counts } from './split.ts'
 
 // The example receipt from slip-share's CLAUDE.md: 5% service, then 7% VAT on
 // the items plus service (slip-share stored that VAT as 7.35% of the items).
@@ -15,19 +15,27 @@ const items = [
 ]
 const receipt = { subtotal: 827, tax_percent: 7, service_percent: 5, rounding: 0 }
 
+/** What "me" pays when they had the items in `mine`, sharing the ones in `shared` with one friend. */
+function myShare(bill: typeof receipt, lines: typeof items, mine: string[], shared: string[] = []) {
+  const picks: Counts = {}
+  for (const id of mine) picks[id] = { me: 1 }
+  for (const id of shared) picks[id] = { me: 1, friend: 1 }
+  return splitByPicks(bill, lines, ['me', 'friend'], picks).people.me
+}
+
 test('subtotal sums qty * unit price', () => {
   assert.equal(receiptSubtotal(items), 827)
 })
 
 test('everything selected matches the receipt total', () => {
-  const split = calculateSplit(receipt, items, ['a', 'b', 'c', 'd'], {})
+  const split = myShare(receipt, items, ['a', 'b', 'c', 'd'])
   assert.equal(split.subtotal, 827)
   assert.equal(split.proportion, 1)
   assert.ok(Math.abs(split.total - 929.13) < 0.01)
 })
 
 test('shared item is divided by share count before tax and service', () => {
-  const split = calculateSplit(receipt, items, ['a', 'd'], { a: 2 })
+  const split = myShare(receipt, items, ['d'], ['a'])
   assert.equal(split.subtotal, 289 / 2 + 20)
   assert.ok(Math.abs(split.service - split.subtotal * 0.05) < 1e-9)
   assert.ok(Math.abs(split.tax - split.subtotal * 1.05 * 0.07) < 1e-9)
@@ -39,22 +47,17 @@ test('VAT is charged on the service charge too', () => {
 })
 
 test('rounding is split by share of subtotal', () => {
-  const split = calculateSplit({ ...receipt, rounding: 0.5 }, items, ['a'], {})
+  const split = myShare({ ...receipt, rounding: 0.5 }, items, ['a'])
   assert.ok(Math.abs(split.rounding - 0.5 * (289 / 827)) < 1e-9)
 })
 
 test('decimal prices work', () => {
-  const split = calculateSplit(
-    { subtotal: 45.5, tax_percent: 0, service_percent: 0, rounding: 0 },
-    [{ id: 'x', qty: 1, unit_price: 45.5 }],
-    ['x'],
-    {},
-  )
+  const split = myShare({ subtotal: 45.5, tax_percent: 0, service_percent: 0, rounding: 0 }, [{ id: 'x', qty: 1, unit_price: 45.5 }], ['x'])
   assert.equal(split.total, 45.5)
 })
 
 test('nothing selected is zero', () => {
-  assert.equal(calculateSplit(receipt, items, [], {}).total, 0)
+  assert.equal(myShare(receipt, items, []).total, 0)
 })
 
 test('VAT already in the prices is dropped', () => {

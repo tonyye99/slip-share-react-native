@@ -35,24 +35,6 @@ export interface SplitResult {
   proportion: number
 }
 
-export function itemCostPerPerson(item: SplitItem, shareCount: number | undefined): number {
-  return (item.qty * item.unit_price) / (shareCount || 1)
-}
-
-export function calculateSplit(
-  receipt: SplitReceipt,
-  items: SplitItem[],
-  selectedItemIds: string[],
-  shareCounts: Record<string, number>,
-): SplitResult {
-  const selected = new Set(selectedItemIds)
-  const subtotal = items
-    .filter((item) => selected.has(item.id))
-    .reduce((sum, item) => sum + itemCostPerPerson(item, shareCounts[item.id]), 0)
-
-  return chargesOn(receipt, subtotal)
-}
-
 type Charges = Pick<SplitReceipt, 'service_percent' | 'tax_percent' | 'tax_on_items_only'>
 
 /**

@@ -317,38 +317,6 @@ export function Segmented<T extends string>({
   )
 }
 
-/** Underlined tabs across the top of a screen, like Items | Payments. */
-export function Tabs<T extends string>({
-  tabs,
-  value,
-  onChange,
-}: {
-  tabs: { value: T; label: string }[]
-  value: T
-  onChange: (value: T) => void
-}) {
-  const theme = useTheme()
-  return (
-    <View accessibilityRole="tablist" style={[styles.tabs, { borderColor: theme.hairline }]}>
-      {tabs.map((tab) => {
-        const selected = tab.value === value
-        return (
-          <Pressable
-            key={tab.value}
-            onPress={() => onChange(tab.value)}
-            accessibilityRole="tab"
-            accessibilityState={{ selected }}
-            style={[styles.tab, { borderColor: selected ? theme.primary : 'transparent' }]}>
-            <AppText variant="label" style={{ color: selected ? theme.text : theme.textSecondary }}>
-              {tab.label}
-            </AppText>
-          </Pressable>
-        )
-      })}
-    </View>
-  )
-}
-
 const styles = StyleSheet.create({
   flex: { flex: 1 },
   card: { borderRadius: Radius.large, padding: Spacing.three, gap: Spacing.two },
@@ -383,6 +351,4 @@ const styles = StyleSheet.create({
   segmented: { flexDirection: 'row', borderRadius: Radius.small + 2, borderWidth: 1, padding: 2 },
   segment: { borderRadius: Radius.small, paddingHorizontal: Spacing.two + 2, paddingVertical: Spacing.one + 1 },
   segmentStretch: { flex: 1, alignItems: 'center', paddingVertical: Spacing.two },
-  tabs: { flexDirection: 'row', gap: Spacing.four, borderBottomWidth: StyleSheet.hairlineWidth },
-  tab: { paddingVertical: Spacing.two + 2, borderBottomWidth: 2, marginBottom: -StyleSheet.hairlineWidth },
 })
