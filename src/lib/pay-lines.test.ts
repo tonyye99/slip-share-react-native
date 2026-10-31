@@ -5,6 +5,7 @@ import { test } from 'node:test'
 
 import { applyLanguage } from '../i18n/strings.ts'
 import { cleanBankAccount, cleanText, payLines, paySubtitle, payTitle, withPayMe, type PayDetails } from './pay-lines.ts'
+import { crc16, promptPayPayload } from './promptpay.ts'
 
 const promptpay: PayDetails = { kind: 'promptpay', value: '0812345678', bank: null, name: 'Ye H.' }
 const bank: PayDetails = { kind: 'bank', value: '123-4-56789-0', bank: 'Kasikorn Bank', name: 'Ye H.' }
@@ -64,4 +65,16 @@ test('bank account numbers follow the same rule as the database', () => {
   assert.equal(cleanBankAccount('1234/5678'), null)
   assert.equal(cleanText('  Ye   H. '), 'Ye H.')
   assert.equal(cleanText('   '), null)
+})
+
+test("a bank's QR shows its number, or says it's a QR", () => {
+  applyLanguage('en')
+  const fromBank: PayDetails = { kind: 'promptpay', value: promptPayPayload('0812345678'), bank: null, name: 'Ye H.' }
+  assert.equal(paySubtitle(fromBank), '081-234-5678 · Ye H.')
+  assert.deepEqual(payLines([fromBank]), ['PromptPay 081-234-5678 (Ye H.)'])
+  const shopBody =
+    '00020101021130710016A00000067701011201150107536000315080214KB0000012345670310SHOP12345653037645802TH5908KAI SHOP6304'
+  const shop: PayDetails = { kind: 'promptpay', value: shopBody + crc16(shopBody), bank: null, name: 'Ye H.' }
+  assert.equal(paySubtitle(shop), "Your bank's QR · Ye H.")
+  assert.deepEqual(payLines([shop]), ['PromptPay QR (Ye H.)'])
 })

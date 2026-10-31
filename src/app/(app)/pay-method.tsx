@@ -3,10 +3,10 @@ import { router, useLocalSearchParams } from 'expo-router'
 import { useEffect, useState, type ReactNode } from 'react'
 import { ActivityIndicator, ScrollView, StyleSheet, View } from 'react-native'
 
-import { QrIcon } from '@/components/icons'
+import { ImageIcon, QrIcon } from '@/components/icons'
 import { QrCode } from '@/components/qr-code'
 import { ScreenHeader } from '@/components/screen-header'
-import { AppText, Button, Card, Input } from '@/components/ui'
+import { AppText, Button, Card, Divider, Input, TextLink } from '@/components/ui'
 import { MaxContentWidth, Radius, Spacing } from '@/constants/theme'
 import { useTheme } from '@/hooks/use-theme'
 import { useT } from '@/i18n'
@@ -15,7 +15,19 @@ import { track } from '@/lib/analytics'
 import { useAuth } from '@/lib/auth'
 import { cleanBankAccount, cleanText, type PayDetails, type PayMethodKind } from '@/lib/pay-lines'
 import { addPayMethod, getPayMethod, isTooMany, removePayMethod, updatePayMethod } from '@/lib/pay-methods'
-import { formatPromptPay, normalizePromptPay, promptPayPayload, validPromptPay } from '@/lib/promptpay'
+import { pickPhoto } from '@/lib/photo'
+import {
+  formatPromptPay,
+  isBankQr,
+  normalizePromptPay,
+  payPayload,
+  promptPayId,
+  promptPayPayload,
+  readBankQr,
+  validPromptPay,
+  type BankQr,
+} from '@/lib/promptpay'
+import { readQrFromPhoto } from '@/lib/qr-read'
 import { formatMoney } from '@/lib/split'
 
 // The amount in the example QR. Scanning it with your own banking app shows
@@ -47,6 +59,9 @@ export default function PayMethodScreen() {
   const [savedBank, setSavedBank] = useState<string | null>(null)
   const [name, setName] = useState(() => (id ? '' : nameFrom(session?.user)))
   const [saving, setSaving] = useState(false)
+  // PromptPay from the QR your banking app saved, instead of a typed number.
+  const [qr, setQr] = useState<BankQr | null>(null)
+  const [reading, setReading] = useState(false)
 
   useEffect(() => {
     if (!id) return
@@ -59,7 +74,11 @@ export default function PayMethodScreen() {
           return
         }
         setKind(method.kind)
-        setValue(method.kind === 'promptpay' ? formatPromptPay(method.value) : method.value)
+        if (method.kind === 'promptpay' && isBankQr(method.value)) {
+          setQr(readBankQr(method.value) ?? { payload: method.value, id: promptPayId(method.value), name: null })
+        } else {
+          setValue(method.kind === 'promptpay' ? formatPromptPay(method.value) : method.value)
+        }
         setBank(method.bank ?? '')
         setSavedBank(method.bank)
         setName(method.name ?? '')
@@ -77,10 +96,40 @@ export default function PayMethodScreen() {
   const title =
     kind === 'promptpay' ? t.pay.promptpay : kind === 'bank' ? (savedBank ?? t.pay.bank) : t.pay.noteTitle
   const digits = normalizePromptPay(value)
-  const preview = kind === 'promptpay' && validPromptPay(digits) ? promptPayPayload(digits, EXAMPLE_AMOUNT) : null
+  const preview =
+    kind !== 'promptpay'
+      ? null
+      : qr
+        ? payPayload(qr.payload, EXAMPLE_AMOUNT)
+        : validPromptPay(digits)
+          ? promptPayPayload(digits, EXAMPLE_AMOUNT)
+          : null
+
+  const uploadQr = async () => {
+    const photo = await pickPhoto('library')
+    if (!photo) return
+    setReading(true)
+    try {
+      const text = await readQrFromPhoto(photo)
+      const found = text ? readBankQr(text) : null
+      if (!text) showAlert(t.pay.noQrFound, t.pay.noQrFoundMessage)
+      else if (!found) showAlert(t.pay.notPromptPayQr, t.pay.notPromptPayQrMessage)
+      else {
+        setQr(found)
+        if (!name.trim() && found.name) setName(found.name)
+        track('pay_qr_uploaded')
+      }
+    } catch (e) {
+      console.error('Reading a QR picture failed', e)
+      showAlert(t.pay.noQrFound, t.pay.noQrFoundMessage)
+    } finally {
+      setReading(false)
+    }
+  }
 
   const details = (): PayDetails | null => {
     if (kind === 'promptpay') {
+      if (qr) return { kind, value: qr.payload, bank: null, name: cleanText(name) }
       if (!validPromptPay(digits)) {
         showAlert(t.pay.checkNumber, t.pay.checkNumberMessage)
         return null
@@ -170,18 +219,59 @@ export default function PayMethodScreen() {
           <Card style={styles.card}>
             {kind === 'promptpay' && (
               <>
-                {field(
-                  t.pay.numberLabel,
-                  <Input
-                    value={value}
-                    onChangeText={setValue}
-                    placeholder="081 234 5678"
-                    keyboardType="phone-pad"
-                    autoComplete="tel"
-                    maxLength={24}
-                    accessibilityLabel={t.pay.numberLabel}
-                  />,
-                  t.pay.numberHint,
+                {qr ? (
+                  <View style={styles.field}>
+                    <AppText variant="label">{t.pay.qrFromBank}</AppText>
+                    <View style={[styles.qrSaved, { borderColor: theme.border }]}>
+                      <View style={[styles.qrBadge, { backgroundColor: theme.primarySoft }]}>
+                        <QrIcon color={theme.primary} size={20} />
+                      </View>
+                      <View style={styles.flex}>
+                        <AppText variant="heading">{qr.id ? formatPromptPay(qr.id) : t.pay.bankQr}</AppText>
+                        {qr.name ? <AppText variant="caption">{t.pay.qrNameIs(qr.name)}</AppText> : null}
+                      </View>
+                    </View>
+                    <View style={styles.qrActions}>
+                      <Button
+                        title={t.pay.changeQr}
+                        variant="secondary"
+                        size="small"
+                        icon={<ImageIcon color={theme.text} size={16} />}
+                        onPress={uploadQr}
+                        loading={reading}
+                      />
+                      <View>
+                        <TextLink title={t.pay.useNumber} onPress={() => setQr(null)} />
+                      </View>
+                    </View>
+                  </View>
+                ) : (
+                  <>
+                    <View style={styles.field}>
+                      <Button
+                        title={t.pay.uploadQr}
+                        variant="secondary"
+                        icon={<ImageIcon color={theme.text} size={18} />}
+                        onPress={uploadQr}
+                        loading={reading}
+                      />
+                      <AppText variant="caption">{t.pay.uploadQrHint}</AppText>
+                    </View>
+                    <Divider label={t.pay.orTypeNumber} />
+                    {field(
+                      t.pay.numberLabel,
+                      <Input
+                        value={value}
+                        onChangeText={setValue}
+                        placeholder="081 234 5678"
+                        keyboardType="phone-pad"
+                        autoComplete="tel"
+                        maxLength={24}
+                        accessibilityLabel={t.pay.numberLabel}
+                      />,
+                      t.pay.numberHint,
+                    )}
+                  </>
                 )}
                 {nameField}
               </>
@@ -286,6 +376,16 @@ const styles = StyleSheet.create({
   },
   card: { gap: Spacing.three },
   field: { gap: Spacing.one + 2 },
+  qrSaved: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.three - 4,
+    borderWidth: 1,
+    borderRadius: Radius.medium,
+    padding: Spacing.three - 4,
+  },
+  qrBadge: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },
+  qrActions: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: Spacing.two },
   noteInput: { minHeight: 104, paddingTop: Spacing.three - 4, textAlignVertical: 'top' },
   preview: { alignItems: 'center', gap: Spacing.two + 2, paddingVertical: Spacing.three + 4 },
   qrFrame: { borderWidth: 1, borderRadius: Radius.large, overflow: 'hidden', backgroundColor: '#FFFFFF' },

@@ -3,14 +3,14 @@
 // Supabase so the tests can run it.
 
 import { strings } from '../i18n/strings.ts'
-import { formatPromptPay } from './promptpay.ts'
+import { formatPromptPay, promptPayId } from './promptpay.ts'
 
 export type PayMethodKind = 'promptpay' | 'bank' | 'note'
 
 /** One way to get paid, as friends see it. */
 export interface PayDetails {
   kind: PayMethodKind
-  /** PromptPay: digits only. Bank: the account number. Note: the text. */
+  /** PromptPay: the number, digits only, or the QR text saved from a banking app. Bank: the account number. Note: the text. */
   value: string
   /** Bank only. */
   bank: string | null
@@ -29,15 +29,24 @@ export function payTitle(method: PayDetails): string {
 /** The line under the title: "081-234-5678 · Ye H.", or the note itself. */
 export function paySubtitle(method: PayDetails): string {
   if (method.kind === 'note') return method.value
-  const number = method.kind === 'promptpay' ? formatPromptPay(method.value) : method.value
+  const number = method.kind === 'promptpay' ? promptPayNumber(method.value) : method.value
   return method.name ? `${number} · ${method.name}` : number
+}
+
+/** "081-234-5678", or "Your bank's QR" for a bank QR with no number in it. */
+function promptPayNumber(value: string): string {
+  const id = promptPayId(value)
+  return id ? formatPromptPay(id) : strings().pay.bankQr
 }
 
 /** One line for each way to pay, like "PromptPay 081-234-5678 (Ye H.)". */
 export function payLines(methods: PayDetails[]): string[] {
   const t = strings().totals
   return methods.map((method) => {
-    if (method.kind === 'promptpay') return t.promptpay(formatPromptPay(method.value), method.name)
+    if (method.kind === 'promptpay') {
+      const id = promptPayId(method.value)
+      return id ? t.promptpay(formatPromptPay(id), method.name) : t.promptpayQr(method.name)
+    }
     if (method.kind === 'bank') return t.bank(method.bank ?? '', method.value, method.name)
     return method.value
   })
