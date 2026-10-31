@@ -123,6 +123,11 @@ function rebuild(fields: EmvField[], amount?: number): string {
     // The amount goes right after the currency, as banks put it.
     if (one.id === '53' && withAmount) out.push({ id: '54', value: amount.toFixed(2) })
   }
+  // A code without a currency still needs the amount: baht, in field order.
+  if (withAmount && !out.some((one) => one.id === '54')) {
+    const at = out.findIndex((one) => Number(one.id) > 54)
+    out.splice(at === -1 ? out.length : at, 0, { id: '53', value: '764' }, { id: '54', value: amount.toFixed(2) })
+  }
   const body = out.map((one) => field(one.id, one.value)).join('') + '6304'
   return body + crc16(body)
 }

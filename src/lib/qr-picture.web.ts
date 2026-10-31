@@ -20,7 +20,9 @@ export async function shareWithQr(message: string, qr: string, picture: QrPictur
       return true
     } catch (e) {
       if ((e as Error)?.name === 'AbortError') return false
-      throw e
+      // Safari turns the share sheet down if drawing the picture took too
+      // long after the tap: copy and download instead.
+      if ((e as Error)?.name !== 'NotAllowedError') throw e
     }
   }
 

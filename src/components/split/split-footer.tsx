@@ -77,9 +77,12 @@ export function SplitFooter({
           style={[styles.amount, owe.paid && { color: theme.success }]}
           numberOfLines={1}
           adjustsFontSizeToFit>
-          {owe.paid ? t.youPaidBack(owe.payer) : t.youOweAmount(money(owe.amount))}
+          {money(owe.amount)}
         </AppText>
-        <AppText variant="caption">{t.seeBreakdown}</AppText>
+        {/* The amount gets its own line: the website can't shrink text to fit. */}
+        <AppText variant="caption" numberOfLines={1}>
+          {owe.paid ? t.youPaidBack(owe.payer) : t.youOwe(owe.payer)}
+        </AppText>
       </>
     )
   } else {

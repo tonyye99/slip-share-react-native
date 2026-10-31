@@ -27,10 +27,7 @@
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
       "predictiveBackGestureEnabled": false,
-      "package": "com.tonyye99.slipshare",
-      "permissions": [
-        "android.permission.RECORD_AUDIO"
-      ]
+      "package": "com.tonyye99.slipshare"
     },
     "web": {
       "output": "static",
@@ -55,10 +52,16 @@
         "expo-image-picker",
         {
           "cameraPermission": "SlipShare uses the camera to scan your receipts.",
-          "photosPermission": "SlipShare reads receipt photos you choose from your library."
+          "photosPermission": "SlipShare reads receipt photos you choose from your library.",
+          "microphonePermission": false
         }
       ],
-      "expo-secure-store",
+      [
+        "expo-secure-store",
+        {
+          "faceIDPermission": false
+        }
+      ],
       "expo-apple-authentication",
       "expo-localization"
     ],
