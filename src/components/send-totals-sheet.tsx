@@ -90,7 +90,7 @@ export function SendTotalsSheet({
     <Sheet
       visible={visible}
       onClose={onClose}
-      title={t.totals.sendTitle}
+      title={write === myMessage ? t.split.sendMyShare : t.totals.sendTitle}
       subtitle={qr ? t.totals.withQrSubtitle : write === myMessage ? t.totals.mineSubtitle : t.totals.sendSubtitle}
       footer={
         <View style={styles.footer}>

@@ -1,16 +1,19 @@
 import { Pressable, StyleSheet, View } from 'react-native'
 
-import { CheckIcon } from '@/components/icons'
+import { Avatar } from '@/components/chip'
+import { CheckIcon, ChevronDownIcon } from '@/components/icons'
 import { AppText, Card, ProgressBar } from '@/components/ui'
 import { Radius, Spacing } from '@/constants/theme'
 import { useTheme } from '@/hooks/use-theme'
 import { useT } from '@/i18n'
-import type { Money } from '@/lib/split-view'
+import type { Money, PersonView } from '@/lib/split-view'
 
-/** The bill total at the top, how much of it is assigned, and how much is paid back. */
+/** The bill total at the top, who paid, how much of it is assigned, and how much is paid back. */
 export function BillSummary({
   total,
   caption,
+  payer,
+  onChoosePayer,
   progress,
   settled,
   paidBack,
@@ -19,8 +22,14 @@ export function BillSummary({
   onShowSettled,
 }: {
   total: number
-  /** Like "Paid by you · incl. service and VAT". */
+  /** Like "incl. service and VAT". */
   caption: string
+  /**
+   * Who paid, as a button that changes it: "Paid by you" or "Paid by Ben".
+   * Left out while you're the only one on the bill.
+   */
+  payer: { label: string; person: PersonView | null } | null
+  onChoosePayer: () => void
   /** How far assigning has got. Left out while you're the only one on the bill. */
   progress: { assignedItems: number; itemCount: number; left: number; share: number } | null
   settled: boolean
@@ -45,6 +54,25 @@ export function BillSummary({
       <AppText style={[styles.total, { color: theme.text }]} numberOfLines={1} adjustsFontSizeToFit>
         {money(total)}
       </AppText>
+      {payer && (
+        <Pressable
+          onPress={onChoosePayer}
+          accessibilityRole="button"
+          accessibilityLabel={payer.label}
+          accessibilityHint={t.changePayer}
+          hitSlop={6}
+          style={({ pressed }) => [
+            styles.payer,
+            !payer.person && styles.payerNoAvatar,
+            { backgroundColor: theme.backgroundElement, opacity: pressed ? 0.7 : 1 },
+          ]}>
+          {payer.person && <Avatar name={payer.person.name} color={payer.person.color} size={22} />}
+          <AppText variant="label" numberOfLines={1} style={styles.shrink}>
+            {payer.label}
+          </AppText>
+          <ChevronDownIcon color={theme.textSecondary} />
+        </Pressable>
+      )}
       {progress && (
         <View style={styles.assigned}>
           <View style={styles.assignedRow}>
@@ -84,5 +112,18 @@ const styles = StyleSheet.create({
   assigned: { gap: Spacing.one + 1, marginTop: Spacing.one + 3 },
   assignedRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
   assignedText: { flex: 1, fontWeight: '700' },
+  payer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.two - 2,
+    alignSelf: 'flex-start',
+    maxWidth: '100%',
+    borderRadius: Radius.pill,
+    paddingVertical: Spacing.one,
+    paddingLeft: Spacing.one,
+    paddingRight: Spacing.three - 4,
+    marginTop: 2,
+  },
+  payerNoAvatar: { paddingLeft: Spacing.three - 4, paddingVertical: Spacing.one + 2 },
   settledLink: { flexDirection: 'row', alignItems: 'center', gap: Spacing.one, alignSelf: 'flex-start', marginTop: 2 },
 })

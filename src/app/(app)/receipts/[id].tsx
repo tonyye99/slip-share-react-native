@@ -168,8 +168,9 @@ export default function SplitScreen() {
   const settled = owesPayer.length > 0 && owesPayer.every((person) => person.paid_at)
 
   const hasCharges = receipt.service_percent > 0 || receipt.tax_percent > 0
+  // With others on the bill, who paid is a button on the bill card instead.
   const summaryCaption = [
-    payer && payerName ? t.split.paidBy(payerName) : null,
+    alone && payer && payerName ? t.split.paidBy(payerName) : null,
     hasCharges ? t.split.includes(receipt.service_percent > 0, receipt.tax_percent > 0) : null,
   ]
     .filter(Boolean)
@@ -355,13 +356,15 @@ export default function SplitScreen() {
   // with your PromptPay QR when you have one.
   const groupMessage = (maths: boolean) => (payer?.is_me ? withPayMe(totalsText(maths), payMethods) : totalsText(maths))
   const totalsQr = payer?.is_me ? groupPayQr(payMethods, receipt.currency) : null
-  // On a bill someone else paid, you can send just your own share to them.
+  // On a bill a friend paid, the main button sends them just your own share.
   const me = people.find((person) => person.is_me)
-  const myMessage =
+  const owe =
     payer && !payer.is_me && me && totalOf(me) >= 0.005
-      ? (maths: boolean) =>
-          myShareMessage({ title, currency: receipt.currency, me: totalsLine(me), payer: payer.name, maths })
+      ? { payer: payer.name, amount: totalOf(me), paid: !!me.paid_at, line: totalsLine(me) }
       : null
+  const myMessage = owe
+    ? (maths: boolean) => myShareMessage({ title, currency: receipt.currency, me: owe.line, payer: owe.payer, maths })
+    : null
   const sendTotals = () => setSendOpen(true)
 
   // Friends who open the link pick their own items; pull down to see them.
@@ -469,6 +472,15 @@ export default function SplitScreen() {
         <BillSummary
           total={receipt.total}
           caption={summaryCaption}
+          payer={
+            alone
+              ? null
+              : {
+                  label: payer && payerName ? t.split.paidBy(payerName) : t.split.choosePayer,
+                  person: payer ? views[people.indexOf(payer)] : null,
+                }
+          }
+          onChoosePayer={() => setPayerOpen(true)}
           progress={
             alone
               ? null
@@ -585,6 +597,7 @@ export default function SplitScreen() {
         left={left}
         leftItems={unassignedCount}
         money={money}
+        owe={owe}
         onOpenBreakdown={() => setBreakdownOpen(true)}
         onSend={sendTotals}
       />
@@ -604,7 +617,7 @@ export default function SplitScreen() {
         money={money}
         footer={
           <Button
-            title={t.split.sendTotals}
+            title={owe ? t.split.sendMyShare : t.split.sendTotals}
             icon={<SendIcon color={theme.onPrimary} />}
             onPress={() => {
               setBreakdownOpen(false)

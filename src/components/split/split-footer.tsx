@@ -14,7 +14,8 @@ const glassBlur = Platform.OS === 'web' ? ({ backdropFilter: 'blur(16px)' } as u
 
 /**
  * The glass footer over the split screen: how much is left to assign and
- * "Send totals". Tapping it, or pulling it up, opens the breakdown.
+ * "Send totals". On a bill a friend paid it shows what you owe them, and the
+ * button sends your share. Tapping it, or pulling it up, opens the breakdown.
  */
 export function SplitFooter({
   alone,
@@ -22,6 +23,7 @@ export function SplitFooter({
   left,
   leftItems,
   money,
+  owe,
   onOpenBreakdown,
   onSend,
 }: {
@@ -31,6 +33,8 @@ export function SplitFooter({
   left: number
   leftItems: number
   money: Money
+  /** On a bill a friend paid: who paid, what you owe them and if you've paid them back. */
+  owe: { payer: string; amount: number; paid: boolean } | null
   onOpenBreakdown: () => void
   onSend: () => void
 }) {
@@ -65,6 +69,19 @@ export function SplitFooter({
         <AppText variant="caption">{t.toGo(leftItems)}</AppText>
       </>
     )
+  } else if (owe) {
+    summary = (
+      <>
+        <AppText
+          variant="heading"
+          style={[styles.amount, owe.paid && { color: theme.success }]}
+          numberOfLines={1}
+          adjustsFontSizeToFit>
+          {owe.paid ? t.youPaidBack(owe.payer) : t.youOweAmount(money(owe.amount))}
+        </AppText>
+        <AppText variant="caption">{t.seeBreakdown}</AppText>
+      </>
+    )
   } else {
     summary = (
       <>
@@ -82,7 +99,7 @@ export function SplitFooter({
         <Pressable onPress={onOpenBreakdown} accessibilityRole="button" accessibilityLabel={t.seeBreakdown} style={styles.summary}>
           {summary}
         </Pressable>
-        <Button title={t.sendTotals} onPress={onSend} icon={<SendIcon color={theme.onPrimary} />} style={styles.send} />
+        <Button title={owe ? t.sendMyShare : t.sendTotals} onPress={onSend} icon={<SendIcon color={theme.onPrimary} />} style={styles.send} />
       </View>
     </View>
   )

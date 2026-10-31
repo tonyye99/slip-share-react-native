@@ -284,6 +284,8 @@ export const th: Strings = {
     whoHadWhat: 'ใครกินอะไร',
     splitAllEvenly: 'หารเท่ากันหมด',
     sendTotals: 'ส่งยอด',
+    sendMyShare: 'ส่งยอดของฉัน',
+    youOweAmount: (amount) => `คุณค้าง ${amount}`,
     settledMessage: (totals) => `จ่ายครบแล้ว ✓\n\n${totals}`,
 
     billTotal: 'ยอดบิล',
