@@ -265,8 +265,26 @@ export function formatMoney(amount: number, currency: string): string {
 export interface TotalsLine {
   name: string
   total: number
+  /** Their items before service, tax and rounding. */
+  subtotal: number
+  /** What they had, like "Pad thai" or "Som tam ½". */
+  items: string[]
   /** Has paid the payer back. */
   paid: boolean
+}
+
+/** An amount without its currency, like 335 or 144.50, for the maths. */
+function plainAmount(amount: number): string {
+  const cents = Math.round(amount * 100)
+  const whole = cents % 100 === 0
+  return (cents / 100).toLocaleString('en-US', { minimumFractionDigits: whole ? 0 : 2, maximumFractionDigits: 2 })
+}
+
+/** How someone's items come to their total, like "335 × 1.177". Empty with no charges. */
+function mathsOf(person: TotalsLine): string {
+  if (person.subtotal < 0.005) return ''
+  const factor = Number((person.total / person.subtotal).toFixed(4))
+  return factor === 1 ? '' : `${plainAmount(person.subtotal)} × ${factor}`
 }
 
 /** The text "Send totals" shares to LINE, WhatsApp and the like. */
@@ -280,6 +298,8 @@ export function totalsMessage(bill: {
   payer: string | null
   people: TotalsLine[]
   unassigned: number
+  /** Adds how each total is worked out, like "(335 × 1.177)". */
+  maths?: boolean
 }): string {
   const t = strings().totals
   const money = (amount: number) => formatMoney(amount, bill.currency)
@@ -292,9 +312,36 @@ export function totalsMessage(bill: {
   if (bill.payer) lines.push(t.paidBy(bill.payer))
   lines.push('')
   for (const person of bill.people) {
-    lines.push(`${person.name}: ${money(person.total)}${bill.payer && person.paid ? t.paid : ''}`)
+    const maths = bill.maths ? mathsOf(person) : ''
+    const items = person.items.join(', ')
+    lines.push(
+      `${person.name}: ${money(person.total)}${bill.payer && person.paid ? t.paid : ''}` +
+        (items ? ` - ${items}` : '') +
+        (maths ? ` (${maths})` : ''),
+    )
   }
   if (Math.abs(bill.unassigned) >= 0.005) lines.push(t.notAssigned(money(bill.unassigned)))
   if (charges.length > 0) lines.push('', t.includes(charges))
+  return lines.join('\n')
+}
+
+/**
+ * "Just me" on a bill someone else paid: what you had, how it adds up and
+ * that you've sent the payer your share.
+ */
+export function myShareMessage(bill: {
+  title: string
+  currency: string
+  me: TotalsLine
+  /** Who paid. */
+  payer: string
+  maths?: boolean
+}): string {
+  const t = strings().totals
+  const items = bill.me.items.join(', ')
+  const maths = bill.maths ? mathsOf(bill.me) : ''
+  const lines = [t.myShare(bill.title, formatMoney(bill.me.total, bill.currency))]
+  if (items || maths) lines.push([items, maths ? `(${maths})` : ''].filter(Boolean).join(' '))
+  lines.push(t.sentTo(bill.payer))
   return lines.join('\n')
 }
