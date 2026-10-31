@@ -17,8 +17,6 @@ export const stringsFor = (language: Language): Strings => dictionaries[language
 /** The words in the language the person picked. English until the app has loaded their choice. */
 export const strings = (): Strings => dictionaries[current]
 
-export const currentLanguage = () => current
-
 /** Only the LanguageProvider calls this, so screens re-render as it changes. */
 export function applyLanguage(language: Language) {
   current = language

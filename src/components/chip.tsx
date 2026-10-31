@@ -40,88 +40,6 @@ export function Avatar({ name, color, size = 28, soft }: { name: string; color: 
   )
 }
 
-/** A person's name you tap on or off. On, it fills with their colour and shows a tick. */
-export function PersonChip({
-  name,
-  color,
-  selected = false,
-  onPress,
-  disabled,
-  role = 'checkbox',
-  accessibilityLabel,
-}: {
-  name: string
-  color: string
-  selected?: boolean
-  onPress: () => void
-  disabled?: boolean
-  role?: Role
-  accessibilityLabel?: string
-}) {
-  const theme = useTheme()
-  return (
-    <Pressable
-      onPress={onPress}
-      disabled={disabled}
-      hitSlop={4}
-      accessibilityRole={role}
-      accessibilityLabel={accessibilityLabel ?? name}
-      accessibilityState={stateFor(role, selected, disabled)}
-      style={({ pressed }) => [
-        styles.personChip,
-        selected
-          ? { backgroundColor: color, borderColor: color }
-          : { backgroundColor: theme.surface, borderColor: theme.border },
-        { opacity: disabled ? 0.5 : pressed ? 0.8 : 1 },
-      ]}>
-      {selected ? (
-        <View style={[styles.tick, { backgroundColor: 'rgba(255,255,255,0.25)' }]}>
-          <AppText style={[styles.tickText, { color: theme.onPerson }]}>✓</AppText>
-        </View>
-      ) : (
-        <Avatar name={name} color={color} size={26} soft />
-      )}
-      <AppText variant="label" style={{ color: selected ? theme.onPerson : theme.text }}>
-        {name}
-      </AppText>
-    </Pressable>
-  )
-}
-
-/** A round initial you tap on or off, for picking who had an item. Off, it's a dashed outline. */
-export function InitialChip({
-  name,
-  color,
-  selected = false,
-  onPress,
-  accessibilityLabel,
-}: {
-  name: string
-  color: string
-  selected?: boolean
-  onPress: () => void
-  accessibilityLabel?: string
-}) {
-  const theme = useTheme()
-  return (
-    <Pressable
-      onPress={onPress}
-      hitSlop={2}
-      accessibilityRole="checkbox"
-      accessibilityLabel={accessibilityLabel ?? name}
-      accessibilityState={{ checked: selected }}
-      style={({ pressed }) => [
-        styles.initial,
-        selected ? { backgroundColor: color, borderColor: color } : { borderColor: theme.border, borderStyle: 'dashed' },
-        { opacity: pressed ? 0.8 : 1 },
-      ]}>
-      <AppText variant="label" style={{ color: selected ? theme.onPerson : theme.textSecondary }}>
-        {initialOf(name)}
-      </AppText>
-    </Pressable>
-  )
-}
-
 /** A plain pill: "+ Anna" to add a recent name, or a dashed "Everyone". */
 export function Chip({
   label,
@@ -166,19 +84,6 @@ export function Chip({
 
 const styles = StyleSheet.create({
   avatar: { alignItems: 'center', justifyContent: 'center' },
-  personChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.two,
-    borderWidth: 1,
-    borderRadius: Radius.pill,
-    paddingLeft: Spacing.one + 2,
-    paddingRight: Spacing.three,
-    minHeight: 40,
-  },
-  tick: { width: 26, height: 26, borderRadius: 13, alignItems: 'center', justifyContent: 'center' },
-  tickText: { fontSize: 14, lineHeight: 18, fontWeight: '700' },
-  initial: { width: 40, height: 40, borderRadius: 20, borderWidth: 1.5, alignItems: 'center', justifyContent: 'center' },
   chip: {
     borderWidth: 1,
     borderRadius: Radius.pill,
