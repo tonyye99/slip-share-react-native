@@ -73,6 +73,9 @@ export async function saveQrImage(
     try {
       await navigator.share({ files: [file] })
     } catch (e) {
+      // Safari turns the share sheet down if drawing the picture took too
+      // long after the tap. The QR on screen can still be saved with a long press.
+      if ((e as Error)?.name === 'NotAllowedError') return 'hold'
       if ((e as Error)?.name !== 'AbortError') throw e
     }
     return 'shared'

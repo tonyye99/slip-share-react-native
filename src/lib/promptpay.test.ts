@@ -134,6 +134,17 @@ test('a shop QR (bill payment) works but has no number to show', () => {
   assert.match(payPayload(qr.payload, 20), /540520\.00/)
 })
 
+test('a bank QR without a currency still gets the amount, in baht', () => {
+  const noCurrency = withCrc('00020101021129370016A000000677010111011300668123456785802TH5910YE HTET A.6304')
+  const qr = readBankQr(noCurrency)!
+  const paid = emvFields(payPayload(qr.payload, 20))!
+  assert.deepEqual(
+    paid.map((one) => one.id),
+    ['00', '01', '29', '53', '54', '58', '59', '63'],
+  )
+  assert.equal(paid.find((one) => one.id === '54')?.value, '20.00')
+})
+
 test('anything else is turned away', () => {
   assert.equal(readBankQr('https://example.com'), null)
   assert.equal(readBankQr(bankStatic.slice(0, -1) + (bankStatic.endsWith('0') ? '1' : '0')), null, 'wrong checksum')
