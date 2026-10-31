@@ -1,6 +1,6 @@
 # SlipShare Privacy Policy
 
-Last updated: October 30, 2026
+Last updated: October 31, 2026
 
 SlipShare is an app for splitting restaurant bills with friends. This policy explains what the SlipShare app and website collect, why, who can see it, and how to delete it.
 
@@ -35,7 +35,7 @@ You can turn off receipt scanning at any time in **Account > Privacy**. The app 
 
 - **Only you can see your receipts and splits in SlipShare**, unless you send a friend link for a receipt. When you tap **Send totals**, your phone's share sheet opens and you choose where the text goes, for example LINE or WhatsApp. That app's privacy policy covers what happens next.
 - **People with a friend link.** A friend link opens that one receipt on the SlipShare website. Anyone who has the link can see the shop name, items, prices, the names on the receipt (your line shows your display name), who had each item and who paid, and can add their name and tick items. They don't need an account. The link only works while you have it turned on; turning it off stops it for everyone, and sharing again makes a new link.
-- **How to pay me.** On a bill you paid, everyone with its friend link can see your ways to get paid, including the full PromptPay number or account number, so they can pay you. They are not shown on bills someone else paid, or once you turn the link off. **Send totals** and **Remind** also add them to the text you share, and on a bill you paid **Send totals** can also share your PromptPay QR as a picture.
+- **How to pay me.** On a bill you paid, everyone with its friend link can see your ways to get paid, including the full PromptPay number or account number, so they can pay you. They are not shown on bills someone else paid, or once you turn the link off. **Send totals** and **Remind** also add them to the text you share, and on a bill you paid **Send totals** can also share your PromptPay QR as a picture. On Android, the totals text is also copied to your phone's clipboard so you can paste it next to the picture.
 - **Transfer slips** can only be seen by the person who shared the bill. Others with the link only see that a slip was sent, not the picture.
 - **Service providers we use to run SlipShare:**
   - [Supabase](https://supabase.com/privacy) hosts our database, sign-in and server code.

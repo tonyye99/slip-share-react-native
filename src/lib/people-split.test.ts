@@ -3,7 +3,16 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
 
-import { evenCount, peopleInOrder, picksFrom, splitByPerson, splitByPicks, totalsMessage } from './split.ts'
+import { applyLanguage } from '../i18n/strings.ts'
+import {
+  evenCount,
+  myShareMessage,
+  peopleInOrder,
+  picksFrom,
+  splitByPerson,
+  splitByPicks,
+  totalsMessage,
+} from './split.ts'
 
 // The example receipt from slip-share's CLAUDE.md: 5% service, then 7% VAT on the items plus service.
 const items = [
@@ -100,8 +109,8 @@ test('totals message lists everyone, who paid and the charges', () => {
     tax_percent: 7,
     payer: 'me',
     people: [
-      { name: 'Me', total: 300, paid: false },
-      { name: 'Alice', total: 329.13, paid: true },
+      { name: 'Me', total: 300, subtotal: 267, items: [], paid: false },
+      { name: 'Alice', total: 329.13, subtotal: 293, items: [], paid: true },
     ],
     unassigned: 300,
   })
@@ -120,6 +129,49 @@ test('totals message lists everyone, who paid and the charges', () => {
   )
 })
 
+// 10% service, then 7% VAT on the items plus service: every item costs 1.177 times its price.
+const dinner = {
+  title: 'Kalamansi',
+  currency: 'THB',
+  total: 812.13,
+  service_percent: 10,
+  tax_percent: 7,
+  payer: 'me',
+  people: [
+    { name: 'Me', total: 394.3, subtotal: 335, items: ['Pad thai', 'Som tam ½'], paid: false },
+    { name: 'Htet', total: 417.84, subtotal: 355, items: ['Som tam ½', 'Khao soi', 'Beer 1 of 2'], paid: true },
+    { name: 'Ben', total: 0, subtotal: 0, items: [], paid: false },
+  ],
+  unassigned: 0,
+}
+
+test('totals message lists what each person had', () => {
+  const lines = totalsMessage(dinner).split('\n')
+  assert.deepEqual(lines.slice(3, 6), [
+    'Me: ฿394.30 - Pad thai, Som tam ½',
+    'Htet: ฿417.84 (paid) - Som tam ½, Khao soi, Beer 1 of 2',
+    'Ben: ฿0.00',
+  ])
+})
+
+test('the maths shows items times service and tax', () => {
+  const lines = totalsMessage({ ...dinner, maths: true }).split('\n')
+  assert.deepEqual(lines.slice(3, 6), [
+    'Me: ฿394.30 - Pad thai, Som tam ½ (335 × 1.177)',
+    'Htet: ฿417.84 (paid) - Som tam ½, Khao soi, Beer 1 of 2 (355 × 1.177)',
+    'Ben: ฿0.00',
+  ])
+  const shared = { ...dinner.people[0], total: 170.07, subtotal: 144.5 }
+  assert.match(totalsMessage({ ...dinner, people: [shared], maths: true }), /\(144\.50 × 1\.177\)/)
+  const big = { ...dinner.people[0], total: 1471.25, subtotal: 1250 }
+  assert.match(totalsMessage({ ...dinner, people: [big], maths: true }), /\(1,250 × 1\.177\)/)
+})
+
+test('no maths when there is no service or tax', () => {
+  const plain = { ...dinner, service_percent: 0, tax_percent: 0, people: [{ ...dinner.people[0], total: 335 }] }
+  assert.equal(totalsMessage({ ...plain, maths: true }), totalsMessage(plain))
+})
+
 test('totals message leaves out paid marks when nobody is the payer', () => {
   const message = totalsMessage({
     title: 'Cafe',
@@ -128,7 +180,7 @@ test('totals message leaves out paid marks when nobody is the payer', () => {
     service_percent: 0,
     tax_percent: 0,
     payer: null,
-    people: [{ name: 'Alice', total: 10, paid: true }],
+    people: [{ name: 'Alice', total: 10, subtotal: 10, items: [], paid: true }],
     unassigned: 0,
   })
   assert.equal(message, 'Cafe: $10.00\n\nAlice: $10.00')
@@ -153,4 +205,24 @@ test('peopleInOrder puts you first, then everyone in the order they were added',
     { name: 'Anna', is_me: false, created_at: '2026-10-01' },
   ]
   assert.deepEqual(peopleInOrder(people).map((person) => person.name), ['Me', 'Anna', 'Ben'])
+})
+
+test('just my share, for whoever paid', () => {
+  const me = dinner.people[0]
+  assert.equal(
+    myShareMessage({ title: 'Kalamansi', currency: 'THB', me, payer: 'Ben' }),
+    ['Kalamansi, my share: ฿394.30', 'Pad thai, Som tam ½', 'Sent to Ben, thanks!'].join('\n'),
+  )
+  assert.equal(
+    myShareMessage({ title: 'Kalamansi', currency: 'THB', me, payer: 'Ben', maths: true }),
+    ['Kalamansi, my share: ฿394.30', 'Pad thai, Som tam ½ (335 × 1.177)', 'Sent to Ben, thanks!'].join('\n'),
+  )
+})
+
+test('just my share in Thai', () => {
+  applyLanguage('th')
+  const message = myShareMessage({ title: 'Kalamansi', currency: 'THB', me: dinner.people[0], payer: 'Ben' })
+  applyLanguage('en')
+  assert.equal(message.split('\n')[2], 'โอนให้ Ben แล้ว ขอบคุณนะ!')
+  assert.equal(message.split('\n')[0], 'Kalamansi ส่วนของฉัน: ฿394.30')
 })

@@ -42,7 +42,17 @@ import {
   setReceiptLink,
 } from '@/lib/receipts'
 import { shareText } from '@/lib/share-text'
-import { evenCount, formatMoney, itemShares, picksFrom, splitByPicks, totalsMessage, type Counts, type SplitResult } from '@/lib/split'
+import {
+  evenCount,
+  formatMoney,
+  itemShares,
+  myShareMessage,
+  picksFrom,
+  splitByPicks,
+  totalsMessage,
+  type Counts,
+  type SplitResult,
+} from '@/lib/split'
 import { afterSheet, itemStatus, nameOf, partOf, type Item } from '@/lib/split-view'
 import type { ReceiptPerson, ReceiptWithPeople } from '@/lib/types'
 
@@ -314,7 +324,22 @@ export default function SplitScreen() {
     }
   }
 
-  const totalsText = () =>
+  // What each person had, for the totals message.
+  const itemNamesOf = (person: ReceiptPerson) =>
+    items.flatMap((item) => {
+      const share = sharesOf(item).shares[person.id] ?? 0
+      if (share < 0.005) return []
+      const part = partOf(item, share)
+      return [part ? `${itemName(item)} ${part}` : itemName(item)]
+    })
+  const totalsLine = (person: ReceiptPerson) => ({
+    name: person.is_me ? t.totals.me : person.name,
+    total: totalOf(person),
+    subtotal: split.people[person.id]?.subtotal ?? 0,
+    items: itemNamesOf(person),
+    paid: !!person.paid_at,
+  })
+  const totalsText = (maths = false) =>
     totalsMessage({
       title,
       currency: receipt.currency,
@@ -322,22 +347,22 @@ export default function SplitScreen() {
       service_percent: receipt.service_percent,
       tax_percent: receipt.tax_percent,
       payer: payer ? (payer.is_me ? t.totals.paidByMe : payer.name) : null,
-      people: people.map((person) => ({
-        name: person.is_me ? t.totals.me : person.name,
-        total: totalOf(person),
-        paid: !!person.paid_at,
-      })),
+      people: people.map(totalsLine),
       unassigned: split.unassigned.total,
+      maths,
     })
-  // On a bill you paid, the message ends with "Pay me" and how. With PromptPay,
-  // a sheet sends the message and then your QR as a picture.
-  const groupMessage = () => (payer?.is_me ? withPayMe(totalsText(), payMethods) : totalsText())
+  // On a bill you paid, the message ends with "Pay me" and how, and goes out
+  // with your PromptPay QR when you have one.
+  const groupMessage = (maths: boolean) => (payer?.is_me ? withPayMe(totalsText(maths), payMethods) : totalsText(maths))
   const totalsQr = payer?.is_me ? groupPayQr(payMethods, receipt.currency) : null
-  const shareTotals = () => {
-    track('totals_sent')
-    return shareText(groupMessage())
-  }
-  const sendTotals = () => (totalsQr ? setSendOpen(true) : shareTotals())
+  // On a bill someone else paid, you can send just your own share to them.
+  const me = people.find((person) => person.is_me)
+  const myMessage =
+    payer && !payer.is_me && me && totalOf(me) >= 0.005
+      ? (maths: boolean) =>
+          myShareMessage({ title, currency: receipt.currency, me: totalsLine(me), payer: payer.name, maths })
+      : null
+  const sendTotals = () => setSendOpen(true)
 
   // Friends who open the link pick their own items; pull down to see them.
   const refresh = async () => {
@@ -589,15 +614,13 @@ export default function SplitScreen() {
         }
       />
 
-      {totalsQr && (
-        <SendTotalsSheet
-          visible={sendOpen}
-          onClose={() => setSendOpen(false)}
-          message={groupMessage()}
-          qr={totalsQr}
-          onSendMessage={shareTotals}
-        />
-      )}
+      <SendTotalsSheet
+        visible={sendOpen}
+        onClose={() => setSendOpen(false)}
+        message={groupMessage}
+        myMessage={myMessage}
+        qr={totalsQr}
+      />
 
       <WhoHadSheet
         visible={pickOpen}
