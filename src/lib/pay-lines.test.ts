@@ -4,7 +4,16 @@ import assert from 'node:assert/strict'
 import { test } from 'node:test'
 
 import { applyLanguage } from '../i18n/strings.ts'
-import { cleanBankAccount, cleanText, payLines, paySubtitle, payTitle, withPayMe, type PayDetails } from './pay-lines.ts'
+import {
+  cleanBankAccount,
+  cleanText,
+  groupPayQr,
+  payLines,
+  paySubtitle,
+  payTitle,
+  withPayMe,
+  type PayDetails,
+} from './pay-lines.ts'
 import { crc16, promptPayPayload } from './promptpay.ts'
 
 const promptpay: PayDetails = { kind: 'promptpay', value: '0812345678', bank: null, name: 'Ye H.' }
@@ -22,7 +31,7 @@ test('each way to pay gets a title and a line under it', () => {
   assert.equal(paySubtitle({ ...promptpay, name: null }), '081-234-5678')
 })
 
-test('Send totals ends with how to pay you and the link', () => {
+test('Send totals ends with how to pay you', () => {
   applyLanguage('en')
   assert.deepEqual(payLines([promptpay, bank, note]), [
     'PromptPay 081-234-5678 (Ye H.)',
@@ -30,24 +39,17 @@ test('Send totals ends with how to pay you and the link', () => {
     'Cash is fine',
   ])
   assert.equal(
-    withPayMe('Dinner: ฿999.18', [promptpay, bank], 'https://slip-share.expo.app/pick/abc'),
-    [
-      'Dinner: ฿999.18',
-      '',
-      'Pay me',
-      'PromptPay 081-234-5678 (Ye H.)',
-      'Kasikorn Bank 123-4-56789-0 (Ye H.)',
-      '',
-      'Tick what you had and get your pay QR: https://slip-share.expo.app/pick/abc',
-    ].join('\n'),
+    withPayMe('Dinner: ฿999.18', [promptpay, bank]),
+    ['Dinner: ฿999.18', '', 'Pay me', 'PromptPay 081-234-5678 (Ye H.)', 'Kasikorn Bank 123-4-56789-0 (Ye H.)'].join(
+      '\n',
+    ),
   )
 })
 
-test('no QR, no link, or nothing to add', () => {
+test('a note, or nothing to add', () => {
   applyLanguage('en')
-  assert.match(withPayMe('x', [bank], 'https://a/pick/b'), /see how to pay: https:\/\/a\/pick\/b$/)
   assert.equal(withPayMe('x', [note]), 'x\n\nPay me\nCash is fine')
-  assert.equal(withPayMe('x', [], 'https://a/pick/b'), 'x')
+  assert.equal(withPayMe('x', []), 'x')
 })
 
 test('in Thai', () => {
@@ -77,4 +79,14 @@ test("a bank's QR shows its number, or says it's a QR", () => {
   const shop: PayDetails = { kind: 'promptpay', value: shopBody + crc16(shopBody), bank: null, name: 'Ye H.' }
   assert.equal(paySubtitle(shop), "Your bank's QR · Ye H.")
   assert.deepEqual(payLines([shop]), ['PromptPay QR (Ye H.)'])
+})
+
+test('the QR for the group has no amount, from your first PromptPay', () => {
+  const qr = groupPayQr([bank, promptpay], 'thb')
+  assert.equal(qr?.payload, promptPayPayload('0812345678'))
+  assert.equal(qr?.id, '0812345678')
+  assert.equal(qr?.name, 'Ye H.')
+  assert.ok(!qr?.payload.includes('5406'))
+  assert.equal(groupPayQr([promptpay], 'USD'), null)
+  assert.equal(groupPayQr([bank, note], 'THB'), null)
 })

@@ -3,7 +3,7 @@
 // Supabase so the tests can run it.
 
 import { strings } from '../i18n/strings.ts'
-import { formatPromptPay, promptPayId } from './promptpay.ts'
+import { formatPromptPay, payPayload, promptPayId } from './promptpay.ts'
 
 export type PayMethodKind = 'promptpay' | 'bank' | 'note'
 
@@ -52,16 +52,24 @@ export function payLines(methods: PayDetails[]): string[] {
   })
 }
 
-/**
- * Adds "Pay me" and your ways to get paid to a message for the group, then
- * the friend link if it's on, where each friend gets a QR for their own amount.
- */
-export function withPayMe(message: string, methods: PayDetails[], link?: string | null): string {
-  const t = strings().totals
+/** Adds "Pay me" and your ways to get paid to a message for the group. */
+export function withPayMe(message: string, methods: PayDetails[]): string {
   if (methods.length === 0) return message
-  const extra = ['', t.payMe, ...payLines(methods)]
-  if (link) extra.push('', t.link(link, methods.some((method) => method.kind === 'promptpay')))
-  return [message, ...extra].join('\n')
+  return [message, '', strings().totals.payMe, ...payLines(methods)].join('\n')
+}
+
+/**
+ * The PromptPay QR for a message to the whole group: your first PromptPay,
+ * with no amount in it, since each friend owes a different one. Baht bills only.
+ */
+export function groupPayQr(
+  methods: PayDetails[],
+  currency: string,
+): { payload: string; id: string | null; name: string | null } | null {
+  if (currency.toUpperCase() !== 'THB') return null
+  const method = methods.find((one) => one.kind === 'promptpay')
+  if (!method) return null
+  return { payload: payPayload(method.value), id: promptPayId(method.value), name: method.name }
 }
 
 /** Same rule as the database (pay_methods_bank): letters, digits, spaces and dashes. */

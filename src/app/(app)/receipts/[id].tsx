@@ -8,6 +8,7 @@ import { BreakdownSheet } from '@/components/breakdown-sheet'
 import { usePersonColor } from '@/components/chip'
 import { SendIcon } from '@/components/icons'
 import { ScreenHeader } from '@/components/screen-header'
+import { SendTotalsSheet } from '@/components/send-totals-sheet'
 import { BillSummary } from '@/components/split/bill-summary'
 import { FriendLinkCard, ShareLinkTile } from '@/components/split/friend-link'
 import { ItemRow } from '@/components/split/item-row'
@@ -24,7 +25,7 @@ import { dateLocale, useT } from '@/i18n'
 import { confirmDestructive, showAlert } from '@/lib/alert'
 import { track } from '@/lib/analytics'
 import { friendLinksAvailable, friendLinkUrl } from '@/lib/link-picks'
-import { withPayMe } from '@/lib/pay-lines'
+import { groupPayQr, withPayMe } from '@/lib/pay-lines'
 import { listPayMethods, type PayMethod } from '@/lib/pay-methods'
 import { bothNames, cleanName, originalLabel } from '@/lib/names'
 import {
@@ -80,6 +81,7 @@ export default function SplitScreen() {
   const [menuOpen, setMenuOpen] = useState(false)
   const [payerOpen, setPayerOpen] = useState(false)
   const [breakdownOpen, setBreakdownOpen] = useState(false)
+  const [sendOpen, setSendOpen] = useState(false)
   const [settledOpen, setSettledOpen] = useState(false)
   const [error, setError] = useState<string | null>(null)
   // Changes save as you tap. They reach the database one at a time and in
@@ -327,14 +329,15 @@ export default function SplitScreen() {
       })),
       unassigned: split.unassigned.total,
     })
-  // On a bill you paid: "Pay me" and how, then the friend link, where each friend gets their own QR.
-  const sendTotals = () => {
+  // On a bill you paid, the message ends with "Pay me" and how. With PromptPay,
+  // a sheet sends the message and then your QR as a picture.
+  const groupMessage = () => (payer?.is_me ? withPayMe(totalsText(), payMethods) : totalsText())
+  const totalsQr = payer?.is_me ? groupPayQr(payMethods, receipt.currency) : null
+  const shareTotals = () => {
     track('totals_sent')
-    if (!payer?.is_me) return shareText(totalsText())
-    const link =
-      receipt.link_enabled && receipt.share_token && friendLinksAvailable ? friendLinkUrl(receipt.share_token) : null
-    return shareText(withPayMe(totalsText(), payMethods, link))
+    return shareText(groupMessage())
   }
+  const sendTotals = () => (totalsQr ? setSendOpen(true) : shareTotals())
 
   // Friends who open the link pick their own items; pull down to see them.
   const refresh = async () => {
@@ -585,6 +588,16 @@ export default function SplitScreen() {
           />
         }
       />
+
+      {totalsQr && (
+        <SendTotalsSheet
+          visible={sendOpen}
+          onClose={() => setSendOpen(false)}
+          message={groupMessage()}
+          qr={totalsQr}
+          onSendMessage={shareTotals}
+        />
+      )}
 
       <WhoHadSheet
         visible={pickOpen}
