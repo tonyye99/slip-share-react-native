@@ -12,12 +12,59 @@ export function qrModules(text: string): boolean[][] {
 /** The white border round a QR code, in squares. Banking apps read codes best with all four. */
 export const QUIET_ZONE = 4
 
+// ============ website only ============
+
+function drawCode(context: CanvasRenderingContext2D, modules: boolean[][], left: number, top: number, cell: number) {
+  context.fillStyle = '#000000'
+  modules.forEach((dark, row) =>
+    dark.forEach((on, col) => {
+      if (on) context.fillRect(left + (col + QUIET_ZONE) * cell, top + (row + QUIET_ZONE) * cell, cell, cell)
+    }),
+  )
+}
+
 /**
- * Website only: saves a QR code as a picture with a line or two under it, so
- * a friend on their phone can open it from their banking app's "scan from
- * photos". Phones get the share sheet (Save Image); computers download it.
+ * The code as a PNG, `cell` points per square, sharp on high-density
+ * screens. The website shows it as a picture so a long press can save it.
  */
-export async function saveQrImage(text: string, caption: string[], fileName: string): Promise<void> {
+export function qrImageUrl(modules: boolean[][], cell: number): string {
+  const scale = Math.max(1, Math.ceil(window.devicePixelRatio || 1))
+  const side = (modules.length + QUIET_ZONE * 2) * cell * scale
+  const canvas = document.createElement('canvas')
+  canvas.width = side
+  canvas.height = side
+  const context = canvas.getContext('2d')
+  if (!context) return ''
+  context.fillStyle = '#FFFFFF'
+  context.fillRect(0, 0, side, side)
+  drawCode(context, modules, 0, 0, cell * scale)
+  return canvas.toDataURL('image/png')
+}
+
+/**
+ * iPhone and iPad, including iPads that say they're a Mac. Their browsers
+ * can only put a picture in Photos through the share sheet (Save Image) or
+ * a long press on it, never with a plain download.
+ */
+export function isApplePhone(): boolean {
+  if (typeof navigator === 'undefined') return false
+  const agent = navigator.userAgent
+  return /iPhone|iPad|iPod/.test(agent) || (agent.includes('Macintosh') && navigator.maxTouchPoints > 1)
+}
+
+/**
+ * Saves a QR code as a picture with a line or two under it, so a friend can
+ * open it from their banking app's "scan from photos".
+ * - `saved`: downloaded. On Android it lands in Downloads, which the gallery shows.
+ * - `shared`: the iPhone share sheet opened; Save Image puts it in Photos.
+ * - `hold`: an iPhone browser with no share sheet, like some in-app browsers.
+ *   The QR on screen can still be saved with a long press.
+ */
+export async function saveQrImage(
+  text: string,
+  caption: string[],
+  fileName: string,
+): Promise<'saved' | 'shared' | 'hold'> {
   const modules = qrModules(text)
   const cell = 10
   const code = (modules.length + QUIET_ZONE * 2) * cell
@@ -30,12 +77,7 @@ export async function saveQrImage(text: string, caption: string[], fileName: str
   if (!context) throw new Error('No canvas')
   context.fillStyle = '#FFFFFF'
   context.fillRect(0, 0, canvas.width, canvas.height)
-  context.fillStyle = '#000000'
-  modules.forEach((dark, row) =>
-    dark.forEach((on, col) => {
-      if (on) context.fillRect(pad + (col + QUIET_ZONE) * cell, pad + (row + QUIET_ZONE) * cell, cell, cell)
-    }),
-  )
+  drawCode(context, modules, pad, pad, cell)
   context.fillStyle = '#10181B'
   context.textAlign = 'center'
   caption.forEach((line, index) => {
@@ -45,16 +87,19 @@ export async function saveQrImage(text: string, caption: string[], fileName: str
 
   const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, 'image/png'))
   if (!blob) throw new Error('Could not make the picture')
-  const file = new File([blob], fileName, { type: 'image/png' })
-  const touch = typeof matchMedia === 'function' && matchMedia('(pointer: coarse)').matches
-  if (touch && navigator.canShare?.({ files: [file] })) {
+
+  if (isApplePhone()) {
+    const file = new File([blob], fileName, { type: 'image/png' })
+    if (!navigator.canShare?.({ files: [file] })) return 'hold'
     try {
       await navigator.share({ files: [file] })
     } catch (e) {
       if ((e as Error)?.name !== 'AbortError') throw e
     }
-    return
+    return 'shared'
   }
+
+  // Android and computers: straight to Downloads, no pop-up.
   const url = URL.createObjectURL(blob)
   const link = document.createElement('a')
   link.href = url
@@ -63,4 +108,5 @@ export async function saveQrImage(text: string, caption: string[], fileName: str
   link.click()
   link.remove()
   setTimeout(() => URL.revokeObjectURL(url), 10_000)
+  return 'saved'
 }

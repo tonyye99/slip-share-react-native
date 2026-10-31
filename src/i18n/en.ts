@@ -475,7 +475,11 @@ export const en = {
     copyNumber: 'Copy number',
     copy: 'Copy',
     copied: 'Copied',
-    saveQrHint: 'On your phone? Save the QR, open your banking app and scan it from your photos.',
+    saveQrHint: 'On your phone? Save the QR, then open your banking app and scan it from your photos.',
+    saveQrHintIphone:
+      'Tap Save QR, then Save Image. Or press and hold the QR and tap Save to Photos. Then open your banking app and scan it from your photos.',
+    savedQr: 'Saved',
+    holdToSave: 'Press and hold the QR, then tap Save to Photos.',
     notBaht: "This bill isn't in baht, so there's no QR. Use the number instead.",
     bankName: 'Bank',
     accountNumber: 'Account number',

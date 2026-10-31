@@ -7,11 +7,12 @@ import { AppText, Button, Card, Segmented } from '@/components/ui'
 import { Radius, Spacing } from '@/constants/theme'
 import { useTheme } from '@/hooks/use-theme'
 import { useT } from '@/i18n'
+import { showAlert } from '@/lib/alert'
 import { track } from '@/lib/analytics'
 import { copyText } from '@/lib/copy'
 import { payTitle, type PayDetails } from '@/lib/pay-lines'
 import { formatPromptPay, promptPayPayload } from '@/lib/promptpay'
-import { saveQrImage } from '@/lib/qr'
+import { isApplePhone, saveQrImage } from '@/lib/qr'
 import { formatMoney } from '@/lib/split'
 
 /**
@@ -88,13 +89,15 @@ function useCopied() {
   useEffect(() => () => {
     if (timer.current) clearTimeout(timer.current)
   }, [])
-  const copy = async (key: string, text: string) => {
-    if (!(await copyText(text))) return
+  const flash = (key: string) => {
     setCopied(key)
     if (timer.current) clearTimeout(timer.current)
     timer.current = setTimeout(() => setCopied(null), 2000)
   }
-  return { copied, copy }
+  const copy = async (key: string, text: string) => {
+    if (await copyText(text)) flash(key)
+  }
+  return { copied, copy, flash }
 }
 
 function PromptPay({
@@ -110,7 +113,7 @@ function PromptPay({
 }) {
   const theme = useTheme()
   const t = useT().pay
-  const { copied, copy } = useCopied()
+  const { copied, copy, flash } = useCopied()
   const [saving, setSaving] = useState(false)
   const to = method.name || payerName
   const money = formatMoney(amount, currency)
@@ -125,8 +128,14 @@ function PromptPay({
     setSaving(true)
     try {
       // Plain letters only: Chrome won't take ฿ in a file name.
-      await saveQrImage(payload, [t.amountTo(money, to), t.promptpayNumber(number)], `PromptPay-${amount.toFixed(2)}-THB.png`)
-      track('pay_qr_saved')
+      const result = await saveQrImage(
+        payload,
+        [t.amountTo(money, to), t.promptpayNumber(number)],
+        `PromptPay-${amount.toFixed(2)}-THB.png`,
+      )
+      if (result === 'hold') showAlert(t.saveQr, t.holdToSave)
+      else track('pay_qr_saved', { how: result })
+      if (result === 'saved') flash('qr')
     } catch (e) {
       console.error('Saving the QR failed', e)
     } finally {
@@ -175,7 +184,7 @@ function PromptPay({
       <View style={styles.actions}>
         {web && (
           <Button
-            title={t.saveQr}
+            title={copied === 'qr' ? t.savedQr : t.saveQr}
             icon={<DownloadIcon color={theme.onPrimary} size={16} />}
             onPress={saveQr}
             loading={saving}
@@ -186,7 +195,7 @@ function PromptPay({
       </View>
       {web && (
         <View style={[styles.hint, { backgroundColor: theme.primaryTint }]}>
-          <AppText variant="caption">{t.saveQrHint}</AppText>
+          <AppText variant="caption">{isApplePhone() ? t.saveQrHintIphone : t.saveQrHint}</AppText>
         </View>
       )}
     </View>
