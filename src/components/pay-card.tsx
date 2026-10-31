@@ -11,7 +11,7 @@ import { showAlert } from '@/lib/alert'
 import { track } from '@/lib/analytics'
 import { copyText } from '@/lib/copy'
 import { payTitle, type PayDetails } from '@/lib/pay-lines'
-import { formatPromptPay, promptPayPayload } from '@/lib/promptpay'
+import { formatPromptPay, payPayload, promptPayId } from '@/lib/promptpay'
 import { isApplePhone, saveQrImage } from '@/lib/qr'
 import { formatMoney } from '@/lib/split'
 
@@ -117,10 +117,12 @@ function PromptPay({
   const [saving, setSaving] = useState(false)
   const to = method.name || payerName
   const money = formatMoney(amount, currency)
-  const number = formatPromptPay(method.value)
+  // A QR saved from a banking app may not say which number it pays to.
+  const id = promptPayId(method.value)
+  const number = id ? formatPromptPay(id) : null
   // PromptPay is in baht only, so a bill in another currency gets the number alone.
   const baht = currency.toUpperCase() === 'THB'
-  const payload = baht ? promptPayPayload(method.value, amount) : null
+  const payload = baht ? payPayload(method.value, amount) : null
   const web = Platform.OS === 'web'
 
   const saveQr = async () => {
@@ -130,7 +132,7 @@ function PromptPay({
       // Plain letters only: Chrome won't take ฿ in a file name.
       const result = await saveQrImage(
         payload,
-        [t.amountTo(money, to), t.promptpayNumber(number)],
+        number ? [t.amountTo(money, to), t.promptpayNumber(number)] : [t.amountTo(money, to)],
         `PromptPay-${amount.toFixed(2)}-THB.png`,
       )
       if (result === 'hold') showAlert(t.saveQr, t.holdToSave)
@@ -143,15 +145,15 @@ function PromptPay({
     }
   }
 
-  const copyButton = (
+  const copyButton = id ? (
     <Button
       title={copied === 'number' ? t.copied : t.copyNumber}
       variant="secondary"
       icon={<CopyIcon color={theme.text} size={16} />}
-      onPress={() => copy('number', method.value)}
+      onPress={() => copy('number', id)}
       style={styles.flex}
     />
-  )
+  ) : null
 
   if (!payload) {
     return (
@@ -160,10 +162,12 @@ function PromptPay({
         <AppText variant="heading" style={styles.center}>
           {t.amountTo(money, to)}
         </AppText>
-        <AppText variant="muted" style={styles.center}>
-          {t.promptpayNumber(number)}
-        </AppText>
-        <View style={styles.actions}>{copyButton}</View>
+        {number && (
+          <AppText variant="muted" style={styles.center}>
+            {t.promptpayNumber(number)}
+          </AppText>
+        )}
+        {copyButton && <View style={styles.actions}>{copyButton}</View>}
       </View>
     )
   }
@@ -177,22 +181,26 @@ function PromptPay({
         <AppText variant="heading" style={styles.center}>
           {t.amountTo(money, to)}
         </AppText>
-        <AppText variant="muted" style={styles.center}>
-          {t.promptpayNumber(number)}
-        </AppText>
-      </View>
-      <View style={styles.actions}>
-        {web && (
-          <Button
-            title={copied === 'qr' ? t.savedQr : t.saveQr}
-            icon={<DownloadIcon color={theme.onPrimary} size={16} />}
-            onPress={saveQr}
-            loading={saving}
-            style={styles.flex}
-          />
+        {number && (
+          <AppText variant="muted" style={styles.center}>
+            {t.promptpayNumber(number)}
+          </AppText>
         )}
-        {copyButton}
       </View>
+      {(web || copyButton) && (
+        <View style={styles.actions}>
+          {web && (
+            <Button
+              title={copied === 'qr' ? t.savedQr : t.saveQr}
+              icon={<DownloadIcon color={theme.onPrimary} size={16} />}
+              onPress={saveQr}
+              loading={saving}
+              style={styles.flex}
+            />
+          )}
+          {copyButton}
+        </View>
+      )}
       {web && (
         <View style={[styles.hint, { backgroundColor: theme.primaryTint }]}>
           <AppText variant="caption">{isApplePhone() ? t.saveQrHintIphone : t.saveQrHint}</AppText>
