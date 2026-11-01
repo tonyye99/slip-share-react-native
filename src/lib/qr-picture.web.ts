@@ -1,17 +1,17 @@
 import { strings } from '@/i18n/strings'
 import { showAlert } from '@/lib/alert'
-import { download, qrPicture } from '@/lib/qr'
+import { download, totalsPicture } from '@/lib/qr'
 
-import type { QrPicture } from './qr-picture'
+import type { TotalsPicture } from './qr-picture'
 
 /**
- * Opens the share sheet with the message and the QR code as a picture, with
- * the name under it. Browsers that can't share files (most computers) copy
+ * Opens the share sheet with the message and a picture of the whole totals:
+ * the message, then the QR code with the name under it. Browsers that can't share files (most computers) copy
  * the message and download the picture instead. Returns false when the
  * person closed the share sheet without sending.
  */
-export async function shareWithQr(message: string, qr: string, picture: QrPicture): Promise<boolean> {
-  const blob = await qrPicture(qr, picture.caption)
+export async function shareWithQr(message: string, qr: string, picture: TotalsPicture): Promise<boolean> {
+  const blob = await totalsPicture(message, qr, picture.caption, picture.note)
   const file = new File([blob], picture.fileName, { type: 'image/png' })
   const both = { text: message, files: [file], title: picture.title }
   if (navigator.canShare?.(both)) {

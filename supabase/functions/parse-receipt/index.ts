@@ -54,7 +54,7 @@ function schema(enableTranslation: boolean) {
     },
     merchant_name: {
       type: 'string',
-      description: 'The name of the restaurant, business, or merchant from the receipt in original language',
+      description: 'The name of the restaurant, business, or merchant from the receipt in original language. If no name is printed, use an empty string, never "Unknown".',
     },
     items: {
       type: 'array',
@@ -81,7 +81,7 @@ function schema(enableTranslation: boolean) {
   if (enableTranslation) {
     properties.merchant_name_en = {
       type: 'string',
-      description: 'English translation of the merchant name. If already in English, use the same value as merchant_name',
+      description: 'English translation of the merchant name. If already in English, use the same value as merchant_name. Empty string if merchant_name is empty.',
     }
     required.push('merchant_name_en')
     itemProperties.name_en = {

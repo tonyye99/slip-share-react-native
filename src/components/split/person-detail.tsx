@@ -4,7 +4,7 @@ import { StyleSheet, View } from 'react-native'
 import { Avatar } from '@/components/chip'
 import { CheckIcon } from '@/components/icons'
 import { SlipRow } from '@/components/split/slip-row'
-import { AppText, Button, Card } from '@/components/ui'
+import { AppText, Button, Card, TextLink } from '@/components/ui'
 import { Spacing } from '@/constants/theme'
 import { useTheme } from '@/hooks/use-theme'
 import { useT } from '@/i18n'
@@ -21,6 +21,7 @@ export function PersonDetail({
   money,
   onChoosePayer,
   onTogglePaid,
+  onRemove,
 }: {
   person: ReceiptPerson
   payer: ReceiptPerson | null
@@ -30,6 +31,8 @@ export function PersonDetail({
   money: Money
   onChoosePayer: () => void
   onTogglePaid: () => void
+  /** Takes them off the bill. Not offered on your own card. */
+  onRemove: () => void
 }) {
   const theme = useTheme()
   const { common, split: t } = useT()
@@ -82,6 +85,7 @@ export function PersonDetail({
         </>
       )}
       {action}
+      {!person.is_me && <TextLink title={t.removeFromBill} color={theme.danger} onPress={onRemove} />}
     </Card>
   )
 }

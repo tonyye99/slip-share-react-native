@@ -1,22 +1,22 @@
 import { router, useLocalSearchParams } from 'expo-router'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { ActivityIndicator, RefreshControl, ScrollView, StyleSheet, View, type ScrollViewInstance } from 'react-native'
+import { ActivityIndicator, Pressable, RefreshControl, ScrollView, StyleSheet, View, type ScrollViewInstance } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import { AllSettled } from '@/components/all-settled'
 import { BreakdownSheet } from '@/components/breakdown-sheet'
 import { usePersonColor } from '@/components/chip'
-import { SendIcon } from '@/components/icons'
+import { ChevronDownIcon, SendIcon } from '@/components/icons'
 import { ScreenHeader } from '@/components/screen-header'
 import { SendTotalsSheet } from '@/components/send-totals-sheet'
 import { BillSummary } from '@/components/split/bill-summary'
 import { FriendLinkCard, ShareLinkTile } from '@/components/split/friend-link'
 import { ItemRow } from '@/components/split/item-row'
-import { PeopleStep } from '@/components/split/people-step'
+import { PeopleRow, PeopleStep } from '@/components/split/people-step'
 import { PersonCards } from '@/components/split/person-cards'
 import { PersonDetail } from '@/components/split/person-detail'
 import { SplitFooter } from '@/components/split/split-footer'
-import { MenuButton, PayerSheet, SplitMenu } from '@/components/split/split-menu'
+import { MenuButton, PayerSheet, RenameSheet, SoloPayerSheet, SplitMenu } from '@/components/split/split-menu'
 import { WhoHadSheet } from '@/components/split/who-had-sheet'
 import { AppText, Button, Card, TextLink } from '@/components/ui'
 import { MaxContentWidth, Radius, Spacing } from '@/constants/theme'
@@ -37,6 +37,7 @@ import {
   getReceipt,
   removeItemPeople,
   removePerson,
+  renameReceipt,
   setPayer,
   setPersonPaid,
   setReceiptLink,
@@ -90,6 +91,8 @@ export default function SplitScreen() {
   const [pickOpen, setPickOpen] = useState(false)
   const [menuOpen, setMenuOpen] = useState(false)
   const [payerOpen, setPayerOpen] = useState(false)
+  const [renameOpen, setRenameOpen] = useState(false)
+  const [showFree, setShowFree] = useState(false)
   const [breakdownOpen, setBreakdownOpen] = useState(false)
   const [sendOpen, setSendOpen] = useState(false)
   const [settledOpen, setSettledOpen] = useState(false)
@@ -139,10 +142,10 @@ export default function SplitScreen() {
   // ============ what the screen shows ============
 
   const money = (amount: number) => formatMoney(amount, receipt.currency)
-  const totalOf = (person: ReceiptPerson) => split.people[person.id]?.total ?? 0
+  const totalOf = (person: ReceiptPerson) =>
+    wholeBillMine && person.is_me ? receipt.total : (split.people[person.id]?.total ?? 0)
   const colorOf = (person: ReceiptPerson) => personColor(people.indexOf(person))
   const views = people.map((person) => ({ id: person.id, name: nameOf(person), color: colorOf(person) }))
-  const alone = people.length === 1
   const payer = people.find((person) => person.is_payer) ?? null
   const payerName = payer?.is_me ? t.common.youInSentence : payer?.name
   const title = bothNames(receipt.merchant_name, receipt.merchant_name_en, showEnglish).main || t.common.receipt
@@ -154,9 +157,23 @@ export default function SplitScreen() {
   const pickedByLink = people.filter((person) => person.guest_key).map((person) => person.name)
 
   const peopleOn = (itemId: string) => Object.keys(picks[itemId] ?? {})
+  // Just you on the bill, or you and the friend who paid it, who had none of
+  // the items: then you only tick what you had.
+  const others = people.filter((person) => !person.is_me)
+  const friendPayer =
+    others.length === 1 && others[0].is_payer && !items.some((item) => peopleOn(item.id).includes(others[0].id))
+      ? others[0]
+      : null
+  const alone = others.length === 0 || friendPayer !== null
   const sharesOf = (item: Item) => itemShares(item, peopleOn(item.id), picks[item.id])
   const statusOf = (item: Item) => itemStatus(item, peopleOn(item.id), sharesOf(item), people, money)
   const unassignedCount = items.filter((item) => sharesOf(item).left > 0).length
+  // On your own, until you tick what you had, the whole bill counts as yours.
+  // Free lines (฿0 water, a free soup) sit folded away at the end of the list.
+  const priced = items.filter((item) => item.qty * item.unit_price > 0)
+  const free = items.filter((item) => item.qty * item.unit_price <= 0)
+  const mineCount = alone ? priced.filter((item) => peopleOn(item.id).length > 0).length : 0
+  const wholeBillMine = alone && mineCount === 0
   const assignedTotal = people.reduce((sum, person) => sum + totalOf(person), 0)
 
   // Everyone except the payer pays the payer back, if they had anything. Someone
@@ -168,11 +185,7 @@ export default function SplitScreen() {
   const settled = owesPayer.length > 0 && owesPayer.every((person) => person.paid_at)
 
   const hasCharges = receipt.service_percent > 0 || receipt.tax_percent > 0
-  // With others on the bill, who paid is a button on the bill card instead.
-  const summaryCaption = [
-    alone && payer && payerName ? t.split.paidBy(payerName) : null,
-    hasCharges ? t.split.includes(receipt.service_percent > 0, receipt.tax_percent > 0) : null,
-  ]
+  const summaryCaption = [hasCharges ? t.split.includes(receipt.service_percent > 0, receipt.tax_percent > 0) : null]
     .filter(Boolean)
     .join(' · ')
 
@@ -218,6 +231,52 @@ export default function SplitScreen() {
     } else {
       setItemPicks(itemId, { ...had, [personId]: 1 })
       save(() => addItemPeople([{ item_id: itemId, person_id: personId, units: 1 }]))
+    }
+  }
+
+  // On your own: you had all of a line, or none of it.
+  const toggleMine = (item: Item) => {
+    const me = people.find((person) => person.is_me)
+    if (!me) return
+    if (peopleOn(item.id).includes(me.id)) {
+      setItemPicks(item.id, {})
+      save(() => removeItemPeople(item.id, [me.id]))
+    } else {
+      const had = { [me.id]: evenCount(item, 1) }
+      setItemPicks(item.id, had)
+      save(() => addItemPeople(rowsFor(item.id, had)))
+    }
+  }
+
+  // On your own: you paid, or a friend did (they go on the bill without items).
+  const chooseSoloPayer = async (friend: string | null) => {
+    const me = people.find((person) => person.is_me)
+    if (!me) return
+    if (friend === null) {
+      if (!friendPayer) return choosePayer(me.id)
+      choosePayer(me.id)
+      setPeople((prev) => prev.filter((other) => other.id !== friendPayer.id))
+      save(() => removePerson(receipt.id, friendPayer.id))
+      return
+    }
+    const name = cleanName(friend) || t.split.aFriend
+    if (friendPayer?.name === name) return
+    try {
+      const person = await addPerson(receipt.id, name)
+      setPeople((prev) =>
+        [...prev.filter((other) => other.id !== friendPayer?.id), { ...person, is_payer: true }].map((other) => ({
+          ...other,
+          is_payer: other.id === person.id,
+          paid_at: other.id === person.id ? null : other.paid_at,
+        })),
+      )
+      save(async () => {
+        await setPayer(receipt.id, person.id)
+        if (friendPayer) await removePerson(receipt.id, friendPayer.id)
+      })
+    } catch (e) {
+      console.error('Add person failed', e)
+      showAlert(t.split.couldNotAdd(name), t.common.checkConnection)
     }
   }
 
@@ -308,6 +367,16 @@ export default function SplitScreen() {
       })),
     )
     save(() => setPayer(receipt.id, personId))
+  }
+
+  const rename = (name: string) => {
+    const before = receipt
+    setReceipt({ ...receipt, merchant_name: name, merchant_name_en: null })
+    renameReceipt(receipt.id, name).catch((e) => {
+      console.error('Rename failed', e)
+      setReceipt(before)
+      showAlert(t.split.renameFailed, t.common.checkConnection)
+    })
   }
 
   const togglePaid = (person: ReceiptPerson) => {
@@ -447,7 +516,7 @@ export default function SplitScreen() {
 
   // ============ the screen ============
 
-  const showPeopleStep = alone || editingPeople
+  const showPeopleStep = editingPeople
   const detailPerson = alone ? undefined : people.find((person) => person.id === detailFor)
   const pickItem = items.find((item) => item.id === pickFor)
   const hasTranslation = !!receipt.merchant_name_en || items.some((item) => item.name_en)
@@ -459,6 +528,8 @@ export default function SplitScreen() {
         plain
         title={title}
         subtitle={`${date} · ${t.common.items(items.length)}`}
+        onTitlePress={() => setRenameOpen(true)}
+        titleHint={t.split.tapToRename}
         right={<MenuButton onPress={() => setMenuOpen(true)} />}
       />
 
@@ -472,14 +543,10 @@ export default function SplitScreen() {
         <BillSummary
           total={receipt.total}
           caption={summaryCaption}
-          payer={
-            alone
-              ? null
-              : {
-                  label: payer && payerName ? t.split.paidBy(payerName) : t.split.choosePayer,
-                  person: payer ? views[people.indexOf(payer)] : null,
-                }
-          }
+          payer={{
+            label: payer && payerName ? t.split.paidBy(payerName) : t.split.choosePayer,
+            person: payer ? views[people.indexOf(payer)] : null,
+          }}
           onChoosePayer={() => setPayerOpen(true)}
           progress={
             alone
@@ -527,10 +594,13 @@ export default function SplitScreen() {
             money={money}
             onChoosePayer={() => setPayerOpen(true)}
             onTogglePaid={() => togglePaid(detailPerson)}
+            onRemove={() => confirmRemove(detailPerson)}
           />
         )}
 
-        {friendLinksAvailable && !showPeopleStep && (
+        {alone && !showPeopleStep && <PeopleRow people={people} colorOf={colorOf} onAdd={() => setEditingPeople(true)} />}
+
+        {friendLinksAvailable && !alone && !showPeopleStep && (
           <FriendLinkCard on={receipt.link_enabled} pickedNames={pickedByLink} busy={linkBusy} onShare={shareLink} />
         )}
 
@@ -548,28 +618,17 @@ export default function SplitScreen() {
           />
         )}
 
-        <View style={[styles.sectionRow, !alone && styles.sectionGap]}>
-          {alone ? (
-            <>
-              <AppText variant="heading" style={styles.flex}>
-                {t.split.stepTwo}
-              </AppText>
-              <AppText variant="caption">{t.common.items(items.length)}</AppText>
-            </>
-          ) : (
-            <>
-              <AppText variant="title" style={[styles.flex, styles.sectionTitle]}>
-                {t.split.whoHadWhat}
-              </AppText>
-              <View>
-                <TextLink title={t.split.splitAllEvenly} onPress={splitEvenly} />
-              </View>
-            </>
-          )}
-        </View>
-
         <Card style={styles.list}>
-          {items.map((item, index) => (
+          <View style={styles.listHeader}>
+            <View style={styles.flex}>
+              <AppText variant="title" style={styles.sectionTitle}>
+                {alone ? t.split.whatDidYouHave : t.split.whoHadWhat}
+              </AppText>
+              <AppText variant="caption">{alone ? t.split.tickIfYouHadItAll : t.common.items(priced.length)}</AppText>
+            </View>
+            {!alone && <TextLink title={t.split.splitAllEvenly} onPress={splitEvenly} />}
+          </View>
+          {[...priced, ...(showFree ? free : [])].map((item) => (
             <ItemRow
               key={item.id}
               item={item}
@@ -577,11 +636,26 @@ export default function SplitScreen() {
               had={peopleOn(item.id)}
               status={statusOf(item)}
               alone={alone}
-              divider={index > 0}
+              divider
               money={money}
-              onOpen={() => openItem(item.id)}
+              onOpen={() => (alone ? toggleMine(item) : openItem(item.id))}
             />
           ))}
+          {free.length > 0 && (
+            <Pressable
+              onPress={() => setShowFree(!showFree)}
+              accessibilityRole="button"
+              accessibilityState={{ expanded: showFree }}
+              style={({ pressed }) => [
+                styles.freeRow,
+                { borderTopColor: theme.hairline, backgroundColor: pressed ? theme.backgroundElement : theme.surface },
+              ]}>
+              <AppText variant="caption" style={styles.flex}>
+                {showFree ? t.split.hideFree : t.split.freeItems(free.length)}
+              </AppText>
+              <ChevronDownIcon color={theme.textSecondary} up={showFree} />
+            </Pressable>
+          )}
         </Card>
 
         {hasCharges && (
@@ -593,7 +667,9 @@ export default function SplitScreen() {
 
       <SplitFooter
         alone={alone}
-        myTotal={totalOf(people[0])}
+        myTotal={me ? totalOf(me) : 0}
+        mineCount={mineCount}
+        itemCount={priced.length}
         left={left}
         leftItems={unassignedCount}
         money={money}
@@ -650,13 +726,31 @@ export default function SplitScreen() {
         onSetCount={(personId, units) => pickItem && setCount(pickItem, personId, units)}
       />
 
-      <PayerSheet
-        visible={payerOpen}
-        onClose={() => setPayerOpen(false)}
-        people={views}
-        payerId={payer?.id}
-        onChoose={choosePayer}
+      <RenameSheet
+        key={renameOpen ? 'rename-open' : 'rename-closed'}
+        visible={renameOpen}
+        onClose={() => setRenameOpen(false)}
+        name={bothNames(receipt.merchant_name, receipt.merchant_name_en, showEnglish).main}
+        onSave={rename}
       />
+
+      {alone ? (
+        <SoloPayerSheet
+          key={payerOpen ? 'open' : 'closed'}
+          visible={payerOpen}
+          onClose={() => setPayerOpen(false)}
+          friendName={friendPayer?.name ?? null}
+          onChoose={chooseSoloPayer}
+        />
+      ) : (
+        <PayerSheet
+          visible={payerOpen}
+          onClose={() => setPayerOpen(false)}
+          people={views}
+          payerId={payer?.id}
+          onChoose={choosePayer}
+        />
+      )}
 
       <SplitMenu
         visible={menuOpen}
@@ -673,13 +767,14 @@ export default function SplitScreen() {
           setShowEnglish(!showEnglish)
           setMenuOpen(false)
         }}
+        onRename={() => fromMenu(() => setRenameOpen(true))}
         onEditPeople={() =>
           fromMenu(() => {
             setEditingPeople(true)
             scroll.current?.scrollTo({ y: 0, animated: true })
           })
         }
-        canChangePayer={!alone}
+        canChangePayer
         payerName={payer ? nameOf(payer) : undefined}
         onChangePayer={() => fromMenu(() => setPayerOpen(true))}
         link={friendLinksAvailable ? { on: receipt.link_enabled, pickedNames: pickedByLink } : null}
@@ -720,9 +815,23 @@ const styles = StyleSheet.create({
     maxWidth: MaxContentWidth,
     alignSelf: 'center',
   },
-  sectionRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.three, marginTop: Spacing.three },
-  sectionGap: { marginBottom: Spacing.one + 2 },
   sectionTitle: { fontSize: 22, lineHeight: 28 },
   list: { padding: 0, gap: 0, overflow: 'hidden', borderRadius: Radius.large + 4 },
+  listHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.three,
+    paddingHorizontal: Spacing.three,
+    paddingTop: Spacing.three,
+    paddingBottom: Spacing.three - 4,
+  },
   footnote: { textAlign: 'center', marginTop: Spacing.one },
+  freeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.two,
+    paddingHorizontal: Spacing.three,
+    paddingVertical: Spacing.three - 2,
+    borderTopWidth: StyleSheet.hairlineWidth,
+  },
 })

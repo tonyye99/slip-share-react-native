@@ -1,6 +1,7 @@
 import { strings } from '@/i18n/strings'
 import { confirmDestructive } from '@/lib/alert'
 import type { Bill } from '@/lib/bills'
+import { realName } from '@/lib/names'
 import { removeSlipFiles } from '@/lib/slips'
 import { billTotal, peopleInOrder, receiptSubtotal, readSavedCharges } from '@/lib/split'
 import { supabase } from '@/lib/supabase'
@@ -48,8 +49,8 @@ export async function createReceipt(parsed: ParsedReceipt, userId: string) {
     .from('receipts')
     .insert({
       user_id: userId,
-      merchant_name: parsed.merchant_name || null,
-      merchant_name_en: translated ? (parsed.merchant_name_en ?? null) : null,
+      merchant_name: realName(parsed.merchant_name),
+      merchant_name_en: translated ? realName(parsed.merchant_name_en) : null,
       original_language: parsed.original_language || null,
       currency: (parsed.currency || 'THB').toUpperCase().slice(0, 3),
       tax_percent: parsed.tax_percent,
@@ -89,6 +90,12 @@ export async function addPerson(receiptId: string, name: string): Promise<Receip
   const { data, error } = await supabase.from('receipt_people').insert({ receipt_id: receiptId, name }).select().single()
   if (error) throw error
   return data as ReceiptPerson
+}
+
+/** Gives a bill your own name. The scanned English name goes, so this one shows either way. */
+export async function renameReceipt(receiptId: string, name: string) {
+  const { error } = await supabase.from('receipts').update({ merchant_name: name, merchant_name_en: null }).eq('id', receiptId)
+  if (error) throw error
 }
 
 /** Removes someone from a receipt, with any transfer slip they sent; the items they had go back to nobody. */

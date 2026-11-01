@@ -724,3 +724,22 @@ export function DownloadIcon({ color, size = 18, weight = 2 }: { color: string; 
     </View>
   )
 }
+
+/** A pencil, for renaming. */
+export function PencilIcon({ color, size = 18, weight = 1.8 }: { color: string; size?: number; weight?: number }) {
+  const lines: [Point, Point][] = [
+    [[4, 20], [5, 15]],
+    [[5, 15], [15.5, 4.5]],
+    [[15.5, 4.5], [19.5, 8.5]],
+    [[19.5, 8.5], [9, 19]],
+    [[9, 19], [4, 20]],
+    [[13, 7], [17, 11]],
+  ]
+  return (
+    <View style={{ width: size, height: size }}>
+      {lines.map(([from, to], index) => (
+        <Line key={index} from={from} to={to} scale={size / 24} color={color} weight={weight} />
+      ))}
+    </View>
+  )
+}

@@ -1,37 +1,43 @@
 import * as Clipboard from 'expo-clipboard'
-import { File, Paths } from 'expo-file-system'
 import * as Sharing from 'expo-sharing'
-import { Platform, Share } from 'react-native'
+import type { RefObject } from 'react'
+import { Platform, Share, type ViewInstance } from 'react-native'
+import { captureRef } from 'react-native-view-shot'
 
-import { qrPng } from '@/lib/png'
-import { qrModules } from '@/lib/qr'
-
-export interface QrPicture {
-  /** Lines under the code. Only the website draws them; the phone app has no canvas. */
+export interface TotalsPicture {
+  /** The card on screen (TotalsCard). The phone app shares a picture of it. */
+  card: RefObject<ViewInstance | null>
+  /** The name, then the PromptPay number. The website draws these itself. */
   caption: string[]
+  /** The line under the code. */
+  note: string
   fileName: string
   title: string
 }
 
 /**
- * Opens the share sheet with the message and the QR code as a picture, for a
- * LINE group or a chat. Returns false when the person closed it without sending.
+ * Opens the share sheet with the message and the totals card as a picture,
+ * for a LINE group or a chat. The picture holds the message too, so apps
+ * that keep only the picture still get every amount. Returns false when the
+ * person closed the sheet without sending.
  *
  * iPhone sends both together. Android shares a picture without its text, so
  * the message goes on the clipboard first and the sheet says to paste it.
  */
-export async function shareWithQr(message: string, qr: string, picture: QrPicture): Promise<boolean> {
-  const file = new File(Paths.cache, picture.fileName)
-  if (file.exists) file.delete()
-  file.create()
-  file.writeSync(qrPng(qrModules(qr), 12))
+export async function shareWithQr(message: string, _qr: string, picture: TotalsPicture): Promise<boolean> {
+  const uri = await captureRef(picture.card, {
+    format: 'png',
+    quality: 1,
+    result: 'tmpfile',
+    fileName: picture.fileName.replace(/\.png$/, ''),
+  })
 
   if (Platform.OS === 'ios') {
-    const result = await Share.share({ message, url: file.uri })
+    const result = await Share.share({ message, url: uri })
     return result.action !== Share.dismissedAction
   }
   await Clipboard.setStringAsync(message)
-  await Sharing.shareAsync(file.uri, { mimeType: 'image/png', dialogTitle: picture.title })
+  await Sharing.shareAsync(uri, { mimeType: 'image/png', dialogTitle: picture.title })
   return true
 }
 

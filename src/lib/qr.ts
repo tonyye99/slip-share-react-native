@@ -124,3 +124,88 @@ export async function qrPicture(text: string, caption: string[]): Promise<Blob> 
   if (!blob) throw new Error('Could not make the picture')
   return blob
 }
+
+const FONT = 'system-ui, -apple-system, "Segoe UI", Roboto, "Noto Sans Thai", sans-serif'
+
+/** Splits text into lines that fit `width`, keeping its own line breaks. Thai has no spaces, so long words break anywhere. */
+function wrap(context: CanvasRenderingContext2D, text: string, width: number): string[] {
+  const lines: string[] = []
+  for (const paragraph of text.split('\n')) {
+    let line = ''
+    for (const piece of paragraph.split(/(\s+)/)) {
+      if (context.measureText(line + piece).width <= width) {
+        line += piece
+        continue
+      }
+      if (line.trim()) lines.push(line.trimEnd())
+      line = piece.trimStart()
+      // A word wider than the line on its own: break it by letter.
+      while (context.measureText(line).width > width) {
+        let cut = line.length - 1
+        while (cut > 1 && context.measureText(line.slice(0, cut)).width > width) cut--
+        lines.push(line.slice(0, cut))
+        line = line.slice(cut)
+      }
+    }
+    lines.push(line.trimEnd())
+  }
+  return lines
+}
+
+/**
+ * Send totals as one picture: the message, then the QR code with the name and
+ * number under it, and a note. Same layout as TotalsCard in the phone app.
+ */
+export async function totalsPicture(message: string, qr: string, caption: string[], note: string): Promise<Blob> {
+  const width = 640
+  const pad = 36
+  const inner = width - pad * 2
+  const messageFont = `400 24px ${FONT}`
+  const messageLine = 34
+  const noteFont = `400 18px ${FONT}`
+  const noteLine = 26
+  const modules = qrModules(qr)
+  const cell = 9
+  const code = (modules.length + QUIET_ZONE * 2) * cell
+
+  const measure = document.createElement('canvas').getContext('2d')
+  if (!measure) throw new Error('No canvas')
+  measure.font = messageFont
+  const messageLines = wrap(measure, message, inner)
+  measure.font = noteFont
+  const noteLines = wrap(measure, note, inner)
+
+  const ruleAt = pad + messageLines.length * messageLine + 16
+  const codeAt = ruleAt + 24
+  const captionAt = codeAt + code + 8
+  const noteAt = captionAt + caption.length * 34 + 10
+  const canvas = document.createElement('canvas')
+  canvas.width = width
+  canvas.height = noteAt + noteLines.length * noteLine + pad - 8
+  const context = canvas.getContext('2d')
+  if (!context) throw new Error('No canvas')
+  context.fillStyle = '#FFFFFF'
+  context.fillRect(0, 0, canvas.width, canvas.height)
+
+  context.fillStyle = '#10181B'
+  context.textBaseline = 'top'
+  context.font = messageFont
+  messageLines.forEach((line, index) => context.fillText(line, pad, pad + index * messageLine))
+  context.fillStyle = '#E3E8EA'
+  context.fillRect(pad, ruleAt, inner, 2)
+
+  drawCode(context, modules, (width - code) / 2, codeAt, cell)
+  context.fillStyle = '#10181B'
+  context.textAlign = 'center'
+  caption.forEach((line, index) => {
+    context.font = `${index === 0 ? '700 26px' : '400 21px'} ${FONT}`
+    context.fillText(line, width / 2, captionAt + index * 34, inner)
+  })
+  context.fillStyle = '#5B6B70'
+  context.font = noteFont
+  noteLines.forEach((line, index) => context.fillText(line, width / 2, noteAt + index * noteLine))
+
+  const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, 'image/png'))
+  if (!blob) throw new Error('Could not make the picture')
+  return blob
+}

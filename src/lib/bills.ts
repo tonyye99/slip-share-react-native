@@ -1,6 +1,7 @@
 import type { Receipt, ReceiptPerson } from '@/lib/types'
 
 import { strings } from '../i18n/strings.ts'
+import { realName } from './names.ts'
 import { itemShares, peopleInOrder, picksFrom, splitByPicks } from './split.ts'
 
 // Where each bill on the home screen stands: still to split, waiting on
@@ -87,7 +88,7 @@ export function badgeText(status: BillStatus, money: (amount: number) => string)
 
 /** The bill's name: its own name, the English one, or just "Receipt". */
 export const billName = (bill: Pick<Bill, 'merchant_name' | 'merchant_name_en'>) =>
-  bill.merchant_name || bill.merchant_name_en || strings().common.receipt
+  realName(bill.merchant_name) || realName(bill.merchant_name_en) || strings().common.receipt
 
 /** The biggest amount anyone still owes you, and on which bill. */
 export function biggestDebt(bills: { bill: Bill; status: BillStatus }[]) {

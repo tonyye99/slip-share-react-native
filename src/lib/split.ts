@@ -235,10 +235,19 @@ export function checkScan<T extends ScannedReceipt>(receipt: T): T {
   return matchesTotal(asLineTotals) ? asLineTotals : asRead
 }
 
+// Phones ignore Intl's narrowSymbol and print "THB 1,005.16", so the symbol is swapped in here.
+const SYMBOLS: Record<string, string> = {
+  THB: '฿', USD: '$', SGD: '$', AUD: '$', CAD: '$', HKD: '$', TWD: '$', NZD: '$', MXN: '$',
+  EUR: '€', GBP: '£', JPY: '¥', CNY: '¥', KRW: '₩', INR: '₹', PHP: '₱', VND: '₫', ILS: '₪',
+  NGN: '₦', UAH: '₴', MYR: 'RM', IDR: 'Rp', BRL: 'R$', CHF: 'CHF ', ZAR: 'R', TRY: '₺', PLN: 'zł ',
+}
+
 export function formatMoney(amount: number, currency: string): string {
+  const code = currency.toUpperCase()
   try {
-    // narrowSymbol shows ฿1,005.16 rather than THB 1,005.16.
-    return new Intl.NumberFormat('en-US', { style: 'currency', currency, currencyDisplay: 'narrowSymbol' }).format(amount)
+    const text = new Intl.NumberFormat('en-US', { style: 'currency', currency: code, currencyDisplay: 'code' }).format(amount)
+    const symbol = SYMBOLS[code]
+    return symbol ? text.replace(new RegExp(`${code}\\s*`), symbol) : text.replace(new RegExp(`${code}\\s*`), `${code} `)
   } catch {
     return `${currency} ${amount.toFixed(2)}`
   }

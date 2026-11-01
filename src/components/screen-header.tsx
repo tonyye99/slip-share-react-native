@@ -24,6 +24,8 @@ export function ScreenHeader({
   brand,
   plain,
   right,
+  onTitlePress,
+  titleHint,
   children,
 }: {
   title?: string
@@ -35,6 +37,9 @@ export function ScreenHeader({
   /** Sit on the grey page with no bar or line, like the split screen. */
   plain?: boolean
   right?: ReactNode
+  /** Makes the title a button, like "rename this bill". */
+  onTitlePress?: () => void
+  titleHint?: string
   children?: ReactNode
 }) {
   const theme = useTheme()
@@ -63,7 +68,12 @@ export function ScreenHeader({
               </AppText>
             </View>
           ) : (
-            <View style={styles.titles}>
+            <Pressable
+              onPress={onTitlePress}
+              disabled={!onTitlePress}
+              accessibilityRole={onTitlePress ? 'button' : undefined}
+              accessibilityHint={titleHint}
+              style={({ pressed }) => [styles.titles, pressed && { opacity: 0.6 }]}>
               <AppText variant="heading" style={styles.title} numberOfLines={1} accessibilityRole="header">
                 {title}
               </AppText>
@@ -72,7 +82,7 @@ export function ScreenHeader({
                   {subtitle}
                 </AppText>
               ) : null}
-            </View>
+            </Pressable>
           )}
           {right}
         </View>

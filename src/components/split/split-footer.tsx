@@ -11,6 +11,8 @@ import type { Money } from '@/lib/split-view'
 
 // The footer is see-through; browsers can also blur the list behind it.
 const glassBlur = Platform.OS === 'web' ? ({ backdropFilter: 'blur(16px)' } as unknown as ViewStyle) : null
+// Phones have no blur here, so see-through glass would show the text under it: use a solid bar there.
+const glassy = Platform.OS === 'web'
 
 /**
  * The glass footer over the split screen: how much is left to assign and
@@ -20,6 +22,8 @@ const glassBlur = Platform.OS === 'web' ? ({ backdropFilter: 'blur(16px)' } as u
 export function SplitFooter({
   alone,
   myTotal,
+  mineCount,
+  itemCount,
   left,
   leftItems,
   money,
@@ -29,6 +33,9 @@ export function SplitFooter({
 }: {
   alone: boolean
   myTotal: number
+  /** On your own: how many items you ticked, out of how many. */
+  mineCount: number
+  itemCount: number
   /** Amount nobody has been given yet. */
   left: number
   leftItems: number
@@ -54,10 +61,12 @@ export function SplitFooter({
   if (alone) {
     summary = (
       <>
-        <AppText variant="heading" style={styles.amount}>
-          {t.youTotal(money(myTotal))}
+        <AppText variant="heading" style={styles.amount} numberOfLines={1}>
+          {mineCount > 0 ? money(myTotal) : t.youTotal(money(myTotal))}
         </AppText>
-        <AppText variant="caption">{t.justYou}</AppText>
+        <AppText variant="caption" numberOfLines={1}>
+          {owe ? (owe.paid ? t.youPaidBack(owe.payer) : t.youOwe(owe.payer)) : mineCount > 0 ? t.mineOf(mineCount, itemCount) : t.tickForShare}
+        </AppText>
       </>
     )
   } else if (Math.abs(left) >= 0.005) {
@@ -98,7 +107,7 @@ export function SplitFooter({
 
   return (
     <View pointerEvents="box-none" style={[styles.wrap, { paddingBottom: insets.bottom + Spacing.three - 4 }]}>
-      <View style={[styles.footer, { backgroundColor: theme.glass, borderColor: theme.hairline }, glassBlur]} {...pullUp.panHandlers}>
+      <View style={[styles.footer, { backgroundColor: glassy ? theme.glass : theme.surface, borderColor: theme.hairline }, glassBlur]} {...pullUp.panHandlers}>
         <Pressable onPress={onOpenBreakdown} accessibilityRole="button" accessibilityLabel={t.seeBreakdown} style={styles.summary}>
           {summary}
         </Pressable>

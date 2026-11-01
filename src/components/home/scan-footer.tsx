@@ -9,6 +9,8 @@ import { useT } from '@/i18n'
 
 // See-through like the split screen's footer; browsers can also blur behind it.
 const glassBlur = Platform.OS === 'web' ? ({ backdropFilter: 'blur(16px)' } as unknown as ViewStyle) : null
+// Phones have no blur here, so see-through glass would show the text under it: use a solid bar there.
+const glassy = Platform.OS === 'web'
 
 /** The glass bar at the bottom of home: take a photo of a receipt, or pick one from the library. */
 export function ScanFooter({ title, onCamera, onLibrary }: { title: string; onCamera: () => void; onLibrary: () => void }) {
@@ -17,7 +19,7 @@ export function ScanFooter({ title, onCamera, onLibrary }: { title: string; onCa
   const insets = useSafeAreaInsets()
   return (
     <View pointerEvents="box-none" style={[styles.wrap, { paddingBottom: Math.max(insets.bottom, Spacing.three) + Spacing.two }]}>
-      <View style={[styles.bar, { backgroundColor: theme.glass, borderColor: theme.hairline }, glassBlur]}>
+      <View style={[styles.bar, { backgroundColor: glassy ? theme.glass : theme.surface, borderColor: theme.hairline }, glassBlur]}>
         <Button title={title} onPress={onCamera} icon={<CameraIcon color={theme.onPrimary} />} style={styles.scan} />
         <Pressable
           onPress={onLibrary}

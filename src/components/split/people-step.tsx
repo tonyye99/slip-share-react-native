@@ -24,7 +24,7 @@ export function PeopleStep({
   onDone,
 }: {
   people: ReceiptPerson[]
-  /** Only you so far, so this is step 1 of splitting. */
+  /** Only you so far. */
   alone: boolean
   colorOf: (person: ReceiptPerson) => string
   /** Names from recent bills that aren't on this one. */
@@ -47,11 +47,10 @@ export function PeopleStep({
   return (
     <Card style={styles.card}>
       <View style={styles.header}>
-        <View style={styles.flex}>
-          {alone && <AppText variant="overline">{t.split.stepOne}</AppText>}
-          <AppText variant="title">{t.split.whoWasThere}</AppText>
-        </View>
-        {!alone && <Button title={t.common.done} size="small" variant="secondary" onPress={onDone} />}
+        <AppText variant="title" style={styles.flex}>
+          {t.split.whoWasThere}
+        </AppText>
+        <Button title={t.common.done} size="small" variant="secondary" onPress={onDone} />
       </View>
       <AppText variant="muted">
         {alone ? t.split.addEveryone : t.split.addOrRemove}
@@ -85,8 +84,6 @@ export function PeopleStep({
           returnKeyType="done"
           submitBehavior="submit"
           editable={!adding}
-          // Opened from "+ Add", so go straight to typing a name.
-          autoFocus={!alone}
           accessibilityLabel={t.split.nameToAdd}
           style={styles.flex}
         />
@@ -112,7 +109,43 @@ export function PeopleStep({
   )
 }
 
+/** On a bill that's only you: who's on it, and a button to add friends. */
+export function PeopleRow({
+  people,
+  colorOf,
+  onAdd,
+}: {
+  people: ReceiptPerson[]
+  colorOf: (person: ReceiptPerson) => string
+  onAdd: () => void
+}) {
+  const theme = useTheme()
+  const t = useT()
+  return (
+    <Card style={styles.row}>
+      <View style={styles.faces}>
+        {people.map((person, index) => (
+          <View key={person.id} style={[styles.face, index > 0 && styles.overlap, { borderColor: theme.surface }]}>
+            <Avatar name={nameOf(person)} color={colorOf(person)} size={30} />
+          </View>
+        ))}
+      </View>
+      <View style={styles.flex}>
+        <AppText variant="label">{t.split.justYouSplit}</AppText>
+        <AppText variant="caption" numberOfLines={1}>
+          {t.split.addFriendsHint}
+        </AppText>
+      </View>
+      <Button title={t.split.addFriends} size="small" variant="secondary" onPress={onAdd} />
+    </Card>
+  )
+}
+
 const styles = StyleSheet.create({
+  row: { flexDirection: 'row', alignItems: 'center', gap: Spacing.three - 4, paddingVertical: Spacing.three - 2 },
+  faces: { flexDirection: 'row' },
+  face: { borderWidth: 2, borderRadius: 18 },
+  overlap: { marginLeft: -10 },
   flex: { flex: 1 },
   card: { gap: Spacing.three - 4 },
   header: { flexDirection: 'row', alignItems: 'flex-start', gap: Spacing.two },

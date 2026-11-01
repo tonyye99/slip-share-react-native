@@ -12,7 +12,7 @@ import type { Item, ItemStatus, Money } from '@/lib/split-view'
 /**
  * One line of "Who had what": the item and how many had it on the left, the
  * price and what each pays on the right. Tapping it or swiping it right opens
- * "Who had this?".
+ * "Who had this?". On your own it's a tick box: tap it if you had it.
  */
 export function ItemRow({
   item,
@@ -29,7 +29,7 @@ export function ItemRow({
   /** Ids of the people who had it. */
   had: string[]
   status: ItemStatus
-  /** Only you on the bill, so there is nobody to pick. */
+  /** Only you on the bill: the row is a tick box for "I had this". */
   alone: boolean
   /** Draw a line above this row. */
   divider: boolean
@@ -41,6 +41,7 @@ export function ItemRow({
   const lineTotal = item.qty * item.unit_price
   const names = bothNames(item.name, item.name_en, showEnglish)
   const nobody = had.length === 0
+  const mine = !nobody
   const who = nobody ? t.split.noOneYet : t.common.people(had.length)
   const whoColor = nobody ? theme.warning : theme.textSecondary
   // On your own there's no one to pick, so the line just says what it is.
@@ -52,17 +53,26 @@ export function ItemRow({
     <Pressable
       // A tap that ends a swipe isn't a tap.
       onPress={() => !justSwiped() && onOpen()}
-      disabled={alone}
-      accessibilityRole="button"
+      accessibilityRole={alone ? 'checkbox' : 'button'}
+      accessibilityState={alone ? { checked: mine } : undefined}
       accessibilityLabel={[names.main, money(lineTotal), alone ? null : who, alone || nobody ? null : status.text]
         .filter(Boolean)
         .join(', ')}
-      accessibilityHint={alone ? undefined : t.split.chooseWhoHadIt}
+      accessibilityHint={alone ? t.split.tickIfYouHadIt : t.split.chooseWhoHadIt}
       style={({ pressed }) => [
         styles.row,
-        { backgroundColor: pressed && !alone ? theme.backgroundElement : theme.surface },
+        { backgroundColor: pressed ? theme.backgroundElement : alone && mine ? theme.primaryTint : theme.surface },
         divider && { borderTopColor: theme.hairline, borderTopWidth: StyleSheet.hairlineWidth },
       ]}>
+      {alone && (
+        <View
+          style={[
+            styles.check,
+            mine ? { backgroundColor: theme.primary, borderColor: theme.primary } : { borderColor: theme.border },
+          ]}>
+          {mine && <AppText style={[styles.checkMark, { color: theme.onPrimary }]}>✓</AppText>}
+        </View>
+      )}
       <View style={styles.left}>
         <AppText variant="heading" numberOfLines={2}>
           {names.main}
@@ -128,4 +138,13 @@ const styles = StyleSheet.create({
   right: { alignItems: 'flex-end', maxWidth: 150, marginRight: Spacing.one + 1 },
   amount: { fontVariant: ['tabular-nums'] },
   status: { textAlign: 'right', fontVariant: ['tabular-nums'] },
+  check: {
+    width: 24,
+    height: 24,
+    borderRadius: 6,
+    borderWidth: 2,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  checkMark: { fontSize: 14, lineHeight: 18, fontWeight: '700' },
 })

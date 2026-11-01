@@ -3,7 +3,7 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
 
-import { billTotal, checkScan, dropIncludedCharges, receiptSubtotal, readSavedCharges, splitByPicks, type Counts } from './split.ts'
+import { billTotal, checkScan, formatMoney, dropIncludedCharges, receiptSubtotal, readSavedCharges, splitByPicks, type Counts } from './split.ts'
 
 // The example receipt from slip-share's CLAUDE.md: 5% service, then 7% VAT on
 // the items plus service (slip-share stored that VAT as 7.35% of the items).
@@ -137,4 +137,12 @@ test('prices that already reach the total are left alone', () => {
 test('prices are kept when dividing them does not match either', () => {
   const noMatch = { ...ramen, total: 1000 }
   assert.equal(checkScan(noMatch), noMatch)
+})
+
+test('money shows the currency symbol, as phones skip narrowSymbol', () => {
+  assert.equal(formatMoney(1791.98, 'THB'), '฿1,791.98')
+  assert.equal(formatMoney(-3, 'THB'), '-฿3.00')
+  assert.equal(formatMoney(12, 'usd'), '$12.00')
+  assert.equal(formatMoney(5, 'MYR'), 'RM5.00')
+  assert.equal(formatMoney(5, 'XYZ'), 'XYZ 5.00')
 })

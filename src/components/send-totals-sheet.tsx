@@ -1,15 +1,16 @@
-import { useEffect, useState } from 'react'
-import { StyleSheet, View } from 'react-native'
+import { useEffect, useRef, useState } from 'react'
+import { StyleSheet, View, type ViewInstance } from 'react-native'
 
-import { SendIcon } from '@/components/icons'
-import { QrCode } from '@/components/qr-code'
+import { CopyIcon, SendIcon } from '@/components/icons'
 import { Sheet } from '@/components/sheet'
 import { Toggle } from '@/components/toggle'
+import { TotalsCard } from '@/components/totals-card'
 import { AppText, Button, Segmented } from '@/components/ui'
 import { Radius, Spacing } from '@/constants/theme'
 import { useTheme } from '@/hooks/use-theme'
 import { useT } from '@/i18n'
 import { track } from '@/lib/analytics'
+import { copyText } from '@/lib/copy'
 import { formatPromptPay } from '@/lib/promptpay'
 import { pastesMessage, shareWithQr } from '@/lib/qr-picture'
 import { secureStorage } from '@/lib/secure-storage'
@@ -41,6 +42,12 @@ export function SendTotalsSheet({
   const theme = useTheme()
   const t = useT()
   const [sharing, setSharing] = useState(false)
+  const card = useRef<ViewInstance>(null)
+  const [copied, setCopied] = useState(false)
+  const copyTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  useEffect(() => () => {
+    if (copyTimer.current) clearTimeout(copyTimer.current)
+  }, [])
   // "Show the maths" stays as you last left it.
   const [maths, setMaths] = useState(false)
   useEffect(() => {
@@ -61,15 +68,27 @@ export function SendTotalsSheet({
   // A bill with no service or tax has no maths to show.
   const hasMaths = visible && write(true) !== write(false)
   const name = qr?.name ?? t.pay.promptpay
+  const caption = qr?.id ? [name, t.pay.promptpayNumber(formatPromptPay(qr.id))] : [name, t.pay.promptpay]
+
+  // For apps that keep only the picture when you paste: copy the words on their own.
+  const copy = async () => {
+    if (!(await copyText(text))) return
+    track('totals_copied')
+    setCopied(true)
+    if (copyTimer.current) clearTimeout(copyTimer.current)
+    copyTimer.current = setTimeout(() => setCopied(false), 2000)
+  }
 
   const send = async () => {
     setSharing(true)
     try {
       if (qr) {
         const sent = await shareWithQr(text, qr.payload, {
-          caption: qr.id ? [name, t.pay.promptpayNumber(formatPromptPay(qr.id))] : [name, t.pay.promptpay],
+          card,
+          caption,
+          note: t.totals.qrNoAmount,
           // Plain letters only: some apps drop a file name with Thai in it.
-          fileName: 'PromptPay-QR.png',
+          fileName: 'SlipShare-totals.png',
           title: t.totals.sendTitle,
         })
         if (!sent) return
@@ -104,7 +123,22 @@ export function SendTotalsSheet({
             </View>
           ) : null}
           {qr && pastesMessage ? <AppText variant="caption">{t.totals.pasteNote}</AppText> : null}
-          <Button title={t.totals.send} icon={<SendIcon color={theme.onPrimary} />} onPress={send} loading={sharing} />
+          <View style={styles.buttons}>
+            <Button
+              title={copied ? t.common.copied : t.totals.copyText}
+              variant="secondary"
+              icon={<CopyIcon color={theme.text} size={16} />}
+              onPress={copy}
+              style={styles.flex}
+            />
+            <Button
+              title={t.totals.send}
+              icon={<SendIcon color={theme.onPrimary} />}
+              onPress={send}
+              loading={sharing}
+              style={styles.flex}
+            />
+          </View>
         </View>
       }>
       {myMessage ? (
@@ -121,21 +155,23 @@ export function SendTotalsSheet({
           />
         </View>
       ) : null}
-      <View style={[styles.bubble, { backgroundColor: theme.background, borderColor: theme.hairline }]}>
-        <AppText variant="body" style={styles.message} selectable>
-          {text}
-        </AppText>
-        {qr ? (
-          <>
-            <View style={[styles.qrFrame, { borderColor: theme.border }]}>
-              <QrCode value={qr.payload} size={176} accessibilityLabel={t.totals.qrA11y(name)} />
-            </View>
-            <AppText variant="caption" style={styles.center}>
-              {t.totals.qrNoAmount}
-            </AppText>
-          </>
-        ) : null}
-      </View>
+      {qr ? (
+        // What the group gets as a picture: the message and your QR together.
+        <TotalsCard
+          cardRef={card}
+          message={text}
+          qr={qr.payload}
+          caption={caption}
+          note={t.totals.qrNoAmount}
+          qrLabel={t.totals.qrA11y(name)}
+        />
+      ) : (
+        <View style={[styles.bubble, { backgroundColor: theme.background, borderColor: theme.hairline }]}>
+          <AppText variant="body" style={styles.message} selectable>
+            {text}
+          </AppText>
+        </View>
+      )}
     </Sheet>
   )
 }
@@ -147,12 +183,5 @@ const styles = StyleSheet.create({
   mathsRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.three - 4 },
   bubble: { borderWidth: 1, borderRadius: Radius.medium, padding: Spacing.three - 4, gap: Spacing.three - 4 },
   message: { fontSize: 15, lineHeight: 21 },
-  qrFrame: {
-    alignSelf: 'center',
-    borderWidth: 1,
-    borderRadius: Radius.large,
-    overflow: 'hidden',
-    backgroundColor: '#FFFFFF',
-  },
-  center: { textAlign: 'center' },
+  buttons: { flexDirection: 'row', gap: Spacing.two },
 })

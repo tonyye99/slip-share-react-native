@@ -1,5 +1,5 @@
 import { useEffect, useState, type ReactNode } from 'react'
-import { Animated, Easing, Modal, Platform, Pressable, ScrollView, StyleSheet, View } from 'react-native'
+import { Animated, Easing, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import { AppText } from '@/components/ui'
@@ -43,7 +43,8 @@ export function Sheet({
   }, [visible, slide])
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
-      <View style={styles.wrap}>
+      {/* On iPhone the keyboard would cover a sheet with a text box, so the sheet moves up with it. */}
+      <KeyboardAvoidingView style={styles.wrap} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <Pressable style={styles.backdrop} onPress={onClose} accessibilityRole="button" accessibilityLabel={t.common.close} />
         <Animated.View
           style={[
@@ -68,12 +69,12 @@ export function Sheet({
               {subtitle}
             </AppText>
           ) : null}
-          <ScrollView style={styles.scroll} contentContainerStyle={styles.content}>
+          <ScrollView style={styles.scroll} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
             {children}
           </ScrollView>
           {footer ? <View style={styles.footer}>{footer}</View> : null}
         </Animated.View>
-      </View>
+      </KeyboardAvoidingView>
     </Modal>
   )
 }

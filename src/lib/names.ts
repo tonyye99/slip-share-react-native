@@ -14,8 +14,20 @@ export function originalLabel(names: (string | null | undefined)[], original: st
   return names.some((name) => name && THAI.test(name)) ? 'ไทย' : original
 }
 
+// What the scan writes when no name is printed. Shown as if there were no name.
+const PLACEHOLDER = /^(unknown|n\/?a|none|null|-+|\?+|ไม่ทราบ|ไม่ระบุ)$/i
+
+/** The name, or null when it's empty or a placeholder like "Unknown". */
+export const realName = (name: string | null | undefined) => {
+  // Receipts mark lines with things like "***", "* " or ">*"; they aren't part of the name.
+  const trimmed = name?.replace(/^[\s*>#•·]+/, '').trim()
+  return trimmed && !PLACEHOLDER.test(trimmed) ? trimmed : null
+}
+
 /** The name to show first, and the other one (if different) to show under it. */
-export function bothNames(original: string | null, english: string | null, showEnglish: boolean) {
+export function bothNames(printed: string | null, translated: string | null, showEnglish: boolean) {
+  const original = realName(printed)
+  const english = realName(translated)
   const main = (showEnglish && english ? english : original || english) || ''
   const other = showEnglish ? original : english
   return { main, other: other && other !== main ? other : null }

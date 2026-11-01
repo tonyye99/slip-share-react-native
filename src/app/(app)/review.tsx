@@ -23,6 +23,7 @@ import {
   type ChargeInput,
   type ItemInput,
 } from '@/lib/item-edits'
+import { realName } from '@/lib/names'
 import { createReceipt } from '@/lib/receipts'
 import { billTotal, chargesFor, formatMoney, receiptSubtotal } from '@/lib/split'
 
@@ -130,9 +131,9 @@ export default function ReviewScreen() {
   return (
     <View style={[styles.flex, { backgroundColor: theme.background }]}>
     <ScreenHeader
-      title={draft.merchant_name || t.common.receipt}
+      title={realName(draft.merchant_name) || t.common.receipt}
       subtitle={[
-        showEnglish && draft.merchant_name_en ? draft.merchant_name_en : null,
+        showEnglish ? realName(draft.merchant_name_en) : null,
         t.common.items(items.length),
         draft.currency,
         draft.original_language ? draft.original_language.toUpperCase() : null,
