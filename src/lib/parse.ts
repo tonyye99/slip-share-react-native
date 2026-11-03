@@ -18,11 +18,27 @@ export async function prepareImage(uri: string, width: number): Promise<string> 
   return result.base64
 }
 
-/** The parse-receipt function allows a limited number of scans per user per day. */
+/** Which scan cap parse-receipt hit: the user's day or month, or the whole app's day. */
+export type ScanLimit = 'daily' | 'monthly' | 'busy'
+
+/** parse-receipt allows a limited number of scans (see the scan_limits migration). */
 export class ScanLimitError extends Error {
-  constructor() {
-    super(strings().scan.scanLimit)
+  constructor(readonly limit: ScanLimit) {
+    super(scanLimitMessage(limit))
   }
+}
+
+export function scanLimitMessage(limit: ScanLimit): string {
+  const t = strings().scan
+  if (limit === 'monthly') return t.scanLimitMonth
+  if (limit === 'busy') return t.scanLimitBusy
+  return t.scanLimit
+}
+
+async function limitFrom(response: Response): Promise<ScanLimit> {
+  const body: unknown = await response.json().catch(() => null)
+  const limit = body && typeof body === 'object' && 'limit' in body ? body.limit : null
+  return limit === 'monthly' || limit === 'busy' ? limit : 'daily'
 }
 
 /** parse-receipt won't send a photo to OpenAI until the user has agreed (see lib/consent). */
@@ -42,7 +58,9 @@ export async function parseReceipt(
     body: { imageBase64, enableTranslation },
     signal,
   })
-  if (error instanceof FunctionsHttpError && error.context.status === 429) throw new ScanLimitError()
+  if (error instanceof FunctionsHttpError && error.context.status === 429) {
+    throw new ScanLimitError(await limitFrom(error.context))
+  }
   if (error instanceof FunctionsHttpError && error.context.status === 403) throw new ConsentRequiredError()
   if (error) throw error
   if (!data) throw new Error('No response from parser')
