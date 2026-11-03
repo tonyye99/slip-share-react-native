@@ -10,6 +10,10 @@ import OpenAI from 'npm:openai@5'
 
 const openai = new OpenAI({ apiKey: Deno.env.get('OPENAI_API_KEY') })
 const supabase = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_ANON_KEY')!)
+// Only used to hand back a scan that failed (refund_receipt_scan is service-role only).
+const admin = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!, {
+  auth: { persistSession: false },
+})
 
 const MAX_BASE64_LENGTH = 14_000_000 // ~10MB image
 
@@ -125,7 +129,7 @@ Deno.serve(async (req) => {
     return json({ error: 'Image is too large' }, 413)
   }
 
-  // Queries run as this user, so RLS and the daily scan limit apply.
+  // Queries run as this user, so RLS and the scan limits apply.
   const userClient = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_ANON_KEY')!, {
     global: { headers: { Authorization: `Bearer ${token}` } },
   })
@@ -138,13 +142,15 @@ Deno.serve(async (req) => {
   }
   if (!consent) return json({ error: 'consent_required' }, 403)
 
-  const { data: withinLimit, error: limitError } = await userClient.rpc('use_receipt_scan')
+  // Same UTC day the database counts the scan on, so a refund finds the right row.
+  const scanDay = new Date().toISOString().slice(0, 10)
+  const { data: claim, error: limitError } = await userClient.rpc('claim_receipt_scan')
   if (limitError) {
-    console.error('use_receipt_scan failed:', limitError)
+    console.error('claim_receipt_scan failed:', limitError)
     return json({ error: 'Failed to parse receipt' }, 500)
   }
-  // A scan that OpenAI then fails on still counts, because the call may already have cost money.
-  if (!withinLimit) return json({ error: 'Daily scan limit reached' }, 429)
+  // 'daily', 'monthly' or 'busy' (the app-wide cap); the app shows a message for each.
+  if (claim !== 'ok') return json({ error: 'scan_limit', limit: claim }, 429)
 
   try {
     const result = await openai.responses.create({
@@ -172,6 +178,10 @@ Deno.serve(async (req) => {
     return json(parsed)
   } catch (error) {
     console.error('parse-receipt failed:', error)
+    // Nothing came back, so this scan doesn't count. A photo that turns out
+    // not to be a receipt still counts: OpenAI read it and charged for it.
+    const { error: refundError } = await admin.rpc('refund_receipt_scan', { p_user: auth.user.id, p_day: scanDay })
+    if (refundError) console.error('refund_receipt_scan failed:', refundError)
     return json({ error: 'Failed to parse receipt' }, 500)
   }
 })

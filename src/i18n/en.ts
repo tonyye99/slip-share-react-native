@@ -169,6 +169,8 @@ export const en = {
     notAReceipt: "This doesn't look like a receipt. Try a clearer photo of the bill.",
     readFailed: 'Could not read the receipt. Check your connection and try again.',
     scanLimit: "You've reached today's scan limit. Try again tomorrow.",
+    scanLimitMonth: "You've used this month's 50 scans. You can scan again next month.",
+    scanLimitBusy: 'Scanning is very busy today. Please try again tomorrow.',
     consentRequired: 'Allow receipt scanning to read this receipt.',
     accountAndSettings: 'Account and settings',
     yourPhoto: 'Your receipt photo',

@@ -1,6 +1,6 @@
 # SlipShare Privacy Policy
 
-Last updated: October 31, 2026
+Last updated: November 3, 2026
 
 SlipShare is an app for splitting restaurant bills with friends. This policy explains what the SlipShare app and website collect, why, who can see it, and how to delete it.
 
@@ -12,7 +12,7 @@ SlipShare is an app for splitting restaurant bills with friends. This policy exp
 - **Friend links.** If you send a friend link for a receipt, the names friends type when they open it and the items they tick.
 - **Transfer slips.** On a friend link, a friend can add a screenshot of the bank transfer they made to pay back. We store that picture so the person who shared the bill can check it. It can show names, bank details, the amount and the time of the transfer.
 - **How to pay me.** The ways to pay you back that you add in **Account > How to pay me**: a PromptPay QR from your banking app (we keep the text inside the QR, such as your PromptPay number and the name your bank put in it, not the picture), a PromptPay phone number, national ID or e-wallet ID, a bank account (bank, account number and the name on it), or a note in your own words, and the name you want friends to see.
-- **Scan counts.** How many receipts you scanned each day, so we can apply the daily scan limit.
+- **Scan counts.** How many receipts you scanned each day, so we can apply the daily and monthly scan limits.
 - **Usage stats and crash reports.** Unless you turn them off, the app and website send PostHog anonymous events such as "split created", "link shared", "friend joined" and "marked paid", which screen was open, and error reports when something breaks. These include a random ID for your phone or browser, the app version, the type of phone or browser, its language and your rough location worked out from your IP address. They never include your name, email, receipts, amounts, or the names you type. We use them to see which features people use and to fix bugs.
 
 We do **not** collect your contacts or advertising ID, the app has no ads, and we don't track you across other companies' apps or websites.

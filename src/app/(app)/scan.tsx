@@ -15,7 +15,7 @@ import { useT } from '@/i18n'
 import { useAuth } from '@/lib/auth'
 import { getAiConsent, giveAiConsent, openPrivacyPolicy } from '@/lib/consent'
 import { receiptDraft } from '@/lib/draft'
-import { ConsentRequiredError, parseReceipt, prepareImage, ScanLimitError } from '@/lib/parse'
+import { ConsentRequiredError, parseReceipt, prepareImage, ScanLimitError, scanLimitMessage } from '@/lib/parse'
 import { pickedPhoto, pickPhoto } from '@/lib/photo'
 import { checkScan } from '@/lib/split'
 import type { ParsedReceipt } from '@/lib/types'
@@ -99,7 +99,7 @@ export default function ScanScreen() {
         return
       }
       console.error('Parse failed', e)
-      setError(e instanceof ScanLimitError ? t.scan.scanLimit : t.scan.readFailed)
+      setError(e instanceof ScanLimitError ? scanLimitMessage(e.limit) : t.scan.readFailed)
     }
   }
 
