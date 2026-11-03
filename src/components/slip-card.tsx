@@ -7,10 +7,6 @@ import { Radius, Spacing } from '@/constants/theme'
 import { useTheme } from '@/hooks/use-theme'
 import { useT } from '@/i18n'
 
-/**
- * On the friend link, once you owe someone: add a screenshot of the transfer
- * you made. Only the bill's owner can see it, and they still mark you paid.
- */
 export function SlipCard({
   payerName,
   ownerName,
@@ -22,13 +18,10 @@ export function SlipCard({
   onRemove,
 }: {
   payerName: string
-  /** Who can see the slip: the person who shared the bill. */
   ownerName: string
   sent: boolean
-  /** The photo you just sent, while this page is open. The page can't load it back later. */
   preview: string | null
   busy: boolean
-  /** Shown under the Pay card, as its second step. */
   step?: boolean
   onAdd: () => void
   onRemove: () => void

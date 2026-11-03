@@ -18,11 +18,6 @@ import { shareText } from '@/lib/share-text'
 
 const MATHS_KEY = 'slipshare.totalsMaths'
 
-/**
- * Send totals: shows the message as the group will get it, then sends it.
- * On a bill you paid with PromptPay set up, your QR goes with it. On a bill
- * someone else paid, you can send them just your own share.
- */
 export function SendTotalsSheet({
   visible,
   onClose,
@@ -32,11 +27,8 @@ export function SendTotalsSheet({
 }: {
   visible: boolean
   onClose: () => void
-  /** The message, with or without how each amount is worked out. */
   message: (maths: boolean) => string
-  /** Just your own share, on a bill someone else paid. */
   myMessage: ((maths: boolean) => string) | null
-  /** Your PromptPay QR with no amount in it, and who it pays. */
   qr: { payload: string; id: string | null; name: string | null } | null
 }) {
   const theme = useTheme()
@@ -48,7 +40,6 @@ export function SendTotalsSheet({
   useEffect(() => () => {
     if (copyTimer.current) clearTimeout(copyTimer.current)
   }, [])
-  // "Show the maths" stays as you last left it.
   const [maths, setMaths] = useState(false)
   useEffect(() => {
     secureStorage
@@ -63,14 +54,11 @@ export function SendTotalsSheet({
 
   const [who, setWho] = useState<'me' | 'everyone'>('me')
   const write = myMessage && who === 'me' ? myMessage : message
-  // Only worked out while the sheet is open: the split screen redraws on every tap.
   const text = visible ? write(maths) : ''
-  // A bill with no service or tax has no maths to show.
   const hasMaths = visible && write(true) !== write(false)
   const name = qr?.name ?? t.pay.promptpay
   const caption = qr?.id ? [name, t.pay.promptpayNumber(formatPromptPay(qr.id))] : [name, t.pay.promptpay]
 
-  // For apps that keep only the picture when you paste: copy the words on their own.
   const copy = async () => {
     if (!(await copyText(text))) return
     track('totals_copied')
@@ -87,7 +75,6 @@ export function SendTotalsSheet({
           card,
           caption,
           note: t.totals.qrNoAmount,
-          // Plain letters only: some apps drop a file name with Thai in it.
           fileName: 'SlipShare-totals.png',
           title: t.totals.sendTitle,
         })
@@ -156,7 +143,6 @@ export function SendTotalsSheet({
         </View>
       ) : null}
       {qr ? (
-        // What the group gets as a picture: the message and your QR together.
         <TotalsCard
           cardRef={card}
           message={text}

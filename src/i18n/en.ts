@@ -1,6 +1,3 @@
-// Every piece of text the app shows, in English. th.ts has the same keys in Thai,
-// and the type below makes sure neither one misses a line.
-
 const plural = (count: number, one: string, many: string) => `${count} ${count === 1 ? one : many}`
 const and = (parts: string[]) => parts.join(' and ')
 
@@ -16,9 +13,7 @@ export const en = {
     delete: 'Delete',
     edit: 'Edit',
     receipt: 'Receipt',
-    /** Your own name on screen. */
     you: 'You',
-    /** "you" inside a sentence, like "Paid by you". */
     youInSentence: 'you',
     someone: 'Someone',
     unknown: 'Unknown',
@@ -81,11 +76,9 @@ export const en = {
     haveAccount: 'Already have an account? ',
     agree: 'By continuing, you agree to the ',
     privacyPolicy: 'Privacy Policy',
-    // The little picture at the top of sign-in.
     heroYou: 'You',
     heroAnna: 'Anna',
     heroBenPaid: 'Ben paid',
-    /** Supabase's own message, or a clearer one for the common cases. */
     errorText: (message: string) => message,
 
     forgotSubtitle: "We'll email you a link to choose a new password.",
@@ -388,7 +381,6 @@ export const en = {
     shareToGroup: 'Share to the group',
   },
 
-  /** The text "Send totals" shares to the group chat. */
   totals: {
     me: 'Me',
     paidByMe: 'me',
@@ -456,7 +448,6 @@ export const en = {
     deleteMessage: "Your receipts, and the names and payments on them, will be deleted for good. This can't be undone.",
   },
 
-  /** How to pay me: your ways to get paid, and the card friends pay you from. */
   pay: {
     gettingPaid: 'Getting paid',
     title: 'How to pay me',
@@ -518,7 +509,6 @@ export const en = {
     couldNotSave: "Couldn't save that",
     couldNotRemove: "Couldn't remove that",
     tooMany: 'You can add up to 10 ways to get paid.',
-    // The friend link
     payTitle: (name: string, amount: string) => `Pay ${name} ${amount}`,
     stepOne: 'Step 1 · Pay any way you like',
     stepOneOnly: 'Step 1 · Pay',
@@ -552,7 +542,6 @@ export const en = {
     writeTo: (email: string) => `Write to us at ${email}`,
   },
 
-  /** The friend link page, for people without the app. */
   pick: {
     linkBroken: "This link doesn't work. It may have been turned off, so ask whoever sent it for a new one.",
     notYou: 'Not you?',

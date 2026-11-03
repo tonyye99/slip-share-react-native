@@ -1,8 +1,6 @@
 import * as SecureStore from 'expo-secure-store'
 import { Platform } from 'react-native'
 
-// SecureStore warns above ~2KB per value and Supabase sessions are larger,
-// so values are split across numbered keys.
 const CHUNK_SIZE = 1800
 
 async function getItem(key: string): Promise<string | null> {

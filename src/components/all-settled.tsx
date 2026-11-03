@@ -18,11 +18,9 @@ export interface SettledPerson {
 }
 
 const useNativeDriver = Platform.OS !== 'web'
-// Little teeth along the bottom of the receipt card.
 const TOOTH = 7
 const TEETH = 60
 
-/** Shown once the last person pays the payer back: a tick, the receipt and a way to tell the group. */
 export function AllSettled({
   visible,
   onClose,
@@ -39,7 +37,6 @@ export function AllSettled({
   onClose: () => void
   title: string
   date: string
-  /** "you", or the payer's name. */
   payerName: string
   paidBack: number
   people: SettledPerson[]

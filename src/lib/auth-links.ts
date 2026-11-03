@@ -7,13 +7,8 @@ import { Platform } from 'react-native'
 
 import { supabase } from '@/lib/supabase'
 
-/**
- * Where OAuth and email-confirmation links return: slipshare://auth/callback
- * in the app, https://<site>/auth/callback on the website.
- */
 export const authCallbackUrl = () => Linking.createURL('auth/callback')
 
-/** Where password reset emails return: slipshare://reset-password (or /reset-password on the website). */
 export const resetPasswordUrl = () => Linking.createURL('reset-password')
 
 export interface AuthRedirectParams {
@@ -24,11 +19,8 @@ export interface AuthRedirectParams {
 
 const firstParam = (value: string | string[] | undefined) => (Array.isArray(value) ? value[0] : value)
 
-// On Android the redirect can arrive both as the auth session's result and as
-// a deep link to auth/callback, so each code is exchanged only once.
 const codeExchanges = new Map<string, Promise<void>>()
 
-/** Turns the ?code= on an auth redirect into a session. */
 export function completeAuthRedirect(params: AuthRedirectParams): Promise<void> {
   const error = firstParam(params.error_description) ?? firstParam(params.error)
   if (error) return Promise.reject(new Error(error))
@@ -46,19 +38,11 @@ export function completeAuthRedirect(params: AuthRedirectParams): Promise<void> 
   return exchange
 }
 
-/**
- * Google sign-in through Supabase in an in-app browser.
- * Resolves false if the person closed the browser.
- *
- * On the website the whole page goes to the provider instead of a popup
- * (which browsers often block) and comes back to auth/callback.
- */
 export async function signInWithProvider(provider: 'google'): Promise<boolean> {
   const redirectTo = authCallbackUrl()
   if (Platform.OS === 'web') {
     const { error } = await supabase.auth.signInWithOAuth({ provider, options: { redirectTo } })
     if (error) throw error
-    // The page is navigating away; keep the button busy until it does.
     return new Promise<boolean>(() => {})
   }
   const { data, error } = await supabase.auth.signInWithOAuth({
@@ -73,9 +57,7 @@ export async function signInWithProvider(provider: 'google'): Promise<boolean> {
   return true
 }
 
-/** Native Sign in with Apple (iOS). Resolves false if the person cancelled. */
 export async function signInWithApple(): Promise<boolean> {
-  // Apple signs the hashed nonce; Supabase checks it against the raw one.
   const rawNonce = Crypto.randomUUID()
   const hashedNonce = await Crypto.digestStringAsync(Crypto.CryptoDigestAlgorithm.SHA256, rawNonce)
 
@@ -101,17 +83,11 @@ export async function signInWithApple(): Promise<boolean> {
   })
   if (error) throw error
 
-  // Apple only shares the person's name on their first sign-in.
   const name = credential.fullName ? AppleAuthentication.formatFullName(credential.fullName) : ''
   await ensureDisplayName(data.user, name)
   return true
 }
 
-/**
- * The profiles trigger only copies `display_name` from sign-up metadata, so
- * Google and Apple accounts start without one. Fill it in once from
- * whatever the provider gave us, so friends see a name on shared bills.
- */
 async function ensureDisplayName(user: User | null, preferred?: string): Promise<void> {
   if (!user) return
   const metadata = user.user_metadata ?? {}
@@ -125,6 +101,5 @@ async function ensureDisplayName(user: User | null, preferred?: string): Promise
     .update({ display_name: name })
     .eq('user_id', user.id)
     .is('display_name', null)
-  // A missing name is cosmetic; never fail sign-in over it.
   if (error) console.warn('Could not set display name', error)
 }

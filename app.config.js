@@ -1,9 +1,5 @@
 const { withEntitlementsPlist } = require('expo/config-plugins')
 
-// Adds nothing to app.json, except for test builds signed with a free Apple ID:
-// those can't use Sign in with Apple, so
-//   FREE_APPLE_ID=1 npx expo run:ios --configuration Release --device
-// builds without it. Store and TestFlight builds keep it.
 module.exports = ({ config }) => {
   if (process.env.FREE_APPLE_ID !== '1') return config
   const withoutAppleSignIn = {

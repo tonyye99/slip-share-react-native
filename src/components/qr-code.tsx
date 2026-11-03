@@ -3,15 +3,10 @@ import { StyleSheet, View } from 'react-native'
 
 import { QUIET_ZONE, qrModules } from '@/lib/qr'
 
-/**
- * A QR code up to `size` points wide, drawn as one box per run of dark
- * squares in a row. Black on white whatever the theme: banking apps read that best.
- */
 export function QrCode({ value, size, accessibilityLabel }: { value: string; size: number; accessibilityLabel: string }) {
   const { cell, width, runs } = useMemo(() => {
     const modules = qrModules(value)
     const count = modules.length
-    // Whole points per square keep the edges sharp, with no gaps between rows.
     const cell = Math.max(1, Math.floor(size / (count + QUIET_ZONE * 2)))
     const runs: { row: number; col: number; length: number }[] = []
     modules.forEach((dark, row) => {

@@ -11,7 +11,6 @@ import { nameOf } from '@/lib/split-view'
 import type { ReceiptPerson } from '@/lib/types'
 
 
-/** "Who was there?": add and remove the people on the bill. */
 export function PeopleStep({
   people,
   alone,
@@ -24,15 +23,11 @@ export function PeopleStep({
   onDone,
 }: {
   people: ReceiptPerson[]
-  /** Only you so far. */
   alone: boolean
   colorOf: (person: ReceiptPerson) => string
-  /** Names from recent bills that aren't on this one. */
   suggestions: string[]
   adding: boolean
-  /** "Share a link", when friends can add themselves. */
   linkTile: ReactNode
-  /** Resolves true once the person is added. */
   onAdd: (name: string) => Promise<boolean>
   onRemove: (person: ReceiptPerson) => void
   onDone: () => void
@@ -109,7 +104,6 @@ export function PeopleStep({
   )
 }
 
-/** On a bill that's only you: who's on it, and a button to add friends. */
 export function PeopleRow({
   people,
   colorOf,

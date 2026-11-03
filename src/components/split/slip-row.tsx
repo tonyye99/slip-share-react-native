@@ -10,11 +10,9 @@ import { useTheme } from '@/hooks/use-theme'
 import { dateLocale, useT } from '@/i18n'
 import { slipUrl } from '@/lib/slips'
 
-/** The transfer slip a friend sent through the link. Tap it to see it full size. */
 export function SlipRow({ path, sentAt, name }: { path: string; sentAt: string | null; name: string }) {
   const theme = useTheme()
   const { common, split: t } = useT()
-  // The link for `path`; a new slip shows the spinner until its own link arrives.
   const [loaded, setLoaded] = useState<{ path: string; url: string | null } | null>(null)
   const [open, setOpen] = useState(false)
   const url = loaded?.path === path ? loaded.url : null

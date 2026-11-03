@@ -8,8 +8,6 @@ import { useT } from '@/i18n'
 import { completeAuthRedirect, type AuthRedirectParams } from '@/lib/auth-links'
 import { supabase } from '@/lib/supabase'
 
-// slipshare://reset-password?code=…, from the password reset email. The code
-// signs the person in for this one purpose; then they choose a new password.
 export default function ResetPasswordScreen() {
   const t = useT()
   const params = useLocalSearchParams<Record<keyof AuthRedirectParams, string>>()
@@ -27,7 +25,6 @@ export default function ResetPasswordScreen() {
         console.error('Reset link failed', e)
         setLinkFailed(true)
       })
-    // The params are fixed for the life of this screen.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 

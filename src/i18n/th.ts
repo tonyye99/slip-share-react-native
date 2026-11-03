@@ -1,20 +1,12 @@
 import type { Strings } from './en.ts'
 
-// The app's text in Thai. Same keys as en.ts.
-
 const and = (parts: string[]) => parts.join(' และ ')
 
-// Thai runs words together, but a name in English needs a space either side.
 const THAI = /[\u0E00-\u0E7F]/
-/** A name followed by Thai words. */
 const lead = (name: string) => (THAI.test(name.slice(-1)) ? name : `${name} `)
-/** A name after Thai words. */
 const tail = (name: string) => (THAI.test(name.charAt(0)) ? name : ` ${name}`)
-/** A name with Thai words on both sides. */
 const mid = (name: string) => tail(lead(name))
 
-// Supabase sends its sign-in errors in English; these are the ones people meet most,
-// plus the app's own from src/lib/auth-links.ts.
 const AUTH_ERRORS: Record<string, string> = {
   'Invalid login credentials': 'อีเมลหรือรหัสผ่านไม่ถูกต้อง',
   'Email not confirmed': 'ยังไม่ได้ยืนยันอีเมล ลองเปิดลิงก์ในอีเมลของคุณก่อน',
@@ -130,7 +122,6 @@ export const th: Strings = {
   home: {
     all: 'ทั้งหมด',
     toSplit: 'ยังไม่หาร',
-    // Short, so all four chips fit on one line.
     waiting: 'รอคืน',
     settled: 'ครบแล้ว',
     today: 'วันนี้',

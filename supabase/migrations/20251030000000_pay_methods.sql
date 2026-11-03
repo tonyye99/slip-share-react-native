@@ -1,22 +1,10 @@
--- How to pay me: the ways a user gets paid back, like their PromptPay number
--- or bank account. Friends see them on the friend link of a bill the user
--- paid, with a PromptPay QR for the exact amount they owe, and the app adds
--- them to Send totals.
---
--- Thailand first: PromptPay, a bank account, or a note in your own words.
-
 create table if not exists public.pay_methods (
   id          uuid primary key default gen_random_uuid(),
   user_id     uuid not null default auth.uid() references auth.users(id) on delete cascade,
   kind        text not null check (kind in ('promptpay', 'bank', 'note')),
-  -- PromptPay: the phone number, national ID or e-wallet ID, digits only.
-  -- Bank: the account number. Note: the text itself.
   value       text not null check (char_length(btrim(value)) between 1 and 300),
-  -- Bank: the bank's name.
   bank        text check (bank is null or char_length(bank) <= 60),
-  -- PromptPay and bank: the name friends see, to check they're paying the right person.
   name        text check (name is null or char_length(name) <= 60),
-  -- Friends see the first one first.
   position    integer not null default 0,
   created_at  timestamptz not null default now(),
   constraint pay_methods_promptpay check (
@@ -60,14 +48,12 @@ for delete
 to authenticated
 using (user_id = auth.uid());
 
--- The app can't pick the owner or change what kind a method is.
 revoke all on public.pay_methods from anon;
 revoke insert, update on public.pay_methods from authenticated;
 grant select, delete on public.pay_methods to authenticated;
 grant insert (kind, value, bank, name, position) on public.pay_methods to authenticated;
 grant update (value, bank, name, position) on public.pay_methods to authenticated;
 
--- Ten is plenty, and keeps friend links small.
 create or replace function public.limit_pay_methods()
 returns trigger
 language plpgsql security definer set search_path = ''
@@ -87,10 +73,6 @@ create trigger pay_methods_limit
 before insert on public.pay_methods
 for each row execute function public.limit_pay_methods();
 
--- ============ friend link: how to pay the owner ============
-
--- Same as before, plus `pay_methods`: the owner's ways to get paid, but only
--- on a bill the owner paid. Someone else's bill shows none.
 create or replace function public.get_link_receipt(p_token uuid)
 returns jsonb
 language plpgsql stable security definer set search_path = ''

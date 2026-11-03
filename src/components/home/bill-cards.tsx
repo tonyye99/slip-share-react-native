@@ -6,7 +6,6 @@ import { Radius, Spacing } from '@/constants/theme'
 import { useTheme } from '@/hooks/use-theme'
 import { useT } from '@/i18n'
 
-/** The biggest amount someone still owes you, with a Remind button. */
 export function WaitingCard({
   amount,
   name,
@@ -24,7 +23,6 @@ export function WaitingCard({
 }) {
   const theme = useTheme()
   const t = useT().home
-  // Tapping the card opens the bill; Remind sits beside it rather than inside, as a button can't hold another.
   return (
     <View style={[styles.waiting, { backgroundColor: theme.surface }]}>
       <Pressable
@@ -55,7 +53,6 @@ export function WaitingCard({
   )
 }
 
-/** How many bills this month and what they came to. */
 export function MonthCard({ month, amount, count }: { month: string; amount: string; count: string }) {
   const theme = useTheme()
   return (
@@ -71,7 +68,6 @@ export function MonthCard({ month, amount, count }: { month: string; amount: str
   )
 }
 
-/** Bills with items nobody has been given yet. */
 export function ToSplitCard({ count, onPress }: { count: string; onPress: () => void }) {
   const theme = useTheme()
   const t = useT().home

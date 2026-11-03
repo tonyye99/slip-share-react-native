@@ -15,11 +15,9 @@ export interface BreakdownPerson {
   name: string
   color: string
   result: SplitResult
-  /** Their part of each item, like "Tom yum goong · ⅓". */
   items: { label: string; amount: number }[]
 }
 
-/** Everyone's total and what it's made of, pulled up from the split screen's footer. */
 export function BreakdownSheet({
   visible,
   onClose,

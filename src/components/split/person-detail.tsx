@@ -11,7 +11,6 @@ import { useT } from '@/i18n'
 import { nameOf, type Money } from '@/lib/split-view'
 import type { ReceiptPerson } from '@/lib/types'
 
-/** What an open person card says, and the one thing to do about it. */
 export function PersonDetail({
   person,
   payer,
@@ -31,7 +30,6 @@ export function PersonDetail({
   money: Money
   onChoosePayer: () => void
   onTogglePaid: () => void
-  /** Takes them off the bill. Not offered on your own card. */
   onRemove: () => void
 }) {
   const theme = useTheme()

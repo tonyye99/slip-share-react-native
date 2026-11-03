@@ -14,7 +14,6 @@ import {
   totalsMessage,
 } from './split.ts'
 
-// The example receipt from slip-share's CLAUDE.md: 5% service, then 7% VAT on the items plus service.
 const items = [
   { id: 'a', qty: 1, unit_price: 289 },
   { id: 'b', qty: 1, unit_price: 279 },
@@ -49,7 +48,6 @@ test('splitting everything evenly adds up to the bill', () => {
   assert.equal(split.unassigned.total, 0)
 })
 
-// "2 × Egg Kim Bab" at 199 each.
 const kimbab = [{ id: 'k', qty: 2, unit_price: 199 }]
 const kimbabReceipt = { subtotal: 398, tax_percent: 0, service_percent: 0, rounding: 0 }
 
@@ -73,11 +71,9 @@ test('someone can have the whole 2× line', () => {
 })
 
 test('more counted than the line has is shared in proportion', () => {
-  // Three people each say 1 of the 2: they shared them.
   const split = splitByPerson(kimbabReceipt, kimbab, ['a', 'b', 'c'], { k: ['a', 'b', 'c'] }, { k: { a: 1, b: 1, c: 1 } })
   assert.ok(Math.abs(split.people.a.subtotal - 398 / 3) < 1e-9)
   assert.equal(split.unassigned.subtotal, 0)
-  // Picks from before counts were saved as the whole line, so two people still split it evenly.
   const old = splitByPerson(kimbabReceipt, kimbab, ['a', 'b'], { k: ['a', 'b'] }, { k: { a: 2, b: 2 } })
   assert.equal(old.people.a.subtotal, 199)
 })
@@ -129,7 +125,6 @@ test('totals message lists everyone, who paid and the charges', () => {
   )
 })
 
-// 10% service, then 7% VAT on the items plus service: every item costs 1.177 times its price.
 const dinner = {
   title: 'Kalamansi',
   currency: 'THB',

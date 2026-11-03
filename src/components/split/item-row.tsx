@@ -9,11 +9,6 @@ import { useT } from '@/i18n'
 import { bothNames } from '@/lib/names'
 import type { Item, ItemStatus, Money } from '@/lib/split-view'
 
-/**
- * One line of "Who had what": the item and how many had it on the left, the
- * price and what each pays on the right. Tapping it or swiping it right opens
- * "Who had this?". On your own it's a tick box: tap it if you had it.
- */
 export function ItemRow({
   item,
   showEnglish,
@@ -26,12 +21,9 @@ export function ItemRow({
 }: {
   item: Item
   showEnglish: boolean
-  /** Ids of the people who had it. */
   had: string[]
   status: ItemStatus
-  /** Only you on the bill: the row is a tick box for "I had this". */
   alone: boolean
-  /** Draw a line above this row. */
   divider: boolean
   money: Money
   onOpen: () => void
@@ -44,14 +36,12 @@ export function ItemRow({
   const mine = !nobody
   const who = nobody ? t.split.noOneYet : t.common.people(had.length)
   const whoColor = nobody ? theme.warning : theme.textSecondary
-  // On your own there's no one to pick, so the line just says what it is.
   const caption = alone
     ? [names.other, item.qty !== 1 ? `${item.qty} × ${money(item.unit_price)}` : null].filter(Boolean).join(' · ')
     : null
 
   const row = (
     <Pressable
-      // A tap that ends a swipe isn't a tap.
       onPress={() => !justSwiped() && onOpen()}
       accessibilityRole={alone ? 'checkbox' : 'button'}
       accessibilityState={alone ? { checked: mine } : undefined}
@@ -133,7 +123,6 @@ const styles = StyleSheet.create({
   left: { flex: 1 },
   who: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two - 1 },
   whoText: { fontWeight: '600' },
-  // The bigger figure in front, on the left.
   flip: { transform: [{ scaleX: -1 }] },
   right: { alignItems: 'flex-end', maxWidth: 150, marginRight: Spacing.one + 1 },
   amount: { fontVariant: ['tabular-nums'] },

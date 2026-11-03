@@ -13,7 +13,6 @@ import type { PersonView } from '@/lib/split-view'
 
 const MenuIcon = ({ children }: { children: ReactNode }) => <View style={styles.icon}>{children}</View>
 
-/** The ⋯ button in the header that opens the menu. */
 export function MenuButton({ onPress }: { onPress: () => void }) {
   const theme = useTheme()
   const t = useT()
@@ -29,7 +28,6 @@ export function MenuButton({ onPress }: { onPress: () => void }) {
   )
 }
 
-/** The ⋯ menu on the split screen. */
 export function SplitMenu({
   visible,
   onClose,
@@ -48,16 +46,13 @@ export function SplitMenu({
 }: {
   visible: boolean
   onClose: () => void
-  /** Set when the receipt has English names to switch to. */
   translation: { showEnglish: boolean; originalLanguage: string } | null
   onToggleEnglish: () => void
   onRename: () => void
   onEditPeople: () => void
-  /** False while you're the only one on the bill. */
   canChangePayer: boolean
   payerName: string | undefined
   onChangePayer: () => void
-  /** Set when friend links work here. */
   link: { on: boolean; pickedNames: string[] } | null
   onShareLink: () => void
   onTurnOffLink: () => void
@@ -165,7 +160,6 @@ export function SplitMenu({
   )
 }
 
-/** "Who paid the bill?" */
 export function PayerSheet({
   visible,
   onClose,
@@ -202,11 +196,6 @@ export function PayerSheet({
   )
 }
 
-/**
- * "Who paid?" on a bill that's only you: you, or a friend. A friend can have a
- * name, so the footer can say who to send your share to. Give it a new `key`
- * each time it opens so it starts from what's saved.
- */
 export function SoloPayerSheet({
   visible,
   onClose,
@@ -215,9 +204,7 @@ export function SoloPayerSheet({
 }: {
   visible: boolean
   onClose: () => void
-  /** The friend who paid, if one did. */
   friendName: string | null
-  /** null = you paid; a string (maybe empty) = a friend paid. */
   onChoose: (friend: string | null) => void
 }) {
   const theme = useTheme()
@@ -278,7 +265,6 @@ export function SoloPayerSheet({
   )
 }
 
-/** Give the bill your own name. Give it a new `key` each time it opens. */
 export function RenameSheet({
   visible,
   onClose,
@@ -287,7 +273,6 @@ export function RenameSheet({
 }: {
   visible: boolean
   onClose: () => void
-  /** The name it has now, if it has a real one. */
   name: string
   onSave: (name: string) => void
 }) {
@@ -295,7 +280,6 @@ export function RenameSheet({
   const t = all.split
   const [typed, setTyped] = useState(name)
   const clean = cleanName(typed)
-  // Focus once the sheet has slid up; focusing while it opens can lose the keyboard on a phone.
   const input = useRef<TextInputInstance>(null)
   useEffect(() => {
     if (!visible) return

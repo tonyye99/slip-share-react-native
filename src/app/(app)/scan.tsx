@@ -24,18 +24,14 @@ export default function ScanScreen() {
   const theme = useTheme()
   const t = useT()
   const { session } = useAuth()
-  // Photos go to OpenAI, so the user agrees once before the first scan.
   const [consent, setConsent] = useState<'checking' | 'needed' | 'given'>('checking')
   const [allowing, setAllowing] = useState(false)
-  // A photo taken from the home screen arrives already picked.
   const [asset, setAsset] = useState<ImagePicker.ImagePickerAsset | null>(() => pickedPhoto.take())
   const [translateToEnglish, setTranslateToEnglish] = useState(false)
-  // Set while a receipt is being read; the reading screen shows instead.
   const [reading, setReading] = useState<{ stage: 'preparing' | 'reading'; receipt: ParsedReceipt | null } | null>(null)
   const attempt = useRef<AbortController | null>(null)
   const [error, setError] = useState<string | null>(null)
 
-  // Leaving the screen stops a read that is still going.
   useEffect(() => {
     const current = attempt
     return () => current.current?.abort()
@@ -45,7 +41,6 @@ export default function ScanScreen() {
     getAiConsent()
       .then((consentedAt) => setConsent(consentedAt ? 'given' : 'needed'))
       .catch((e) => {
-        // Asking again is harmless: agreeing twice keeps the first date.
         console.error('Consent check failed', e)
         setConsent('needed')
       })
@@ -93,7 +88,6 @@ export default function ScanScreen() {
     } catch (e) {
       if (controller.signal.aborted) return
       setReading(null)
-      // Turned off on another device since this screen opened.
       if (e instanceof ConsentRequiredError) {
         setConsent('needed')
         return
@@ -103,7 +97,6 @@ export default function ScanScreen() {
     }
   }
 
-  // Back to the photo, which stays picked.
   const cancelReading = () => {
     attempt.current?.abort()
     setReading(null)
@@ -270,7 +263,6 @@ export default function ScanScreen() {
   )
 }
 
-/** A dark see-through button laid over the photo. */
 function PhotoButton({ title, icon, onPress }: { title: string; icon: ReactNode; onPress: () => void }) {
   return (
     <Pressable

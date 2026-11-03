@@ -7,24 +7,17 @@ import { useTheme } from '@/hooks/use-theme'
 const LIGHT = 'rgba(255, 255, 255, 0.32)'
 const DARK = 'rgba(0, 0, 0, 0.22)'
 
-/**
- * A round picture standing in for someone's photo: their colour with a few
- * soft shapes, in one of three styles.
- */
 export function PhotoAvatar({ color, size, look = 0, ring = 3 }: { color: string; size: number; look?: number; ring?: number }) {
   const theme = useTheme()
   const shapes = [
-    // A dark band across, lighter below it.
     <>
       <View style={[styles.shape, { width: size * 1.6, height: size * 0.62, left: -size * 0.1, top: size * 0.62, backgroundColor: LIGHT, transform: [{ rotate: '-28deg' }] }]} />
       <View style={[styles.shape, { width: size * 1.6, height: size * 0.16, left: -size * 0.3, top: size * 0.46, backgroundColor: DARK, transform: [{ rotate: '-28deg' }] }]} />
     </>,
-    // Light in the top left, dark in the bottom right.
     <>
       <View style={[styles.shape, { width: size * 0.75, height: size * 0.75, left: -size * 0.1, top: -size * 0.1, borderRadius: size * 0.2, backgroundColor: LIGHT }]} />
       <View style={[styles.shape, { width: size * 0.7, height: size * 0.7, left: size * 0.45, top: size * 0.5, borderRadius: size * 0.2, backgroundColor: DARK, transform: [{ rotate: '20deg' }] }]} />
     </>,
-    // A dark sky over a light hill.
     <>
       <View style={[styles.shape, { width: size * 1.4, height: size * 0.5, left: -size * 0.2, top: -size * 0.12, borderRadius: size * 0.3, backgroundColor: DARK, transform: [{ rotate: '8deg' }] }]} />
       <View style={[styles.shape, { width: size * 0.9, height: size * 0.9, left: size * 0.05, top: size * 0.58, borderRadius: size, backgroundColor: LIGHT }]} />
@@ -48,7 +41,6 @@ export function PhotoAvatar({ color, size, look = 0, ring = 3 }: { color: string
   )
 }
 
-/** The first-time picture: a receipt with three people around it. */
 export function SplitIllustration() {
   const theme = useTheme()
   const personColor = usePersonColor()

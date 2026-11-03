@@ -12,23 +12,12 @@ export interface SwipeAction {
   onAction: () => void
 }
 
-// How far a row has to travel before letting go does the action.
 const COMMIT_DISTANCE = 96
-// Dragging with a mouse would otherwise select the row's text.
 const noSelect = Platform.OS === 'web' ? ({ userSelect: 'none' } as unknown as ViewStyle) : null
 
-// A browser still sends a click when the mouse comes up after a drag. Taps inside
-// a swipe row check this, so letting go of a drag doesn't also count as a tap.
 let lastDragEnd = 0
 export const justSwiped = () => Date.now() - lastDragEnd < 400
 
-/**
- * A row you can drag sideways to do something: `start` shows behind it when
- * dragged to the right, `end` when dragged to the left. Letting go far enough
- * does the action and the row springs back. Built on React Native's own
- * PanResponder, like SwipeToDelete, so it runs in Expo Go and drags with a
- * mouse on the website.
- */
 export function SwipeActions({
   start,
   end,
@@ -40,7 +29,6 @@ export function SwipeActions({
 }) {
   const [swipe] = useState(() => {
     const x = new Animated.Value(0)
-    // The gesture is set up once; it uses the latest actions, passed in after each render.
     let actions: { start?: SwipeAction; end?: SwipeAction } = {}
     const reach = (dx: number) => {
       const { start, end } = actions
@@ -49,7 +37,6 @@ export function SwipeActions({
     const settle = () =>
       Animated.spring(x, { toValue: 0, speed: 20, bounciness: 4, useNativeDriver: Platform.OS !== 'web' }).start()
     const responder = PanResponder.create({
-      // Only clear sideways drags, so the list still scrolls up and down.
       onMoveShouldSetPanResponderCapture: (_, g) => Math.abs(g.dx) > 8 && Math.abs(g.dx) > Math.abs(g.dy) * 1.5,
       onPanResponderTerminationRequest: () => false,
       onPanResponderMove: (_, g) => x.setValue(reach(g.dx)),
@@ -108,7 +95,6 @@ function Behind({ action, side, x }: { action: SwipeAction; side: 'start' | 'end
         {
           backgroundColor: action.color,
           alignItems: side === 'start' ? 'flex-start' : 'flex-end',
-          // Only the side being uncovered shows, and it firms up as you near the point of no return.
           opacity: x.interpolate({
             inputRange: sign > 0 ? [0, 1, COMMIT_DISTANCE] : [-COMMIT_DISTANCE, -1, 0],
             outputRange: sign > 0 ? [0, 0.7, 1] : [1, 0.7, 0],
@@ -128,7 +114,6 @@ function Behind({ action, side, x }: { action: SwipeAction; side: 'start' | 'end
 
 const styles = StyleSheet.create({
   behind: { position: 'absolute', top: 0, right: 0, bottom: 0, left: 0, justifyContent: 'center' },
-  // Narrower than COMMIT_DISTANCE, so the label is in full view before letting go does it.
   action: { width: COMMIT_DISTANCE - 8, alignItems: 'center', gap: Spacing.one, paddingHorizontal: Spacing.one },
   label: { fontSize: 13, lineHeight: 18 },
 })

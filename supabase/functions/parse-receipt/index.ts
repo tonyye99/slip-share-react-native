@@ -1,21 +1,13 @@
-// Supabase Edge Function: parses a receipt photo with OpenAI.
-// Ported from slip-share's /api/openai/parse route so the OpenAI key stays
-// server-side. Deploy with: supabase functions deploy parse-receipt
-// and set the key with: supabase secrets set OPENAI_API_KEY=...
-// Only signed-in users can call it: the gateway's JWT check alone also lets
-// the public anon key through, so the handler confirms a real user below.
-
 import { createClient } from 'npm:@supabase/supabase-js@2'
 import OpenAI from 'npm:openai@5'
 
 const openai = new OpenAI({ apiKey: Deno.env.get('OPENAI_API_KEY') })
 const supabase = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_ANON_KEY')!)
-// Only used to hand back a scan that failed (refund_receipt_scan is service-role only).
 const admin = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!, {
   auth: { persistSession: false },
 })
 
-const MAX_BASE64_LENGTH = 14_000_000 // ~10MB image
+const MAX_BASE64_LENGTH = 14_000_000
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -38,8 +30,6 @@ function schema(enableTranslation: boolean) {
     id: { type: 'string' },
     name: { type: 'string', description: 'Item name in original language' },
     qty: { type: 'integer' },
-    // Receipts print what the whole line costs ("2  Ramen  320"), and asked
-    // for a unit price the model sometimes gave that line total instead.
     line_total: { type: 'number', description: 'The amount printed for this whole line, for all of its quantity' },
   }
   const itemRequired = ['id', 'name', 'qty', 'line_total']
@@ -112,7 +102,6 @@ Deno.serve(async (req) => {
   const { data: auth } = token ? await supabase.auth.getUser(token) : { data: { user: null } }
   if (!auth.user) return json({ error: 'Sign in to scan receipts' }, 401)
 
-  // A bad request is turned away before it uses up one of the day's scans.
   let imageBase64: unknown
   let enableTranslation = false
   try {
@@ -129,12 +118,10 @@ Deno.serve(async (req) => {
     return json({ error: 'Image is too large' }, 413)
   }
 
-  // Queries run as this user, so RLS and the scan limits apply.
   const userClient = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_ANON_KEY')!, {
     global: { headers: { Authorization: `Bearer ${token}` } },
   })
 
-  // No photo goes to OpenAI until the user has agreed in the app (ai_consents).
   const { data: consent, error: consentError } = await userClient.from('ai_consents').select('user_id').maybeSingle()
   if (consentError) {
     console.error('ai_consents lookup failed:', consentError)
@@ -142,20 +129,17 @@ Deno.serve(async (req) => {
   }
   if (!consent) return json({ error: 'consent_required' }, 403)
 
-  // Same UTC day the database counts the scan on, so a refund finds the right row.
   const scanDay = new Date().toISOString().slice(0, 10)
   const { data: claim, error: limitError } = await userClient.rpc('claim_receipt_scan')
   if (limitError) {
     console.error('claim_receipt_scan failed:', limitError)
     return json({ error: 'Failed to parse receipt' }, 500)
   }
-  // 'daily', 'monthly' or 'busy' (the app-wide cap); the app shows a message for each.
   if (claim !== 'ok') return json({ error: 'scan_limit', limit: claim }, 429)
 
   try {
     const result = await openai.responses.create({
       model: 'gpt-4.1-mini',
-      // Don't keep the response on OpenAI's side; nothing here reads it back later.
       store: false,
       input: [
         {
@@ -178,8 +162,6 @@ Deno.serve(async (req) => {
     return json(parsed)
   } catch (error) {
     console.error('parse-receipt failed:', error)
-    // Nothing came back, so this scan doesn't count. A photo that turns out
-    // not to be a receipt still counts: OpenAI read it and charged for it.
     const { error: refundError } = await admin.rpc('refund_receipt_scan', { p_user: auth.user.id, p_day: scanDay })
     if (refundError) console.error('refund_receipt_scan failed:', refundError)
     return json({ error: 'Failed to parse receipt' }, 500)

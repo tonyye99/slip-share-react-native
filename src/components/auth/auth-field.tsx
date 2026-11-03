@@ -6,10 +6,6 @@ import { AppText } from '@/components/ui'
 import { useTheme } from '@/hooks/use-theme'
 import { useT } from '@/i18n'
 
-/**
- * A labelled box for the signed-out screens. `action` sits at the right of the label (like "Forgot?"),
- * and `secureTextEntry` adds an eye button to show what was typed.
- */
 export function AuthField({
   label,
   action,
@@ -49,7 +45,6 @@ export function AuthField({
   )
 }
 
-/** The small blue link at the right of a field's label. */
 export function FieldAction({ title, onPress }: { title: string; onPress: () => void }) {
   const theme = useTheme()
   return (

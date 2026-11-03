@@ -1,7 +1,3 @@
--- Daily cap on receipt scans per user. Each scan calls OpenAI, and sign-up is
--- open, so without a cap one account could run up the bill. The
--- parse-receipt Edge Function calls use_receipt_scan() before calling OpenAI.
-
 create table if not exists public.receipt_scan_usage (
   user_id  uuid not null references auth.users(id) on delete cascade,
   day      date not null default (now() at time zone 'utc')::date,
@@ -9,12 +5,8 @@ create table if not exists public.receipt_scan_usage (
   primary key (user_id, day)
 );
 
--- RLS on with no policies: only use_receipt_scan() touches this table.
 alter table public.receipt_scan_usage enable row level security;
 
--- Counts one scan for the current user and returns whether it is within
--- today's limit (UTC days). The limit lives here, not in an argument, so a
--- caller can't raise it.
 create or replace function public.use_receipt_scan()
 returns boolean
 language plpgsql security definer set search_path = ''

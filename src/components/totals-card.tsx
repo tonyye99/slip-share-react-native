@@ -4,16 +4,9 @@ import { StyleSheet, Text, View, type ViewInstance } from 'react-native'
 import { QrCode } from '@/components/qr-code'
 import { Radius, Spacing } from '@/constants/theme'
 
-// Always dark ink on white paper, whatever the theme: this is the picture the
-// group gets, and chat apps show it on their own background.
 const INK = '#10181B'
 const MUTED = '#5B6B70'
 
-/**
- * Send totals as one picture: the message, then your PromptPay QR with who it
- * pays. Apps that keep only the picture when you paste (like Bitrix) still
- * get every amount. The phone app takes a picture of this view to share it.
- */
 export function TotalsCard({
   message,
   qr,
@@ -24,9 +17,7 @@ export function TotalsCard({
 }: {
   message: string
   qr: string
-  /** The name, then the PromptPay number when there is one. */
   caption: string[]
-  /** Under the code: there's no amount in it. */
   note: string
   qrLabel: string
   cardRef?: Ref<ViewInstance>

@@ -2,14 +2,9 @@ import type { ParsedItem } from '@/lib/types'
 
 import { strings } from '../i18n/strings.ts'
 
-// Editing parsed items on the review screen. Inputs keep the text as typed so
-// a half-typed number like "12." isn't rewritten while you type; it is parsed
-// and rounded to what the database stores (qty 3 decimals, price 2) on save.
-
 export interface ItemInput {
   key: string
   name: string
-  /** Dropped when you rename the item, since the translation no longer matches. */
   name_en?: string
   qty: string
   unit_price: string
@@ -37,7 +32,6 @@ export function newItemInput(): ItemInput {
   return { key: `added-${nextKey++}`, name: '', qty: '1', unit_price: '' }
 }
 
-/** Parses a typed number, accepting a comma as the decimal point. */
 export function parseNumber(text: string): number | null {
   const normalized = text.trim().replace(',', '.')
   if (!/^-?(\d+\.?\d*|\.\d+)$/.test(normalized)) return null
@@ -56,12 +50,10 @@ export function itemErrors(input: ItemInput): ItemErrors {
 
 export const hasErrors = (errors: ItemErrors) => Object.keys(errors).length > 0
 
-/** Qty and price as numbers for live totals; anything not yet valid counts as 0. */
 export function amountsOf(input: ItemInput) {
   return { qty: parseNumber(input.qty) ?? 0, unit_price: parseNumber(input.unit_price) ?? 0 }
 }
 
-/** The edited items in the parser's shape, or null if any is invalid or there are none. */
 export function toParsedItems(inputs: ItemInput[]): ParsedItem[] | null {
   if (inputs.length === 0 || inputs.some((input) => hasErrors(itemErrors(input)))) return null
   return inputs.map((input) => {
@@ -76,7 +68,6 @@ export function toParsedItems(inputs: ItemInput[]): ParsedItem[] | null {
   })
 }
 
-/** The service charge or tax on the review screen: added or not, and its percent as typed. */
 export interface ChargeInput {
   on: boolean
   percent: string
@@ -87,7 +78,6 @@ export const toChargeInput = (percent: number): ChargeInput => ({
   percent: percent > 0 ? String(percent) : '',
 })
 
-/** The percent to charge: 0 when it's off, or null while it's on without a number from 0 to 100. */
 export function chargePercent(input: ChargeInput): number | null {
   if (!input.on) return 0
   const percent = parseNumber(input.percent)

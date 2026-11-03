@@ -1,30 +1,20 @@
-// Receipts can carry the printed names and an English translation. These pick
-// which one leads, and label the language switch.
-
 const THAI = /[฀-๿]/
 
-/** Longest name on a bill; the database allows 40 too. */
 export const MAX_NAME_LENGTH = 40
 
-/** A typed name with outer spaces trimmed, inner runs of spaces made one, and cut to MAX_NAME_LENGTH. */
 export const cleanName = (typed: string) => typed.trim().replace(/\s+/g, ' ').slice(0, MAX_NAME_LENGTH).trim()
 
-/** "ไทย" when the printed names are Thai, otherwise `original` ("Original"). */
 export function originalLabel(names: (string | null | undefined)[], original: string): string {
   return names.some((name) => name && THAI.test(name)) ? 'ไทย' : original
 }
 
-// What the scan writes when no name is printed. Shown as if there were no name.
 const PLACEHOLDER = /^(unknown|n\/?a|none|null|-+|\?+|ไม่ทราบ|ไม่ระบุ)$/i
 
-/** The name, or null when it's empty or a placeholder like "Unknown". */
 export const realName = (name: string | null | undefined) => {
-  // Receipts mark lines with things like "***", "* " or ">*"; they aren't part of the name.
   const trimmed = name?.replace(/^[\s*>#•·]+/, '').trim()
   return trimmed && !PLACEHOLDER.test(trimmed) ? trimmed : null
 }
 
-/** The name to show first, and the other one (if different) to show under it. */
 export function bothNames(printed: string | null, translated: string | null, showEnglish: boolean) {
   const original = realName(printed)
   const english = realName(translated)

@@ -8,7 +8,6 @@ import { useTheme } from '@/hooks/use-theme'
 import { useT } from '@/i18n'
 import type { BillState } from '@/lib/bills'
 
-/** One bill in "Your bills": a tile in its state's colour, name and date, total and a badge. Swipe left to delete. */
 export function BillRow({
   name,
   caption,
@@ -21,7 +20,6 @@ export function BillRow({
   onDelete,
 }: {
   name: string
-  /** Like "Today · 4 items". */
   caption: string
   amount: string
   state: BillState

@@ -11,14 +11,9 @@ import type { Money, PersonView } from '@/lib/split-view'
 export interface PersonCard extends PersonView {
   total: number
   paidBack: boolean
-  /** Sent a transfer slip through the friend link. */
   slipSent: boolean
 }
 
-/**
- * One card per person with what they owe, then a "+ Add" card. The row runs
- * edge to edge and scrolls sideways when there are many.
- */
 export function PersonCards({
   people,
   openId,
@@ -28,7 +23,6 @@ export function PersonCards({
   onAdd,
 }: {
   people: PersonCard[]
-  /** The card that is open, showing the person's details below. */
   openId: string | null
   billTotal: number
   money: Money
@@ -55,7 +49,6 @@ export function PersonCards({
             <View style={styles.top}>
               <View>
                 <Avatar name={person.name} color={person.color} size={24} />
-                {/* A slip to check: a dot like an unread badge. */}
                 {person.slipSent && !person.paidBack && (
                   <View style={[styles.slipDot, { backgroundColor: theme.primary, borderColor: theme.surface }]} />
                 )}

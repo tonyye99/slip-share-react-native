@@ -7,12 +7,6 @@ import { useTheme } from '@/hooks/use-theme'
 
 const ACTION_WIDTH = 84
 
-/**
- * A tappable row that slides left to show a red delete button behind it, like
- * Mail. Built on React Native's own PanResponder, so it needs no gesture
- * package, runs in Expo Go and also drags with a mouse on the website.
- * Tapping a row that's open closes it.
- */
 export function SwipeToDelete({
   onPress,
   onDelete,
@@ -23,7 +17,6 @@ export function SwipeToDelete({
   onPress: () => void
   onDelete: () => void
   deleteLabel: string
-  /** Square corners, for a row inside a card rather than a card of its own. */
   flat?: boolean
   children: (pressed: boolean) => ReactNode
 }) {
@@ -31,7 +24,6 @@ export function SwipeToDelete({
   const [swipe] = useState(() => {
     const x = new Animated.Value(0)
     let open = false
-    // A browser still sends a click when the mouse comes up after a drag.
     let dragged = false
     const settle = (toOpen: boolean) => {
       open = toOpen
@@ -44,8 +36,6 @@ export function SwipeToDelete({
     }
     const offset = (dx: number) => (open ? -ACTION_WIDTH : 0) + dx
     const responder = PanResponder.create({
-      // Only clear sideways drags, so the list still scrolls up and down. Asked
-      // on the way down, so the row's own press handling can't keep the drag.
       onMoveShouldSetPanResponderCapture: (_, g) => Math.abs(g.dx) > 8 && Math.abs(g.dx) > Math.abs(g.dy) * 1.5,
       onPanResponderTerminationRequest: () => false,
       onPanResponderGrant: () => {
@@ -85,7 +75,6 @@ export function SwipeToDelete({
           flat && { borderRadius: 0 },
           {
             backgroundColor: theme.destructive,
-            // Hidden while the row is closed, so no red shows at its rounded corners.
             opacity: swipe.x.interpolate({ inputRange: [-1, 0], outputRange: [1, 0], extrapolate: 'clamp' }),
           },
         ]}>

@@ -16,19 +16,12 @@ const useNativeDriver = Platform.OS !== 'web'
 const THUMB_WIDTH = 112
 const THUMB_HEIGHT = 144
 const SKELETON_ROWS = 5
-// The model sends the whole receipt at once. Its items then appear one after
-// another, all within about a second, and the screen moves on soon after.
 const REVEAL_MS = 1000
 const MAX_ITEM_MS = 120
 const HOLD_MS = 700
 
 type StepState = 'pending' | 'active' | 'done' | 'warn'
 
-/**
- * The scan screen while a receipt is being read: the photo with a moving scan
- * line, steps that tick off as each one really finishes, and the items filling
- * in over grey placeholder rows.
- */
 export function ReadingReceipt({
   photoUri,
   stage,
@@ -37,12 +30,9 @@ export function ReadingReceipt({
   onDone,
 }: {
   photoUri: string
-  /** preparing: shrinking the photo on the phone. reading: waiting for the model. */
   stage: 'preparing' | 'reading'
-  /** The read receipt, once it arrives. */
   receipt: ParsedReceipt | null
   onCancel: () => void
-  /** Called once every item has been shown. */
   onDone: (receipt: ParsedReceipt) => void
 }) {
   const theme = useTheme()
@@ -204,7 +194,6 @@ function StepMark({ state }: { state: StepState }) {
   )
 }
 
-/** Fades a row in and lifts it into place as it appears. */
 function FadeIn({ children }: { children: ReactNode }) {
   const [progress] = useState(() => new Animated.Value(0))
   useEffect(() => {

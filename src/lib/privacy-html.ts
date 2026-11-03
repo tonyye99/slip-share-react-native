@@ -1,7 +1,3 @@
-// Turns PRIVACY.md into the website's privacy page (public/privacy.html), so
-// the policy is written once. Handles only what PRIVACY.md uses: headings,
-// paragraphs, - and 1. lists, **bold**, `code`, [links](url) and <email>.
-
 const escape = (text: string) =>
   text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
 

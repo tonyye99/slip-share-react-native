@@ -5,7 +5,6 @@ import { Pressable, StyleSheet } from 'react-native'
 import { AccountPhoto } from '@/components/account-photo'
 import { useT } from '@/i18n'
 
-/** The round button at the top right of home that opens Account. */
 export function AccountButton({ user }: { user: User | null | undefined }) {
   const t = useT()
   return (

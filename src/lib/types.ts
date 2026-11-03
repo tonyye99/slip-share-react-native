@@ -1,5 +1,3 @@
-// Mirrors the Supabase schema in supabase/migrations.
-
 export type UserType = 'payer' | 'sharer'
 
 export interface Receipt {
@@ -14,11 +12,8 @@ export interface Receipt {
   rounding: number
   subtotal: number
   total: number
-  /** 'payer' when you paid. Follows receipt_people.is_payer; the web app reads it. */
   user_type: UserType
-  /** Token in the friend link, https://<site>/pick/<share_token>. New each time the link is turned on. */
   share_token: string
-  /** The friend link only works while this is on. */
   link_enabled: boolean
   created_at: string
   updated_at: string
@@ -34,33 +29,24 @@ export interface ReceiptItem {
   unit_price: number
 }
 
-/** Someone at the table, added by name by the receipt owner. */
 export interface ReceiptPerson {
   id: string
   receipt_id: string
   name: string
-  /** The owner's own line, shown as "You". */
   is_me: boolean
-  /** Paid the bill. At most one per receipt. */
   is_payer: boolean
-  /** When they paid the payer back. */
   paid_at: string | null
-  /** Set when they picked this name through the friend link. */
   guest_key: string | null
-  /** The transfer slip they sent through the friend link, in the private "slips" bucket. */
   slip_path?: string | null
-  /** When they sent it. */
   slip_at?: string | null
   created_at: string
 }
 
-/** A receipt with its items, who had each item (and how many of it), and everyone on it. */
 export interface ReceiptWithPeople extends Receipt {
   receipts_items: (ReceiptItem & { receipt_item_people: { person_id: string; units: number }[] })[]
   receipt_people: ReceiptPerson[]
 }
 
-/** Output of the parse-receipt Edge Function (same shape as the web app's OpenAI schema). */
 export interface ParsedItem {
   id: string
   name: string
@@ -81,6 +67,5 @@ export interface ParsedReceipt {
   subtotal: number
   total: number
   rounding: number
-  /** Tax on the items alone, worked out from the total by checkScan. Not saved. */
   tax_on_items_only?: boolean
 }

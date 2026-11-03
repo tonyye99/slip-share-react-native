@@ -7,10 +7,6 @@ import { billTotal, peopleInOrder, receiptSubtotal, readSavedCharges } from '@/l
 import { supabase } from '@/lib/supabase'
 import type { ParsedReceipt, ReceiptPerson, ReceiptWithPeople } from '@/lib/types'
 
-// The app talks to Supabase directly; RLS limits each user to their own
-// receipts and the people on them.
-
-/** Your bills, newest first, with who had what so the home screen can tell where each one stands. */
 export async function listBills(offset: number, limit: number) {
   const { data, error, count } = await supabase
     .from('receipts')
@@ -61,7 +57,6 @@ export async function createReceipt(parsed: ParsedReceipt, userId: string) {
       raw_json: parsed,
       parser_version: 'gpt-4.1-mini',
       issued_at: new Date().toISOString(),
-      // You're the payer until you pick someone else on the receipt screen.
       user_type: 'payer',
     })
     .select('id')
@@ -85,27 +80,23 @@ export async function createReceipt(parsed: ParsedReceipt, userId: string) {
   return receipt.id as string
 }
 
-/** Adds someone to a receipt by name. */
 export async function addPerson(receiptId: string, name: string): Promise<ReceiptPerson> {
   const { data, error } = await supabase.from('receipt_people').insert({ receipt_id: receiptId, name }).select().single()
   if (error) throw error
   return data as ReceiptPerson
 }
 
-/** Gives a bill your own name. The scanned English name goes, so this one shows either way. */
 export async function renameReceipt(receiptId: string, name: string) {
   const { error } = await supabase.from('receipts').update({ merchant_name: name, merchant_name_en: null }).eq('id', receiptId)
   if (error) throw error
 }
 
-/** Removes someone from a receipt, with any transfer slip they sent; the items they had go back to nobody. */
 export async function removePerson(receiptId: string, personId: string) {
   await removeSlipFiles(receiptId, personId)
   const { error } = await supabase.from('receipt_people').delete().eq('id', personId)
   if (error) throw error
 }
 
-/** Ticks people on items, or changes how many of an item they had. */
 export async function addItemPeople(rows: { item_id: string; person_id: string; units: number }[]) {
   if (rows.length === 0) return
   const { error } = await supabase.from('receipt_item_people').upsert(rows, { onConflict: 'item_id,person_id' })
@@ -118,13 +109,11 @@ export async function removeItemPeople(itemId: string, personIds: string[]) {
   if (error) throw error
 }
 
-/** Makes someone on the receipt the one who paid the bill. */
 export async function setPayer(receiptId: string, personId: string) {
   const { error } = await supabase.rpc('set_receipt_payer', { p_receipt_id: receiptId, p_person_id: personId })
   if (error) throw error
 }
 
-/** Records (or clears) that someone has paid the payer back. */
 export async function setPersonPaid(personId: string, paid: boolean) {
   const { error } = await supabase
     .from('receipt_people')
@@ -133,7 +122,6 @@ export async function setPersonPaid(personId: string, paid: boolean) {
   if (error) throw error
 }
 
-/** Names you added to your latest receipts, newest first, for adding them again in one tap. */
 export async function getRecentNames(): Promise<string[]> {
   const { data, error } = await supabase
     .from('receipts')
@@ -155,13 +143,11 @@ export async function getRecentNames(): Promise<string[]> {
   return names
 }
 
-/** Asks before deleting a receipt; `onConfirm` runs only if the person agrees. */
 export function confirmDeleteReceipt(onConfirm: () => void) {
   const t = strings()
   confirmDestructive(t.bills.deleteTitle, t.bills.deleteMessage, t.common.delete, onConfirm)
 }
 
-/** Deletes a receipt for good, with its items, people, picks and transfer slips. */
 export async function deleteReceipt(receiptId: string): Promise<void> {
   await removeSlipFiles(receiptId)
   const { data, error } = await supabase.from('receipts').delete().eq('id', receiptId).select('id')
@@ -169,10 +155,6 @@ export async function deleteReceipt(receiptId: string): Promise<void> {
   if (!data.length) throw new Error('Receipt not found')
 }
 
-/**
- * Turns the friend link on or off and returns the receipt's link token.
- * Turning it on after it was off makes a new token, so old links stop working.
- */
 export async function setReceiptLink(receiptId: string, enabled: boolean): Promise<string> {
   const { data, error } = await supabase.rpc('set_receipt_link', { p_receipt_id: receiptId, p_enabled: enabled })
   if (error) throw error

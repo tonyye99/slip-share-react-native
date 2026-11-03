@@ -5,8 +5,6 @@ import { strings } from '@/i18n/strings'
 import { supabase } from '@/lib/supabase'
 import type { ParsedReceipt } from '@/lib/types'
 
-// Phone photos are often 4000px+ and several MB; 1600px wide keeps receipt
-// text legible for the model while keeping the upload small.
 const MAX_WIDTH = 1600
 
 export async function prepareImage(uri: string, width: number): Promise<string> {
@@ -18,10 +16,8 @@ export async function prepareImage(uri: string, width: number): Promise<string> 
   return result.base64
 }
 
-/** Which scan cap parse-receipt hit: the user's day or month, or the whole app's day. */
 export type ScanLimit = 'daily' | 'monthly' | 'busy'
 
-/** parse-receipt allows a limited number of scans (see the scan_limits migration). */
 export class ScanLimitError extends Error {
   constructor(readonly limit: ScanLimit) {
     super(scanLimitMessage(limit))
@@ -41,14 +37,12 @@ async function limitFrom(response: Response): Promise<ScanLimit> {
   return limit === 'monthly' || limit === 'busy' ? limit : 'daily'
 }
 
-/** parse-receipt won't send a photo to OpenAI until the user has agreed (see lib/consent). */
 export class ConsentRequiredError extends Error {
   constructor() {
     super(strings().scan.consentRequired)
   }
 }
 
-/** Reads the receipt in one go. `signal` lets the scan screen cancel it. */
 export async function parseReceipt(
   imageBase64: string,
   enableTranslation: boolean,

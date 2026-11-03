@@ -7,7 +7,6 @@ import { showAlert } from '@/lib/alert'
 
 export const FEEDBACK_EMAIL = 'tony.yehtetaung@gmail.com'
 
-/** App version and device, so a bug report says where it happened. */
 function aboutThisDevice(): string {
   const version = Application.nativeApplicationVersion
   const build = Application.nativeBuildVersion
@@ -16,7 +15,6 @@ function aboutThisDevice(): string {
   return [`SlipShare ${version ?? ''}${build ? ` (${build})` : ''}`.trim(), device].filter(Boolean).join(' · ')
 }
 
-/** Opens a new email to us, or shows the address when there's no mail app. */
 export async function sendFeedback() {
   const t = strings().feedback
   const subject = encodeURIComponent(t.subject)

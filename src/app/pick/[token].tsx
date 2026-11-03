@@ -32,9 +32,6 @@ import { pickPhoto } from '@/lib/photo'
 import { prepareSlip, sendSlip, SlipError } from '@/lib/slips'
 import { formatMoney, isCountable, itemShares, splitByPicks } from '@/lib/split'
 
-// Opened from a friend link (https://<site>/pick/<token>), usually on the
-// website by someone without the app. They type their name, or tap one the
-// owner already added, and tick what they had. No sign-up.
 export default function PickScreen() {
   const { token } = useLocalSearchParams<{ token: string }>()
   const theme = useTheme()
@@ -49,9 +46,7 @@ export default function PickScreen() {
   const [refreshing, setRefreshing] = useState(false)
   const [showEnglish, setShowEnglish] = useState(false)
   const [slipBusy, setSlipBusy] = useState(false)
-  // The slip you sent while this page is open. Only the owner can load it back.
   const [slipPreview, setSlipPreview] = useState<string | null>(null)
-  // Ticks save as you tap, one at a time and in order.
   const saves = useRef<Promise<void>>(Promise.resolve())
 
   useEffect(() => {
@@ -60,7 +55,6 @@ export default function PickScreen() {
       .then(([receipt, saved]) => {
         track('link_opened', { returning: !!saved })
         setReceipt(receipt)
-        // A name the owner has since removed no longer counts.
         setIdentity(saved && receipt.people.some((person) => person.id === saved.person_id) ? saved : null)
       })
       .catch((e) => {
@@ -141,7 +135,6 @@ export default function PickScreen() {
     join({ name: typed })
   }
 
-  // Ticks an item with how many you had, or unticks it (units null).
   const pick = (item: LinkItem, units: number | null) => {
     if (!identity) return
     const others = item.person_ids.filter((id) => id !== identity.person_id)
@@ -171,7 +164,6 @@ export default function PickScreen() {
     )
   }
 
-  // A new tick is for one of the line; − 1 + changes it on lines like 2 × Egg Kim Bab.
   const toggle = (item: LinkItem) => {
     if (identity) pick(item, item.person_ids.includes(identity.person_id) ? null : 1)
   }
@@ -243,7 +235,6 @@ export default function PickScreen() {
   const payerName = payer ? (payer.id === me?.id ? t.common.youInSentence : payer.name) : null
   const mineCount = me ? receipt.items.filter((item) => item.person_ids.includes(me.id)).length : 0
   const owes = !!payer && !!me && payer.id !== me.id
-  // The owner's ways to get paid come only on bills they paid.
   const payMethods = payer?.is_owner ? (receipt.pay_methods ?? []) : []
 
   const languageSwitch = (
@@ -394,7 +385,6 @@ export default function PickScreen() {
                   .filter((id) => id !== me.id)
                   .map((id) => (countable ? `${nameOf(id)} (${item.counts[id] ?? 1})` : nameOf(id)))
                 const names = bothNames(item.name, item.name_en, showEnglish)
-                // On a counted line: "1 of 2", or "all yours". Lines people share say "your share".
                 const caption =
                   countable && counted <= item.qty
                     ? units === item.qty
@@ -537,7 +527,6 @@ const styles = StyleSheet.create({
   point: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
   list: { padding: 0, gap: 0, overflow: 'hidden' },
   pickRow: { flexDirection: 'row', alignItems: 'flex-start', gap: Spacing.three - 4, padding: Spacing.three },
-  // Lines up with the item name, past the tick box.
   countRow: {
     flexDirection: 'row',
     alignItems: 'center',

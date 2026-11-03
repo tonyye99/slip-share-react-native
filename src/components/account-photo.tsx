@@ -6,7 +6,6 @@ import { StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native'
 import { Avatar } from '@/components/chip'
 import { useTheme } from '@/hooks/use-theme'
 
-/** Your sign-in photo when the provider gave one (Google), and a name for the initial. */
 function accountLook(user: User | null | undefined) {
   const meta = user?.user_metadata ?? {}
   const photo = [meta.avatar_url, meta.picture].find((value) => typeof value === 'string' && value.startsWith('https://'))
@@ -16,7 +15,6 @@ function accountLook(user: User | null | undefined) {
   return { photo: photo as string | undefined, name: (name as string | undefined) ?? '?' }
 }
 
-/** Your photo, or your initial on a blue circle, inside a white ring. */
 export function AccountPhoto({
   user,
   size,

@@ -7,7 +7,6 @@ import { MaxContentWidth, Radius, Spacing } from '@/constants/theme'
 import { useT } from '@/i18n'
 import { useTheme } from '@/hooks/use-theme'
 
-/** A panel that slides up from the bottom over a dimmed screen. Tapping outside closes it. */
 export function Sheet({
   visible,
   onClose,
@@ -20,18 +19,14 @@ export function Sheet({
   visible: boolean
   onClose: () => void
   title?: string
-  /** A quieter line under the title. */
   subtitle?: string
-  /** Shown at the end of the title row, like the bill total. */
   right?: ReactNode
-  /** Stays under the scrolling part, like a Send totals button. */
   footer?: ReactNode
   children: ReactNode
 }) {
   const theme = useTheme()
   const t = useT()
   const insets = useSafeAreaInsets()
-  // The dimmed page fades in or out while the panel slides up or back down.
   const [slide] = useState(() => new Animated.Value(0))
   useEffect(() => {
     Animated.timing(slide, {
@@ -43,7 +38,6 @@ export function Sheet({
   }, [visible, slide])
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
-      {/* On iPhone the keyboard would cover a sheet with a text box, so the sheet moves up with it. */}
       <KeyboardAvoidingView style={styles.wrap} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <Pressable style={styles.backdrop} onPress={onClose} accessibilityRole="button" accessibilityLabel={t.common.close} />
         <Animated.View
@@ -79,7 +73,6 @@ export function Sheet({
   )
 }
 
-/** One row in a sheet of choices. */
 export function SheetOption({
   label,
   detail,
