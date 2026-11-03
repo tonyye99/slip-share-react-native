@@ -1,11 +1,3 @@
-// Supabase Edge Function: a friend on the friend link adds (or removes) a
-// screenshot of the transfer they made to pay the payer back.
-// Deploy with: supabase functions deploy upload-slip
-// Friends aren't signed in, so instead of a user this checks the link token
-// and the guest key the friend got when they picked their name (the same
-// check set_link_pick makes). The photo goes in the private "slips" bucket,
-// which only the bill's owner can read (supabase/migrations/*_payment_slips.sql).
-
 import { createClient } from 'npm:@supabase/supabase-js@2'
 
 const admin = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!, {
@@ -13,7 +5,6 @@ const admin = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE
 })
 
 const BUCKET = 'slips'
-// The app shrinks slips to well under this before sending them.
 const MAX_BYTES = 2 * 1024 * 1024
 const MAX_BASE64_LENGTH = Math.ceil(MAX_BYTES / 3) * 4
 
@@ -35,7 +26,6 @@ interface Body {
   token?: unknown
   person_id?: unknown
   guest_key?: unknown
-  /** A JPEG as base64, or null to remove the slip. */
   image_base64?: unknown
 }
 
@@ -46,7 +36,6 @@ function decodeJpeg(base64: string): Uint8Array | null {
   } catch {
     return null
   }
-  // Every JPEG starts FF D8 FF.
   const isJpeg = bytes.length > 3 && bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff
   return isJpeg && bytes.length <= MAX_BYTES ? bytes : null
 }
@@ -69,7 +58,6 @@ Deno.serve(async (req) => {
     return json({ error: 'That image is too big' }, 413)
   }
 
-  // The link has to be on, and the friend has to be the one who picked this name.
   const { data: receipt, error: receiptError } = await admin
     .from('receipts')
     .select('id')
@@ -119,7 +107,6 @@ Deno.serve(async (req) => {
   const bytes = decodeJpeg(image_base64)
   if (!bytes) return json({ error: 'Send the slip as a photo' }, 400)
 
-  // A new name for each slip, so the owner never sees an old copy from a cache.
   const path = `${receipt.id}/${person.id}-${Date.now()}.jpg`
   const { error: uploadError } = await admin.storage
     .from(BUCKET)
@@ -129,7 +116,6 @@ Deno.serve(async (req) => {
     return json({ error: 'Could not save the slip' }, 500)
   }
 
-  // Checked again in case the owner removed this person in the meantime.
   const { data: saved, error: updateError } = await admin
     .from('receipt_people')
     .update({ slip_path: path, slip_at: new Date().toISOString() })

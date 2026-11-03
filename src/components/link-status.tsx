@@ -11,7 +11,6 @@ interface LinkStatusProps {
   onErrorAction: () => void
 }
 
-/** Full-screen spinner, or an error with a way out, for screens opened from a link. */
 export function LinkStatus({ error, progressMessage, errorActionTitle, onErrorAction }: LinkStatusProps) {
   const theme = useTheme()
   return (

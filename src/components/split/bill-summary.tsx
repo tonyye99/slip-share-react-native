@@ -8,7 +8,6 @@ import { useTheme } from '@/hooks/use-theme'
 import { useT } from '@/i18n'
 import type { Money, PersonView } from '@/lib/split-view'
 
-/** The bill total at the top, who paid, how much of it is assigned, and how much is paid back. */
 export function BillSummary({
   total,
   caption,
@@ -22,15 +21,9 @@ export function BillSummary({
   onShowSettled,
 }: {
   total: number
-  /** Like "incl. service and VAT". */
   caption: string
-  /**
-   * Who paid, as a button that changes it: "Paid by you" or "Paid by Ben".
-   * Left out while you're the only one on the bill.
-   */
   payer: { label: string; person: PersonView | null } | null
   onChoosePayer: () => void
-  /** How far assigning has got. Left out while you're the only one on the bill. */
   progress: { assignedItems: number; itemCount: number; left: number; share: number } | null
   settled: boolean
   paidBack: number

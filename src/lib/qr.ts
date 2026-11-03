@@ -1,6 +1,5 @@
 import makeQr from 'qrcode-generator'
 
-/** Which squares of a QR code are dark, row by row. Error correction M copes with a smudge or a crease. */
 export function qrModules(text: string): boolean[][] {
   const qr = makeQr(0, 'M')
   qr.addData(text)
@@ -9,10 +8,7 @@ export function qrModules(text: string): boolean[][] {
   return Array.from({ length: count }, (_, row) => Array.from({ length: count }, (_, col) => qr.isDark(row, col)))
 }
 
-/** The white border round a QR code, in squares. Banking apps read codes best with all four. */
 export const QUIET_ZONE = 4
-
-// ============ website only ============
 
 function drawCode(context: CanvasRenderingContext2D, modules: boolean[][], left: number, top: number, cell: number) {
   context.fillStyle = '#000000'
@@ -23,10 +19,6 @@ function drawCode(context: CanvasRenderingContext2D, modules: boolean[][], left:
   )
 }
 
-/**
- * The code as a PNG, `cell` points per square, sharp on high-density
- * screens. The website shows it as a picture so a long press can save it.
- */
 export function qrImageUrl(modules: boolean[][], cell: number): string {
   const scale = Math.max(1, Math.ceil(window.devicePixelRatio || 1))
   const side = (modules.length + QUIET_ZONE * 2) * cell * scale
@@ -41,25 +33,12 @@ export function qrImageUrl(modules: boolean[][], cell: number): string {
   return canvas.toDataURL('image/png')
 }
 
-/**
- * iPhone and iPad, including iPads that say they're a Mac. Their browsers
- * can only put a picture in Photos through the share sheet (Save Image) or
- * a long press on it, never with a plain download.
- */
 export function isApplePhone(): boolean {
   if (typeof navigator === 'undefined') return false
   const agent = navigator.userAgent
   return /iPhone|iPad|iPod/.test(agent) || (agent.includes('Macintosh') && navigator.maxTouchPoints > 1)
 }
 
-/**
- * Saves a QR code as a picture with a line or two under it, so a friend can
- * open it from their banking app's "scan from photos".
- * - `saved`: downloaded. On Android it lands in Downloads, which the gallery shows.
- * - `shared`: the iPhone share sheet opened; Save Image puts it in Photos.
- * - `hold`: an iPhone browser with no share sheet, like some in-app browsers.
- *   The QR on screen can still be saved with a long press.
- */
 export async function saveQrImage(
   text: string,
   caption: string[],
@@ -73,20 +52,16 @@ export async function saveQrImage(
     try {
       await navigator.share({ files: [file] })
     } catch (e) {
-      // Safari turns the share sheet down if drawing the picture took too
-      // long after the tap. The QR on screen can still be saved with a long press.
       if ((e as Error)?.name === 'NotAllowedError') return 'hold'
       if ((e as Error)?.name !== 'AbortError') throw e
     }
     return 'shared'
   }
 
-  // Android and computers: straight to Downloads, no pop-up.
   download(blob, fileName)
   return 'saved'
 }
 
-/** Starts a download of the picture. */
 export function download(blob: Blob, fileName: string) {
   const url = URL.createObjectURL(blob)
   const link = document.createElement('a')
@@ -98,7 +73,6 @@ export function download(blob: Blob, fileName: string) {
   setTimeout(() => URL.revokeObjectURL(url), 10_000)
 }
 
-/** The code as a PNG with a line or two of text under it. */
 export async function qrPicture(text: string, caption: string[]): Promise<Blob> {
   const modules = qrModules(text)
   const cell = 10
@@ -127,7 +101,6 @@ export async function qrPicture(text: string, caption: string[]): Promise<Blob> 
 
 const FONT = 'system-ui, -apple-system, "Segoe UI", Roboto, "Noto Sans Thai", sans-serif'
 
-/** Splits text into lines that fit `width`, keeping its own line breaks. Thai has no spaces, so long words break anywhere. */
 function wrap(context: CanvasRenderingContext2D, text: string, width: number): string[] {
   const lines: string[] = []
   for (const paragraph of text.split('\n')) {
@@ -139,7 +112,6 @@ function wrap(context: CanvasRenderingContext2D, text: string, width: number): s
       }
       if (line.trim()) lines.push(line.trimEnd())
       line = piece.trimStart()
-      // A word wider than the line on its own: break it by letter.
       while (context.measureText(line).width > width) {
         let cut = line.length - 1
         while (cut > 1 && context.measureText(line.slice(0, cut)).width > width) cut--
@@ -152,10 +124,6 @@ function wrap(context: CanvasRenderingContext2D, text: string, width: number): s
   return lines
 }
 
-/**
- * Send totals as one picture: the message, then the QR code with the name and
- * number under it, and a note. Same layout as TotalsCard in the phone app.
- */
 export async function totalsPicture(message: string, qr: string, caption: string[], note: string): Promise<Blob> {
   const width = 640
   const pad = 36

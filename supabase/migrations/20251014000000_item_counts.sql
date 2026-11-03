@@ -1,20 +1,6 @@
--- How many of a line each person had, so a line of 2 × Egg Kim Bab can be
--- 1 for Htet and 1 for Tony instead of the two of them sharing both.
---
--- receipt_item_people.units is how many of the line that person had. On a
--- line whose quantity is a whole number of 2 or more, each person pays
--- unit_price × units, and whatever nobody claimed stays unassigned. If the
--- units add up to more than the quantity (people sharing), the line is
--- divided in proportion to them. Other lines are shared evenly, as before.
--- src/lib/split.ts (itemShares) does the maths.
-
 alter table public.receipt_item_people
   add column if not exists units integer not null default 1 check (units >= 1);
 
--- Until now everyone who ticked a line shared it evenly. Giving each of them
--- an even part of the quantity (rounded up, so none is left over) keeps what
--- everyone owes on existing receipts the same: 2 × Egg Kim Bab ticked by two
--- people becomes 1 each, and ticked by one person becomes 2.
 update public.receipt_item_people ip
 set units = ceil(i.qty / n.people)::integer
 from public.receipts_items i
@@ -23,9 +9,6 @@ join (
 ) n on n.item_id = i.id
 where i.id = ip.item_id and i.qty >= 2 and i.qty = trunc(i.qty);
 
--- ============ friend link: show and set counts ============
-
--- Same as before, plus each item's `counts`: person id -> how many they had.
 create or replace function public.get_link_receipt(p_token uuid)
 returns jsonb
 language plpgsql stable security definer set search_path = ''
@@ -80,9 +63,6 @@ begin
 end;
 $$;
 
--- Ticks (or unticks) one item for the person who joined with p_guest_key, and
--- says how many of it they had. The count is kept between 1 and the line's
--- quantity, and is always 1 on lines that can't be counted.
 drop function if exists public.set_link_pick(uuid, uuid, uuid, uuid, boolean);
 create or replace function public.set_link_pick(
   p_token uuid, p_person_id uuid, p_guest_key uuid, p_item_id uuid, p_had boolean, p_units integer default 1

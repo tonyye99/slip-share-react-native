@@ -27,7 +27,6 @@ import { realName } from '@/lib/names'
 import { createReceipt } from '@/lib/receipts'
 import { billTotal, chargesFor, formatMoney, receiptSubtotal } from '@/lib/split'
 
-// iOS's decimal pad has no minus key, which discount lines need.
 const PRICE_KEYBOARD = Platform.OS === 'ios' ? 'numbers-and-punctuation' : 'numeric'
 
 export default function ReviewScreen() {
@@ -40,12 +39,10 @@ export default function ReviewScreen() {
     service: toChargeInput(draft?.service_percent ?? 0),
     tax: toChargeInput(draft?.tax_percent ?? 0),
   }))
-  // The charge being changed, and how it was before, to put back if it's left half-typed.
   const [chargeKind, setChargeKind] = useState<ChargeKind>('service')
   const [chargeBefore, setChargeBefore] = useState<ChargeInput | null>(null)
   const [editing, setEditing] = useState(false)
   const [edited, setEdited] = useState(false)
-  // Field errors show once you try to leave edit mode or save, not while typing.
   const [showErrors, setShowErrors] = useState(false)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -61,7 +58,6 @@ export default function ReviewScreen() {
   }
   const { service, tax } = chargesFor(priced, subtotal)
   const itemsTotal = billTotal(priced, subtotal)
-  // Once you change the items or charges, the total follows them rather than the printed one.
   const total = edited ? itemsTotal : draft.total
   const doesNotAddUp = draft.total > 0 && Math.abs(itemsTotal - draft.total) >= 0.5
   const showEnglish = draft.original_language !== 'en'

@@ -6,7 +6,6 @@ import { Radius, Spacing } from '@/constants/theme'
 import { useTheme } from '@/hooks/use-theme'
 import { useT } from '@/i18n'
 
-/** Home before the first bill: what SlipShare does, in three steps. */
 export function FirstTime() {
   const theme = useTheme()
   const t = useT().home

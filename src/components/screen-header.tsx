@@ -9,14 +9,8 @@ import { MaxContentWidth, Spacing } from '@/constants/theme'
 import { useT } from '@/i18n'
 import { useTheme } from '@/hooks/use-theme'
 
-// Screens opened straight from a link have nothing to go back to.
 const goBack = () => (router.canGoBack() ? router.back() : router.replace('/'))
 
-/**
- * The white bar at the top of every screen: a back arrow (or the SlipShare
- * mark), the title with a line under it, and room on the right. Anything
- * passed as children, such as tabs, sits at the bottom of the bar.
- */
 export function ScreenHeader({
   title,
   subtitle,
@@ -30,14 +24,10 @@ export function ScreenHeader({
 }: {
   title?: string
   subtitle?: string
-  /** Show the back arrow. */
   back?: boolean
-  /** Show the SlipShare mark and name instead of a title. */
   brand?: boolean
-  /** Sit on the grey page with no bar or line, like the split screen. */
   plain?: boolean
   right?: ReactNode
-  /** Makes the title a button, like "rename this bill". */
   onTitlePress?: () => void
   titleHint?: string
   children?: ReactNode

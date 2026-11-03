@@ -6,7 +6,6 @@ import { AppText } from '@/components/ui'
 import { useTheme } from '@/hooks/use-theme'
 import { useLanguage, useT, type Language } from '@/i18n'
 
-// Each language is shown in its own words, so it can be found without reading the other.
 const LANGUAGES: { value: Language; name: string }[] = [
   { value: 'en', name: 'English' },
   { value: 'th', name: 'ไทย' },
@@ -19,10 +18,6 @@ interface Anchor {
   height: number
 }
 
-/**
- * A small "English ⌄" button. Tapping it drops down the languages under it;
- * picking one changes the app's words right away and is remembered.
- */
 export function LanguagePicker({ background, style }: { background?: string; style?: StyleProp<ViewStyle> }) {
   const theme = useTheme()
   const t = useT()
@@ -67,7 +62,6 @@ export function LanguagePicker({ background, style }: { background?: string; sty
               styles.menu,
               {
                 top: anchor.y + anchor.height + 6,
-                // Lines up with the button's right edge, so it stays on screen at the top right.
                 right: Math.max(8, windowWidth - anchor.x - anchor.width),
                 backgroundColor: theme.surface,
                 borderColor: theme.hairline,

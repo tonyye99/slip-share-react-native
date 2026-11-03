@@ -26,7 +26,6 @@ export function useAuth() {
   return useContext(AuthContext)
 }
 
-/** For screens inside the signed-in group, where a session is guaranteed. */
 export function useUserId(): string {
   const { session } = useAuth()
   if (!session) throw new Error('useUserId used outside the signed-in area')

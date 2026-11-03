@@ -15,10 +15,6 @@ import { formatPromptPay, payPayload, promptPayId } from '@/lib/promptpay'
 import { isApplePhone, saveQrImage } from '@/lib/qr'
 import { formatMoney } from '@/lib/split'
 
-/**
- * On the friend link, once you owe the owner: how to pay them, with the
- * exact amount. PromptPay shows a QR your banking app reads the amount from.
- */
 export function PayCard({
   payerName,
   methods,
@@ -35,11 +31,9 @@ export function PayCard({
   const [index, setIndex] = useState(0)
   const method = methods[Math.min(index, methods.length - 1)]
   const money = formatMoney(amount, currency)
-  // "Bank" fits a tab; the bank's own name is only needed to tell two apart.
   const banks = methods.filter((option) => option.kind === 'bank').length
   const tabLabel = (option: PayDetails) => (option.kind === 'bank' && banks === 1 ? t.bankName : payTitle(option))
 
-  // Four or more don't fit side by side, so they scroll.
   const tabs = methods.length > 1 && (
     <Segmented
       stretch={methods.length <= 3}
@@ -82,7 +76,6 @@ export function PayCard({
   )
 }
 
-/** "Copied" for a moment after a copy button works. */
 function useCopied() {
   const [copied, setCopied] = useState<string | null>(null)
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -117,10 +110,8 @@ function PromptPay({
   const [saving, setSaving] = useState(false)
   const to = method.name || payerName
   const money = formatMoney(amount, currency)
-  // A QR saved from a banking app may not say which number it pays to.
   const id = promptPayId(method.value)
   const number = id ? formatPromptPay(id) : null
-  // PromptPay is in baht only, so a bill in another currency gets the number alone.
   const baht = currency.toUpperCase() === 'THB'
   const payload = baht ? payPayload(method.value, amount) : null
   const web = Platform.OS === 'web'
@@ -129,7 +120,6 @@ function PromptPay({
     if (!payload) return
     setSaving(true)
     try {
-      // Plain letters only: Chrome won't take ฿ in a file name.
       const result = await saveQrImage(
         payload,
         number ? [t.amountTo(money, to), t.promptpayNumber(number)] : [t.amountTo(money, to)],

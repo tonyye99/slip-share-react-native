@@ -1,18 +1,5 @@
--- Tighter scan limits before launch. Each scan is a paid OpenAI call, so on
--- top of a cap of 10 a day per user (was 30):
---   * 50 scans per user per calendar month (UTC),
---   * 1,000 scans a day across the whole app, so many throwaway accounts
---     can't run up the bill either,
---   * a scan that fails before OpenAI answers is handed back (refund).
--- parse-receipt calls claim_receipt_scan(); use_receipt_scan() stays for the
--- old parse-receipt until the new one is deployed, and applies the same caps.
-
--- The app-wide total sums today's rows, so look them up by day.
 create index if not exists receipt_scan_usage_day_idx on public.receipt_scan_usage (day);
 
--- Counts one scan for the current user. Returns 'ok', or why it was refused:
--- 'daily', 'monthly' or 'busy' (the app-wide cap). Limits live here, not in
--- arguments, so a caller can't raise them.
 create or replace function public.claim_receipt_scan()
 returns text
 language plpgsql security definer set search_path = ''
@@ -29,7 +16,6 @@ begin
     raise exception 'Not authenticated' using errcode = '28000';
   end if;
 
-  -- One scan at a time per user, so two at once can't both slip under a cap.
   perform pg_advisory_xact_lock(hashtextextended('receipt_scan:' || v_user::text, 0));
 
   select coalesce(sum(scans), 0) into v_used
@@ -58,7 +44,6 @@ $$;
 revoke execute on function public.claim_receipt_scan() from public, anon;
 grant execute on function public.claim_receipt_scan() to authenticated;
 
--- Kept for the parse-receipt that is live now; same caps, yes/no answer.
 create or replace function public.use_receipt_scan()
 returns boolean
 language plpgsql security definer set search_path = ''
@@ -68,9 +53,6 @@ begin
 end;
 $$;
 
--- Hands back a scan that failed before OpenAI answered. Only parse-receipt
--- (service role) may call it: a user who could call it would reset their
--- own count.
 create or replace function public.refund_receipt_scan(p_user uuid, p_day date)
 returns void
 language sql security definer set search_path = ''

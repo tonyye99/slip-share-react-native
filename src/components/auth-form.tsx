@@ -13,7 +13,6 @@ import { useTheme } from '@/hooks/use-theme'
 import { useT } from '@/i18n'
 import { openPrivacyPolicy } from '@/lib/consent'
 
-// Forms read best narrow, even on a wide browser window.
 const FORM_WIDTH = 440
 
 interface AuthResult {
@@ -26,7 +25,6 @@ interface AuthFormProps {
   onSubmit: (values: { name: string; email: string; password: string }) => Promise<AuthResult>
 }
 
-/** Centered, keyboard-aware page used by every signed-out screen. */
 export function AuthLayout({ subtitle, children }: { subtitle: string; children: ReactNode }) {
   const theme = useTheme()
   return (
@@ -51,7 +49,6 @@ export const authStyles = StyleSheet.create({
   link: { alignSelf: 'center', paddingVertical: Spacing.two },
 })
 
-/** Shared email/password form for the sign-in and sign-up screens, after Ye's "Sign in · v2" design. */
 export function AuthForm({ mode, onSubmit }: AuthFormProps) {
   const theme = useTheme()
   const t = useT()
@@ -155,7 +152,6 @@ export function AuthForm({ mode, onSubmit }: AuthFormProps) {
                 {isSignUp ? t.auth.signIn : t.auth.createAccount}
               </AppText>
             </AppText>
-            {/* Social sign-in creates an account on either screen, so both show this. */}
             <AppText style={[styles.legal, { color: theme.textSecondary }]}>
               {t.auth.agree}
               <AppText

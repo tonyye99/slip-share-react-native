@@ -1,8 +1,6 @@
 import { Image } from 'expo-image'
 import { StyleSheet, View } from 'react-native'
 
-// Small line icons drawn with Views, so they need no icon font or extra package.
-
 export function ChevronLeft({ color, size = 12 }: { color: string; size?: number }) {
   return (
     <View
@@ -20,7 +18,6 @@ export function ChevronLeft({ color, size = 12 }: { color: string; size?: number
   )
 }
 
-/** A ">" pointing right, for a row that opens something. */
 export function ChevronRight({ color, size = 8, weight = 2 }: { color: string; size?: number; weight?: number }) {
   return (
     <View style={{ width: size * 0.75 + weight, height: size * 1.42, justifyContent: 'center' }}>
@@ -40,9 +37,7 @@ export function ChevronRight({ color, size = 8, weight = 2 }: { color: string; s
   )
 }
 
-/** A paper plane, for sending. */
 export function SendIcon({ color, size = 18, weight = 2 }: { color: string; size?: number; weight?: number }) {
-  // The plane's outline and its fold, on a 24 × 24 grid.
   const tip: Point = [21.5, 2.5]
   const left: Point = [2.5, 9]
   const bottom: Point = [15, 21.5]
@@ -62,7 +57,6 @@ export function SendIcon({ color, size = 18, weight = 2 }: { color: string; size
   )
 }
 
-/** A till receipt with a torn bottom edge, for a bill. */
 export function ReceiptIcon({ color, size = 20, weight = 1.8 }: { color: string; size?: number; weight?: number }) {
   const edges: [Point, Point][] = [
     [[5.5, 2.5], [18.5, 2.5]],
@@ -89,7 +83,6 @@ export function ReceiptIcon({ color, size = 20, weight = 1.8 }: { color: string;
 
 type Point = [number, number]
 
-/** A straight stroke between two points, with rounded ends so corners close up. */
 function Line({ from, to, scale, color, weight }: { from: Point; to: Point; scale: number; color: string; weight: number }) {
   const dx = (to[0] - from[0]) * scale
   const dy = (to[1] - from[1]) * scale
@@ -110,7 +103,6 @@ function Line({ from, to, scale, color, weight }: { from: Point; to: Point; scal
   )
 }
 
-/** Arrow up out of a tray, for sharing. */
 export function ShareIcon({ color, size = 18 }: { color: string; size?: number }) {
   const arrow = size * 0.4
   return (
@@ -146,7 +138,6 @@ export function ShareIcon({ color, size = 18 }: { color: string; size?: number }
   )
 }
 
-/** Two chain links, for the friend link. */
 export function LinkIcon({ color, size = 20 }: { color: string; size?: number }) {
   const link = { width: size * 0.62, height: size * 0.36, borderWidth: 2, borderColor: color, borderRadius: size }
   return (
@@ -166,7 +157,6 @@ export function ClockIcon({ color, size = 16 }: { color: string; size?: number }
   )
 }
 
-/** A ticked box, for "tick what you had". */
 export function CheckBoxIcon({ color, size = 16 }: { color: string; size?: number }) {
   return (
     <View style={[styles.round, { width: size, height: size, borderRadius: 4, borderColor: color }]}>
@@ -185,7 +175,6 @@ export function CheckBoxIcon({ color, size = 16 }: { color: string; size?: numbe
   )
 }
 
-/** A bin with its lid, for deleting. */
 export function TrashIcon({ color, size = 22 }: { color: string; size?: number }) {
   const stroke = 2
   return (
@@ -223,7 +212,6 @@ export function TrashIcon({ color, size = 22 }: { color: string; size?: number }
   )
 }
 
-/** A camera, for taking (or retaking) a photo. */
 export function CameraIcon({ color, size = 18 }: { color: string; size?: number }) {
   return (
     <View style={{ width: size, height: size, justifyContent: 'flex-end' }}>
@@ -248,7 +236,6 @@ export function CameraIcon({ color, size = 18 }: { color: string; size?: number 
   )
 }
 
-/** A picture with a sun and a hill, for the photo library. */
 export function ImageIcon({ color, size = 18 }: { color: string; size?: number }) {
   return (
     <View style={{ width: size, height: size, borderWidth: 2, borderRadius: 3, borderColor: color, overflow: 'hidden' }}>
@@ -279,7 +266,6 @@ export function ImageIcon({ color, size = 18 }: { color: string; size?: number }
   )
 }
 
-/** Four corners around a line (or two lines of text), for reading a receipt. */
 export function ScanIcon({ color, size = 18, lines = 1 }: { color: string; size?: number; lines?: 1 | 2 }) {
   const corner = { position: 'absolute', width: size * 0.32, height: size * 0.32, borderColor: color } as const
   const line = { height: 2, borderRadius: 1, backgroundColor: color }
@@ -301,7 +287,6 @@ export function ScanIcon({ color, size = 18, lines = 1 }: { color: string; size?
   )
 }
 
-/** A shield, for privacy. */
 export function ShieldIcon({ color, size = 20, weight = 1.8 }: { color: string; size?: number; weight?: number }) {
   const edges: [Point, Point][] = [
     [[4.8, 5.6], [12, 3]],
@@ -324,7 +309,6 @@ export function ShieldIcon({ color, size = 20, weight = 1.8 }: { color: string; 
   )
 }
 
-/** A small bar chart, for usage stats. */
 export function ChartIcon({ color, size = 20, weight = 1.8 }: { color: string; size?: number; weight?: number }) {
   const edges: [Point, Point][] = [
     [[4, 20], [20, 20]],
@@ -341,10 +325,6 @@ export function ChartIcon({ color, size = 20, weight = 1.8 }: { color: string; s
   )
 }
 
-/**
- * Three sliders, for settings. `background` fills each knob so the line
- * behind it is hidden.
- */
 export function SlidersIcon({
   color,
   background,
@@ -380,7 +360,6 @@ export function SlidersIcon({
   )
 }
 
-/** An arrow leaving through a door, for signing out. */
 export function SignOutIcon({ color, size = 20, weight = 1.8 }: { color: string; size?: number; weight?: number }) {
   const edges: [Point, Point][] = [
     [[4, 12], [15, 12]],
@@ -412,7 +391,6 @@ export function SignOutIcon({ color, size = 20, weight = 1.8 }: { color: string;
   )
 }
 
-/** A globe, for the app's language. */
 export function GlobeIcon({ color, size = 20, weight = 1.8 }: { color: string; size?: number; weight?: number }) {
   const ball = size * 0.86
   return (
@@ -444,7 +422,6 @@ export function GlobeIcon({ color, size = 20, weight = 1.8 }: { color: string; s
   )
 }
 
-/** A cog, for settings. `background` fills its middle so the teeth read as an outline. */
 export function GearIcon({ color, background, size = 22 }: { color: string; background: string; size?: number }) {
   const tooth = { position: 'absolute', width: size * 0.24, height: size * 0.92, borderRadius: 2, backgroundColor: color } as const
   return (
@@ -463,7 +440,6 @@ export function GearIcon({ color, background, size = 22 }: { color: string; back
   )
 }
 
-/** Three dots in a row, for a "more" menu. */
 export function DotsIcon({ color, size = 20 }: { color: string; size?: number }) {
   const dot = { width: size * 0.18, height: size * 0.18, borderRadius: size, backgroundColor: color }
   return (
@@ -475,7 +451,6 @@ export function DotsIcon({ color, size = 20 }: { color: string; size?: number })
   )
 }
 
-/** A head and shoulders, for one person. */
 export function PersonIcon({ color, size = 20, weight = 2 }: { color: string; size?: number; weight?: number }) {
   return (
     <View style={{ width: size, height: size, alignItems: 'center', justifyContent: 'space-between' }}>
@@ -495,7 +470,6 @@ export function PersonIcon({ color, size = 20, weight = 2 }: { color: string; si
   )
 }
 
-/** Two people side by side, for "everyone". */
 export function PeopleIcon({ color, size = 22, weight = 2 }: { color: string; size?: number; weight?: number }) {
   return (
     <View style={{ width: size * 1.3, height: size, flexDirection: 'row', alignItems: 'flex-end' }}>
@@ -507,7 +481,6 @@ export function PeopleIcon({ color, size = 22, weight = 2 }: { color: string; si
   )
 }
 
-/** An X, for closing. */
 export function CloseIcon({ color, size = 16 }: { color: string; size?: number }) {
   const bar = { position: 'absolute', width: size * 1.2, height: 2, borderRadius: 1, backgroundColor: color } as const
   return (
@@ -518,7 +491,6 @@ export function CloseIcon({ color, size = 16 }: { color: string; size?: number }
   )
 }
 
-/** A tick mark. */
 export function CheckIcon({ color, size = 20, weight = 3 }: { color: string; size?: number; weight?: number }) {
   return (
     <View style={{ width: size, height: size, alignItems: 'center', justifyContent: 'center' }}>
@@ -538,7 +510,6 @@ export function CheckIcon({ color, size = 20, weight = 3 }: { color: string; siz
   )
 }
 
-/** A chevron pointing down, or up when `up`. */
 export function ChevronDownIcon({ color, size = 10, up }: { color: string; size?: number; up?: boolean }) {
   return (
     <View
@@ -555,7 +526,6 @@ export function ChevronDownIcon({ color, size = 10, up }: { color: string; size?
   )
 }
 
-/** An eye, for showing a password. `off` crosses it out, for hiding it again. */
 export function EyeIcon({ color, size = 20, off }: { color: string; size?: number; off?: boolean }) {
   return (
     <Image
@@ -566,7 +536,6 @@ export function EyeIcon({ color, size = 20, off }: { color: string; size?: numbe
   )
 }
 
-/** The SlipShare mark: the app icon, so the logo in the app matches the home screen. */
 export function Logo({ size = 28 }: { size?: number }) {
   return (
     <Image
@@ -581,7 +550,6 @@ const styles = StyleSheet.create({
   round: { borderWidth: 1.5, alignItems: 'center', justifyContent: 'center' },
 })
 
-/** A wallet, for How to pay me. */
 export function WalletIcon({ color, size = 20, weight = 1.8 }: { color: string; size?: number; weight?: number }) {
   const s = size / 24
   return (
@@ -617,7 +585,6 @@ export function WalletIcon({ color, size = 20, weight = 1.8 }: { color: string; 
   )
 }
 
-/** Three corner squares and a few dots, for a QR code. */
 export function QrIcon({ color, size = 20, weight = 1.8 }: { color: string; size?: number; weight?: number }) {
   const s = size / 24
   const corner = (left: number, top: number) => (
@@ -650,7 +617,6 @@ export function QrIcon({ color, size = 20, weight = 1.8 }: { color: string; size
   )
 }
 
-/** A bank: a roof, three pillars and a step. */
 export function BankIcon({ color, size = 20, weight = 1.8 }: { color: string; size?: number; weight?: number }) {
   const lines: [Point, Point][] = [
     [[3, 9], [12, 3.5]],
@@ -670,7 +636,6 @@ export function BankIcon({ color, size = 20, weight = 1.8 }: { color: string; si
   )
 }
 
-/** A page with lines on it, for a note in your own words. */
 export function NoteIcon({ color, size = 20, weight = 1.8 }: { color: string; size?: number; weight?: number }) {
   const s = size / 24
   return (
@@ -694,7 +659,6 @@ export function NoteIcon({ color, size = 20, weight = 1.8 }: { color: string; si
   )
 }
 
-/** Two pages, one over the other, for Copy. */
 export function CopyIcon({ color, size = 16, weight = 1.8 }: { color: string; size?: number; weight?: number }) {
   const s = size / 24
   const page = { position: 'absolute' as const, width: 13 * s, height: 13 * s, borderWidth: weight, borderColor: color, borderRadius: 2.5 * s }
@@ -706,7 +670,6 @@ export function CopyIcon({ color, size = 16, weight = 1.8 }: { color: string; si
   )
 }
 
-/** An arrow down into a tray, for saving a picture. */
 export function DownloadIcon({ color, size = 18, weight = 2 }: { color: string; size?: number; weight?: number }) {
   const lines: [Point, Point][] = [
     [[12, 3], [12, 15]],
@@ -725,7 +688,6 @@ export function DownloadIcon({ color, size = 18, weight = 2 }: { color: string; 
   )
 }
 
-/** A pencil, for renaming. */
 export function PencilIcon({ color, size = 18, weight = 1.8 }: { color: string; size?: number; weight?: number }) {
   const lines: [Point, Point][] = [
     [[4, 20], [5, 15]],

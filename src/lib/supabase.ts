@@ -18,13 +18,10 @@ export const supabase = createClient(url, anonKey, {
     autoRefreshToken: true,
     persistSession: true,
     detectSessionInUrl: false,
-    // OAuth, email confirmation and password reset links come back to the
-    // app with a ?code= that auth-links.ts exchanges for a session.
     flowType: 'pkce',
   },
 })
 
-// Only refresh the session while the app is in the foreground.
 if (Platform.OS !== 'web') {
   AppState.addEventListener('change', (state) => {
     if (state === 'active') supabase.auth.startAutoRefresh()

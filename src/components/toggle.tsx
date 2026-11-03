@@ -2,10 +2,8 @@ import { Platform, Pressable, StyleSheet, Switch, View, type ViewStyle } from 'r
 
 import { useTheme } from '@/hooks/use-theme'
 
-// The browser's switch has no gap around its knob, so the website draws one like the iPhone's.
 const slide = Platform.OS === 'web' ? ({ transitionProperty: 'left', transitionDuration: '150ms' } as unknown as ViewStyle) : null
 
-/** An on/off switch: the phone's own on iPhone and Android, drawn to match on the website. */
 export function Toggle({
   value,
   onValueChange,

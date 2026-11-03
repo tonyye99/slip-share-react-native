@@ -6,7 +6,6 @@ import { AppText, Tag } from '@/components/ui'
 import { Radius, Spacing } from '@/constants/theme'
 import { useTheme } from '@/hooks/use-theme'
 
-/** A small grey heading, like "PRIVACY", over one card of rows split by thin lines. */
 export function SettingsGroup({ title, children }: { title?: string; children: ReactNode }) {
   const theme = useTheme()
   const rows = Children.toArray(children)
@@ -30,10 +29,6 @@ export function SettingsGroup({ title, children }: { title?: string; children: R
   )
 }
 
-/**
- * One row: an icon on a soft tile, a title with an optional line under it,
- * and a switch or a ">" on the right. With `onPress` the whole row is a button.
- */
 export function SettingsRow({
   icon,
   tone = 'neutral',
@@ -47,10 +42,8 @@ export function SettingsRow({
   accessibilityHint,
 }: {
   icon: (color: string, tile: string) => ReactNode
-  /** `primary` tints the tile blue. */
   tone?: 'neutral' | 'primary'
   title: string
-  /** A small blue label after the title, like "QR with amount". */
   badge?: string
   subtitle?: string
   right?: ReactNode

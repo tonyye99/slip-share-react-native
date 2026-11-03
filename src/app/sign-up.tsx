@@ -8,14 +8,12 @@ export default function SignUpScreen() {
     <AuthForm
       mode="sign-up"
       onSubmit={async ({ name, email, password }) => {
-        // display_name feeds the profiles trigger in supabase/migrations.
         const { data, error } = await supabase.auth.signUp({
           email,
           password,
           options: { data: { display_name: name || undefined }, emailRedirectTo: authCallbackUrl() },
         })
         if (error) return { error: error.message }
-        // With email confirmation on, there is no session until the link is clicked.
         return data.session ? {} : { notice: strings().auth.checkEmailToConfirm }
       }}
     />

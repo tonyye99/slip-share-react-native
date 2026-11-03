@@ -30,14 +30,11 @@ export default function AccountScreen() {
   const t = useT()
   const { session } = useAuth()
   const [deleting, setDeleting] = useState(false)
-  // 'checking' until loaded, 'unknown' if it couldn't be checked, null when scanning is off.
   const [consentedAt, setConsentedAt] = useState<string | null | 'checking' | 'unknown'>('checking')
   const [saving, setSaving] = useState(false)
   const [statsOn, setStatsOn] = useState(analyticsOn)
-  // Your ways to get paid, for the line under How to pay me; null until loaded.
   const [payMethods, setPayMethods] = useState<PayMethod[] | null>(null)
 
-  // Comes back here after adding or changing one.
   useFocusEffect(
     useCallback(() => {
       let live = true
@@ -66,7 +63,6 @@ export default function AccountScreen() {
       })
   }, [])
 
-  // "PromptPay, Kasikorn Bank", or a nudge to add one.
   const paySummary =
     payMethods === null
       ? ' '
@@ -96,7 +92,6 @@ export default function AccountScreen() {
     }
   }
 
-  // Turning it on is agreeing to send photos to OpenAI, so say what that means first.
   const toggleScanning = (on: boolean) =>
     on
       ? confirmAction(t.account.turnOnTitle, t.account.turnOnMessage, t.account.turnOn, () => setScanning(true))
@@ -110,7 +105,6 @@ export default function AccountScreen() {
       ? t.account.scanningAllowed(longDate(consentedAt))
       : t.account.scanningOff
 
-  // Signing out locally sends the app back to the sign-in screen.
   const runDelete = async () => {
     setDeleting(true)
     try {
@@ -188,7 +182,6 @@ export default function AccountScreen() {
             title={t.language.title}
             right={<LanguagePicker background={theme.backgroundElement} />}
           />
-          {/* Browsers can't open the phone's settings, so the website leaves this out. */}
           {Platform.OS !== 'web' && (
             <SettingsRow
               icon={(color, tile) => <SlidersIcon color={color} background={tile} />}

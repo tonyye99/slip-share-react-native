@@ -6,21 +6,13 @@ import { secureStorage } from '@/lib/secure-storage'
 import { readSavedCharges } from '@/lib/split'
 import { supabase } from '@/lib/supabase'
 
-// The friend link: https://<site>/pick/<token> opens the website, where
-// friends type their name and tick their own items without signing in.
-// Everything goes through the get_link_receipt, join_link and set_link_pick
-// functions in supabase/migrations, which check the token on every call.
-
 export interface LinkPerson {
   id: string
-  /** The owner's line shows their display name. */
   name: string
   is_owner: boolean
   is_payer: boolean
   paid: boolean
-  /** Someone already picked this name through the link. */
   claimed: boolean
-  /** They sent a transfer slip. Only the owner can see the photo. */
   slip_sent?: boolean
 }
 
@@ -31,7 +23,6 @@ export interface LinkItem {
   qty: number
   unit_price: number
   person_ids: string[]
-  /** Person id -> how many of this line they had. */
   counts: Record<string, number>
 }
 
@@ -46,11 +37,9 @@ export interface LinkReceipt {
   total: number
   items: LinkItem[]
   people: LinkPerson[]
-  /** How to pay the owner, first one first. Only on bills the owner paid; missing before that migration. */
   pay_methods?: PayDetails[]
 }
 
-/** Who you are on a link. This device keeps it so you can come back later. */
 export interface LinkIdentity {
   person_id: string
   guest_key: string
@@ -60,10 +49,8 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
 export const isLinkToken = (value: string | undefined): value is string => !!value && UUID.test(value)
 
-// The phone app needs the website's address to make links; the website uses its own.
 const WEB_URL = process.env.EXPO_PUBLIC_WEB_URL?.trim().replace(/\/+$/, '')
 
-/** False in the phone app until EXPO_PUBLIC_WEB_URL points at the published website. */
 export const friendLinksAvailable = Platform.OS === 'web' || !!WEB_URL
 
 export function friendLinkUrl(token: string): string {
@@ -77,7 +64,6 @@ export async function getLinkReceipt(token: string): Promise<LinkReceipt> {
   return readSavedCharges(data as LinkReceipt)
 }
 
-/** Joins as a name the owner already added, or as a new person. */
 export async function joinLink(token: string, choice: { personId: string } | { name: string }): Promise<LinkIdentity> {
   const { data, error } = await supabase.rpc('join_link', {
     p_token: token,
@@ -90,7 +76,6 @@ export async function joinLink(token: string, choice: { personId: string } | { n
   return identity
 }
 
-/** Ticks or unticks an item, with how many of it you had (the database keeps it between 1 and the line's quantity). */
 export async function setLinkPick(token: string, identity: LinkIdentity, itemId: string, had: boolean, units = 1) {
   const { error } = await supabase.rpc('set_link_pick', {
     p_token: token,
@@ -122,10 +107,8 @@ export async function forgetIdentity(token: string) {
   }
 }
 
-/** The database says this browser's key no longer matches (the owner removed them). */
 export const isIdentityRejected = (e: unknown) => (e as { code?: string })?.code === '42501'
 
-/** A message worth showing for a failed join; the database's own text for the cases it explains. */
 export function joinErrorMessage(e: unknown): string {
   const { code, message } = (e as { code?: string; message?: string }) ?? {}
   if (message && (code === 'P0002' || code === '23505' || code === '54000')) return `${message}.`

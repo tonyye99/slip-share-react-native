@@ -11,7 +11,6 @@ import { bothNames } from '@/lib/names'
 import { isCountable } from '@/lib/split'
 import type { Item, ItemStatus, Money, PersonView } from '@/lib/split-view'
 
-/** "Who had this?" for one item: tick people, or − 1 + on lines like 2 × Egg Kim Bab. */
 export function WhoHadSheet({
   visible,
   onClose,
@@ -31,9 +30,7 @@ export function WhoHadSheet({
   item: Item | undefined
   showEnglish: boolean
   people: PersonView[]
-  /** Person id -> how many of the item they had. Everyone on it has a key. */
   counts: Record<string, number>
-  /** Person id -> what their part costs. */
   shares: Record<string, number>
   status: ItemStatus
   money: Money
@@ -46,7 +43,6 @@ export function WhoHadSheet({
   const names = item ? bothNames(item.name, item.name_en, showEnglish) : null
   const had = Object.keys(counts)
   const everyoneOn = people.every((person) => had.includes(person.id))
-  // "Split between 2 · ฿144.50 each"
   const summary =
     had.length > 1 && !status.warn
       ? `${t.split.splitBetween(had.length)}${status.even ? ` · ${status.text}` : ''}`

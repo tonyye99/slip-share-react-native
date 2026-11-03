@@ -4,10 +4,6 @@ import { Platform } from 'react-native'
 import { strings } from '@/i18n/strings'
 import { showAlert } from '@/lib/alert'
 
-/**
- * Copies a number, an amount or a message. Returns true when it's on the
- * clipboard, so the button can say "Copied".
- */
 export async function copyText(text: string): Promise<boolean> {
   if (Platform.OS !== 'web') {
     try {

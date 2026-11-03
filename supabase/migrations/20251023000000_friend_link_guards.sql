@@ -1,15 +1,3 @@
--- Two guards found in the pre-launch check.
---
--- 1. A friend joining through the link can't call themselves "Me" or "You".
---    The owner's own line shows as "You" in the app, so a guest with that
---    name would look like the owner.
--- 2. How many of a line someone had (receipt_item_people.units) is now kept
---    between 1 and the line's quantity for every write, not only for friend
---    link picks. Lines that can't be counted always have 1. The app already
---    stays inside these limits, so nothing anyone sees changes.
-
--- ============ 1. reserved names on the friend link ============
-
 create or replace function public.join_link(p_token uuid, p_person_id uuid, p_name text)
 returns jsonb
 language plpgsql volatile security definer set search_path = ''
@@ -45,7 +33,6 @@ begin
       raise exception 'This bill already has 30 people' using errcode = '54000';
     end if;
 
-    -- The name check on receipt_people rejects blank and over-long names.
     insert into public.receipt_people (receipt_id, name, guest_key)
     values (v_receipt_id, v_name, v_key)
     returning id into v_person_id;
@@ -55,8 +42,6 @@ begin
 end;
 $$;
 
-
--- ============ 2. keep counts inside the line ============
 
 create or replace function public.clamp_item_units()
 returns trigger

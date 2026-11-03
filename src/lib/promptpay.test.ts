@@ -22,7 +22,6 @@ test('the checksum is CRC-16/CCITT-FALSE', () => {
   assert.equal(crc16('123456789'), '29B1')
 })
 
-// Same as the promptpay-qr package, which Thai banking apps have scanned for years.
 test('a phone number with an amount', () => {
   assert.equal(
     promptPayPayload('0812345678', 117.7),
@@ -83,7 +82,6 @@ test('numbers are shown the way Thai banks show them', () => {
   assert.equal(formatPromptPay('123456789012345'), '123456789012345')
 })
 
-// A "My QR" like a banking app saves: a reusable code with the bank's name and a reference.
 const withCrc = (body: string) => body + crc16(body)
 const bankStatic = withCrc(
   '000201010211' +
@@ -109,7 +107,6 @@ test("friends' amounts go into the bank's own QR", () => {
   assert.equal(fields.find((one) => one.id === '59')?.value, 'YE HTET A.')
   assert.equal(fields.find((one) => one.id === '62')?.value, '0703K01')
   assert.equal(paid.slice(-4), crc16(paid.slice(0, -4)))
-  // The fields come out in the same order as our own codes.
   assert.ok(paid.indexOf('5303764') < paid.indexOf('5406117.70') && paid.indexOf('5406117.70') < paid.indexOf('5910'))
 })
 

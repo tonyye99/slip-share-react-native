@@ -9,16 +9,9 @@ import { useTheme } from '@/hooks/use-theme'
 import { useT } from '@/i18n'
 import type { Money } from '@/lib/split-view'
 
-// The footer is see-through; browsers can also blur the list behind it.
 const glassBlur = Platform.OS === 'web' ? ({ backdropFilter: 'blur(16px)' } as unknown as ViewStyle) : null
-// Phones have no blur here, so see-through glass would show the text under it: use a solid bar there.
 const glassy = Platform.OS === 'web'
 
-/**
- * The glass footer over the split screen: how much is left to assign and
- * "Send totals". On a bill a friend paid it shows what you owe them, and the
- * button sends your share. Tapping it, or pulling it up, opens the breakdown.
- */
 export function SplitFooter({
   alone,
   myTotal,
@@ -33,14 +26,11 @@ export function SplitFooter({
 }: {
   alone: boolean
   myTotal: number
-  /** On your own: how many items you ticked, out of how many. */
   mineCount: number
   itemCount: number
-  /** Amount nobody has been given yet. */
   left: number
   leftItems: number
   money: Money
-  /** On a bill a friend paid: who paid, what you owe them and if you've paid them back. */
   owe: { payer: string; amount: number; paid: boolean } | null
   onOpenBreakdown: () => void
   onSend: () => void
@@ -88,7 +78,6 @@ export function SplitFooter({
           adjustsFontSizeToFit>
           {money(owe.amount)}
         </AppText>
-        {/* The amount gets its own line: the website can't shrink text to fit. */}
         <AppText variant="caption" numberOfLines={1}>
           {owe.paid ? t.youPaidBack(owe.payer) : t.youOwe(owe.payer)}
         </AppText>

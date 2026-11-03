@@ -46,7 +46,6 @@ const FILTERS: { key: Filter; label: (t: Strings['home']) => string }[] = [
 const sameDay = (a: Date, b: Date) =>
   a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate()
 
-/** "Wed, Oct 15", with the year when it isn't this year. */
 const dateLabel = (date: Date, now: Date) =>
   date.toLocaleDateString(dateLocale(), {
     weekday: 'short',
@@ -55,7 +54,6 @@ const dateLabel = (date: Date, now: Date) =>
     year: date.getFullYear() === now.getFullYear() ? undefined : 'numeric',
   })
 
-/** "Today", "Yesterday" or the date. */
 function dayLabel(date: Date, now: Date, t: Strings['home']) {
   if (sameDay(date, now)) return t.today
   const yesterday = new Date(now)
@@ -90,10 +88,8 @@ export default function HomeScreen() {
     }
   }, [loadFailed])
 
-  // Your ways to get paid, for Remind. Loaded ahead so the share sheet opens straight from the tap.
   const [payMethods, setPayMethods] = useState<PayMethod[]>([])
 
-  // Reload when coming back from a bill, which may have changed.
   useFocusEffect(
     useCallback(() => {
       loadFirstPage()
@@ -129,7 +125,6 @@ export default function HomeScreen() {
       }
     })
 
-  // Take a photo (or pick one) here, then check it on the scan screen.
   const scan = async (source: 'camera' | 'library') => {
     const photo = await pickPhoto(source)
     if (!photo) return
@@ -226,7 +221,6 @@ export default function HomeScreen() {
               <AppText variant="title" style={styles.heading} accessibilityRole="header">
                 {t.home.yourBills}
               </AppText>
-              {/* One line that scrolls sideways when the words don't fit, as in Thai on a small phone. */}
               <ScrollView
                 horizontal
                 showsHorizontalScrollIndicator={false}
@@ -282,7 +276,6 @@ const styles = StyleSheet.create({
   pair: { flexDirection: 'row', gap: Spacing.three - 5 },
   bills: { gap: Spacing.two + 2, marginTop: 3 },
   heading: { fontSize: 20, lineHeight: 26, marginLeft: 3 },
-  // Runs to the screen edges, so a chip that doesn't fit shows it scrolls.
   filterRow: { flexGrow: 0, marginHorizontal: -Spacing.three },
   filters: { gap: Spacing.two, paddingHorizontal: Spacing.three },
   none: { textAlign: 'center', paddingVertical: Spacing.four },

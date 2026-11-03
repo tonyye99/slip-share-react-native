@@ -5,8 +5,6 @@ import { test } from 'node:test'
 
 import { billTotal, checkScan, formatMoney, dropIncludedCharges, receiptSubtotal, readSavedCharges, splitByPicks, type Counts } from './split.ts'
 
-// The example receipt from slip-share's CLAUDE.md: 5% service, then 7% VAT on
-// the items plus service (slip-share stored that VAT as 7.35% of the items).
 const items = [
   { id: 'a', qty: 1, unit_price: 289 },
   { id: 'b', qty: 1, unit_price: 279 },
@@ -15,7 +13,6 @@ const items = [
 ]
 const receipt = { subtotal: 827, tax_percent: 7, service_percent: 5, rounding: 0 }
 
-/** What "me" pays when they had the items in `mine`, sharing the ones in `shared` with one friend. */
 function myShare(bill: typeof receipt, lines: typeof items, mine: string[], shared: string[] = []) {
   const picks: Counts = {}
   for (const id of mine) picks[id] = { me: 1 }
@@ -42,7 +39,6 @@ test('shared item is divided by share count before tax and service', () => {
 })
 
 test('VAT is charged on the service charge too', () => {
-  // 10% service, then 7% VAT on ฿1,100: the receipt says ฿1,177, not ฿1,170.
   assert.ok(Math.abs(billTotal({ tax_percent: 7, service_percent: 10, rounding: 0 }, 1000) - 1177) < 1e-9)
 })
 
@@ -61,7 +57,6 @@ test('nothing selected is zero', () => {
 })
 
 test('VAT already in the prices is dropped', () => {
-  // "VAT Included" receipt: items add up to the printed total, and VAT 7% is only a breakdown.
   const parsed = { tax_percent: 7, service_percent: 0, rounding: 0, total: 579 }
   assert.deepEqual(dropIncludedCharges(parsed, 579), { ...parsed, tax_percent: 0 })
 })
@@ -79,10 +74,8 @@ test('a tax rate read as a share of the items goes back to the printed rate', ()
 test('saved bills: tax on service unless only the items add up', () => {
   const current = { subtotal: 1000, tax_percent: 7, service_percent: 10, rounding: 0, total: 1177 }
   assert.equal(readSavedCharges(current), current)
-  // Kept as a share of the items: back to the printed 7%.
   const asShare = { ...current, tax_percent: 7.7 }
   assert.deepEqual(readSavedCharges(asShare), current)
-  // Total of 7% on the items alone (7 / 1.1 isn't a printed rate): tax stays on the items.
   const itemsOnly = { ...current, total: 1170 }
   assert.deepEqual(readSavedCharges(itemsOnly), { ...itemsOnly, tax_on_items_only: true })
   const misread = { ...current, total: 1500 }
@@ -106,7 +99,6 @@ test('charges are kept when nothing matches or the total is missing', () => {
   assert.equal(dropIncludedCharges(noTotal, 579), noTotal)
 })
 
-// The ramen receipt: "2 ราเมงข้อสอบ 320" was read as 2 × 320, and VAT 7% is included.
 const ramen = {
   tax_percent: 7,
   service_percent: 0,

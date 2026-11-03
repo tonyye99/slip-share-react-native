@@ -36,7 +36,6 @@ function RootStack() {
         <Stack.Screen name="sign-up" />
         <Stack.Screen name="forgot-password" />
       </Stack.Protected>
-      {/* Links from outside the app work signed in or out. */}
       <Stack.Screen name="auth/callback" />
       <Stack.Screen name="pick/[token]" />
       <Stack.Screen name="reset-password" />
@@ -44,7 +43,6 @@ function RootStack() {
   )
 }
 
-// Screen backgrounds behind transitions follow the app's own colours.
 const navigationThemes = {
   light: {
     ...DefaultTheme,

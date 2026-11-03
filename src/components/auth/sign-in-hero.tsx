@@ -7,17 +7,11 @@ import { AppText } from '@/components/ui'
 import { useTheme } from '@/hooks/use-theme'
 import { useT } from '@/i18n'
 
-// Laid out on a 366 x 248 canvas as in Ye's "Sign in · v2" design, then scaled to the screen's width.
 const CANVAS = { width: 366, height: 248 }
 const CHIP_HEIGHT = 43
-// The middle of the SlipShare name row, on the canvas.
 const BRAND_MIDDLE = 29
 const PAID_GREEN = '#34C38F'
 
-/**
- * The panel at the top of sign-in: the SlipShare name and the language
- * dropdown over a little picture of a bill being split.
- */
 export function SignInHero({ width }: { width: number }) {
   const theme = useTheme()
   const t = useT()
@@ -37,7 +31,6 @@ export function SignInHero({ width }: { width: number }) {
           </AppText>
         </View>
 
-        {/* The picture is decoration, so screen readers skip it. */}
         <View style={StyleSheet.absoluteFill} accessible={false} importantForAccessibility="no-hide-descendants" aria-hidden>
           <Image source={require('@/assets/images/sign-in-slips.png')} style={StyleSheet.absoluteFill} />
           <AmountChip
@@ -61,7 +54,6 @@ export function SignInHero({ width }: { width: number }) {
         </View>
       </View>
 
-      {/* Outside the scaled picture, so it stays full size and easy to tap. */}
       <LanguagePicker style={[styles.language, { top: BRAND_MIDDLE * scale - 16, right: 8.5 * scale }]} />
     </View>
   )
@@ -77,7 +69,6 @@ function AmountChip({
   name: string
   amount: string
   avatar: ImageSource
-  /** Where it sits on the canvas. It grows away from that edge to fit the amount. */
   at: { left: number; top: number } | { right: number; top: number }
   tilt: string
 }) {

@@ -9,23 +9,19 @@ type Role = 'checkbox' | 'radio' | 'button'
 const stateFor = (role: Role, selected: boolean, disabled?: boolean) =>
   role === 'radio' ? { selected, disabled } : role === 'checkbox' ? { checked: selected, disabled } : { disabled }
 
-/** Each person keeps one colour, picked by their place on the bill, and a lighter one in dark mode. */
 export function usePersonColor() {
   const palette = useTheme() === Colors.dark ? PersonColorsDark : PersonColors
   return (index: number) => palette[Math.max(0, index) % palette.length]
 }
 
-// Thai vowels written before the consonant (เ แ โ ใ ไ) are skipped, so เบน shows บ.
 const LEADING_VOWEL = /[\u0E40-\u0E44]/
 const initialOf = (name: string) => {
   const letters = Array.from(name.trim())
   return (letters.find((letter) => !LEADING_VOWEL.test(letter)) ?? letters[0] ?? '?').toUpperCase()
 }
 
-/** A round initial in the person's colour. `soft` is a pale circle with a coloured letter. */
 export function Avatar({ name, color, size = 28, soft }: { name: string; color: string; size?: number; soft?: boolean }) {
   const theme = useTheme()
-  // Pale circles lose contrast on a dark page, so dark mode always fills them.
   const pale = soft && theme === Colors.light
   return (
     <View
@@ -40,7 +36,6 @@ export function Avatar({ name, color, size = 28, soft }: { name: string; color: 
   )
 }
 
-/** A plain pill: "+ Anna" to add a recent name, or a dashed "Everyone". */
 export function Chip({
   label,
   selected = false,

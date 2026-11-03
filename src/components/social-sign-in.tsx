@@ -10,7 +10,6 @@ import { signInWithApple, signInWithProvider } from '@/lib/auth-links'
 
 type Provider = 'apple' | 'google'
 
-/** "or continue with" Google across the width, and Apple under it on iPhone. The session change moves the app on. */
 export function SocialSignIn({ onError }: { onError: (message: string | null) => void }) {
   const isDark = useColorScheme() === 'dark'
   const t = useT()

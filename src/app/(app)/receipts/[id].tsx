@@ -61,10 +61,6 @@ const MAX_SUGGESTIONS = 6
 const NOTHING: SplitResult = { subtotal: 0, tax: 0, service: 0, rounding: 0, total: 0, proportion: 0 }
 const NO_STATUS = { text: '', warn: false }
 
-// The person who scanned the bill splits it: they add who was there, say who
-// had each item (tap initials, or swipe a row) and send everyone their total.
-// Tapping someone's card at the top marks them as paid back. Friends don't
-// need the app.
 export default function SplitScreen() {
   const { id } = useLocalSearchParams<{ id: string }>()
   const theme = useTheme()
@@ -75,18 +71,14 @@ export default function SplitScreen() {
   const [people, setPeople] = useState<ReceiptPerson[]>([])
   const [picks, setPicks] = useState<Counts>({})
   const [recentNames, setRecentNames] = useState<string[]>([])
-  // Your ways to get paid, added to Send totals on bills you paid.
   const [payMethods, setPayMethods] = useState<PayMethod[]>([])
   const [adding, setAdding] = useState(false)
   const [showEnglish, setShowEnglish] = useState(false)
   const [linkBusy, setLinkBusy] = useState(false)
   const [deleting, setDeleting] = useState(false)
   const [refreshing, setRefreshing] = useState(false)
-  // Once people are added, "Who was there?" folds away until the menu or "+ Add" opens it.
   const [editingPeople, setEditingPeople] = useState(false)
-  // The person card that is open, showing what they owe.
   const [detailFor, setDetailFor] = useState<string | null>(null)
-  // The item open in "Who had this?", from a tap or a right swipe.
   const [pickFor, setPickFor] = useState<string | null>(null)
   const [pickOpen, setPickOpen] = useState(false)
   const [menuOpen, setMenuOpen] = useState(false)
@@ -97,8 +89,6 @@ export default function SplitScreen() {
   const [sendOpen, setSendOpen] = useState(false)
   const [settledOpen, setSettledOpen] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  // Changes save as you tap. They reach the database one at a time and in
-  // order, so quick taps on the same name can't land out of order.
   const saves = useRef<Promise<void>>(Promise.resolve())
   const scroll = useRef<ScrollViewInstance>(null)
 
@@ -139,8 +129,6 @@ export default function SplitScreen() {
     )
   }
 
-  // ============ what the screen shows ============
-
   const money = (amount: number) => formatMoney(amount, receipt.currency)
   const totalOf = (person: ReceiptPerson) =>
     wholeBillMine && person.is_me ? receipt.total : (split.people[person.id]?.total ?? 0)
@@ -157,8 +145,6 @@ export default function SplitScreen() {
   const pickedByLink = people.filter((person) => person.guest_key).map((person) => person.name)
 
   const peopleOn = (itemId: string) => Object.keys(picks[itemId] ?? {})
-  // Just you on the bill, or you and the friend who paid it, who had none of
-  // the items: then you only tick what you had.
   const others = people.filter((person) => !person.is_me)
   const friendPayer =
     others.length === 1 && others[0].is_payer && !items.some((item) => peopleOn(item.id).includes(others[0].id))
@@ -168,16 +154,12 @@ export default function SplitScreen() {
   const sharesOf = (item: Item) => itemShares(item, peopleOn(item.id), picks[item.id])
   const statusOf = (item: Item) => itemStatus(item, peopleOn(item.id), sharesOf(item), people, money)
   const unassignedCount = items.filter((item) => sharesOf(item).left > 0).length
-  // On your own, until you tick what you had, the whole bill counts as yours.
-  // Free lines (฿0 water, a free soup) sit folded away at the end of the list.
   const priced = items.filter((item) => item.qty * item.unit_price > 0)
   const free = items.filter((item) => item.qty * item.unit_price <= 0)
   const mineCount = alone ? priced.filter((item) => peopleOn(item.id).length > 0).length : 0
   const wholeBillMine = alone && mineCount === 0
   const assignedTotal = people.reduce((sum, person) => sum + totalOf(person), 0)
 
-  // Everyone except the payer pays the payer back, if they had anything. Someone
-  // who had nothing doesn't hold up "All settled", as on the home screen.
   const owesSomething = (person: ReceiptPerson) => !person.is_payer && totalOf(person) >= 0.005
   const owesPayer = payer ? people.filter(owesSomething) : []
   const owedBack = owesPayer.reduce((sum, person) => sum + totalOf(person), 0)
@@ -190,7 +172,6 @@ export default function SplitScreen() {
     .join(' · ')
 
   const itemName = (item: Item) => bothNames(item.name, item.name_en, showEnglish).main
-  // Each person's part of every item they had, for the breakdown.
   const itemsOf = (person: ReceiptPerson) =>
     items.flatMap((item) => {
       const share = sharesOf(item).shares[person.id] ?? 0
@@ -199,10 +180,6 @@ export default function SplitScreen() {
       return [{ label: part ? `${itemName(item)} · ${part}` : itemName(item), amount: share }]
     })
 
-  // ============ changes ============
-
-  // Shows a change straight away and saves it in the background. If saving
-  // fails, the screen goes back to what is saved.
   const save = (write: () => Promise<void>) => {
     saves.current = saves.current.then(() =>
       write().catch((e) => {
@@ -216,13 +193,11 @@ export default function SplitScreen() {
   }
 
   const setItemPicks = (itemId: string, had: Record<string, number>) => setPicks((prev) => ({ ...prev, [itemId]: had }))
-  // Everyone on the item, each with an even part of it.
   const evenly = (item: Item) =>
     Object.fromEntries(everyoneIds.map((personId) => [personId, evenCount(item, everyoneIds.length)]))
   const rowsFor = (itemId: string, had: Record<string, number>) =>
     Object.entries(had).map(([person_id, units]) => ({ item_id: itemId, person_id, units }))
 
-  // A new tap is for one of the item; on lines like 2 × Egg Kim Bab, − 1 + changes it.
   const togglePerson = (itemId: string, personId: string) => {
     const had = picks[itemId] ?? {}
     if (personId in had) {
@@ -234,7 +209,6 @@ export default function SplitScreen() {
     }
   }
 
-  // On your own: you had all of a line, or none of it.
   const toggleMine = (item: Item) => {
     const me = people.find((person) => person.is_me)
     if (!me) return
@@ -248,7 +222,6 @@ export default function SplitScreen() {
     }
   }
 
-  // On your own: you paid, or a friend did (they go on the bill without items).
   const chooseSoloPayer = async (friend: string | null) => {
     const me = people.find((person) => person.is_me)
     if (!me) return
@@ -292,7 +265,6 @@ export default function SplitScreen() {
     }
   }
 
-  // On lines like 2 × Egg Kim Bab, how many someone had; 0 takes them off it.
   const setCount = (item: Item, personId: string, units: number) => {
     if (units <= 0) {
       if (personId in (picks[item.id] ?? {})) togglePerson(item.id, personId)
@@ -362,7 +334,6 @@ export default function SplitScreen() {
       prev.map((other) => ({
         ...other,
         is_payer: other.id === personId,
-        // The payer has nobody to pay back.
         paid_at: other.id === personId ? null : other.paid_at,
       })),
     )
@@ -387,14 +358,12 @@ export default function SplitScreen() {
     setPeople(next)
     save(() => setPersonPaid(person.id, paid))
     if (paid) track('marked_paid')
-    // The last person to pay back settles the bill.
     if (paid && next.filter(owesSomething).every((other) => other.paid_at)) {
       track('all_settled', { people: next.length })
       setSettledOpen(true)
     }
   }
 
-  // What each person had, for the totals message.
   const itemNamesOf = (person: ReceiptPerson) =>
     items.flatMap((item) => {
       const share = sharesOf(item).shares[person.id] ?? 0
@@ -421,11 +390,8 @@ export default function SplitScreen() {
       unassigned: split.unassigned.total,
       maths,
     })
-  // On a bill you paid, the message ends with "Pay me" and how, and goes out
-  // with your PromptPay QR when you have one.
   const groupMessage = (maths: boolean) => (payer?.is_me ? withPayMe(totalsText(maths), payMethods) : totalsText(maths))
   const totalsQr = payer?.is_me ? groupPayQr(payMethods, receipt.currency) : null
-  // On a bill a friend paid, the main button sends them just your own share.
   const me = people.find((person) => person.is_me)
   const owe =
     payer && !payer.is_me && me && totalOf(me) >= 0.005
@@ -436,7 +402,6 @@ export default function SplitScreen() {
     : null
   const sendTotals = () => setSendOpen(true)
 
-  // Friends who open the link pick their own items; pull down to see them.
   const refresh = async () => {
     setRefreshing(true)
     try {
@@ -491,7 +456,6 @@ export default function SplitScreen() {
     confirmDeleteReceipt(async () => {
       setDeleting(true)
       try {
-        // Let changes still saving finish first.
         await saves.current
         await deleteReceipt(receipt.id)
         if (router.canGoBack()) router.back()
@@ -503,7 +467,6 @@ export default function SplitScreen() {
       }
     })
 
-  // Menu choices run once the menu has slid away.
   const fromMenu = (run: () => void) => {
     setMenuOpen(false)
     afterSheet(run)
@@ -513,8 +476,6 @@ export default function SplitScreen() {
     setPickFor(itemId)
     setPickOpen(true)
   }
-
-  // ============ the screen ============
 
   const showPeopleStep = editingPeople
   const detailPerson = alone ? undefined : people.find((person) => person.id === detailFor)

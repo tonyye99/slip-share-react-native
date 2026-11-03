@@ -2,10 +2,6 @@ import { ImageManipulator, SaveFormat } from 'expo-image-manipulator'
 import { decode } from 'jpeg-js'
 import jsQR from 'jsqr'
 
-// Reads the QR code in a photo, like the one a banking app saves from My QR.
-// The phone app has no canvas, so the photo is shrunk to a JPEG and its
-// pixels are unpacked in JavaScript. The website has its own version.
-
 function bytesOf(base64: string): Uint8Array {
   const text = atob(base64)
   const bytes = new Uint8Array(text.length)
@@ -13,9 +9,7 @@ function bytesOf(base64: string): Uint8Array {
   return bytes
 }
 
-/** The text in the QR code in the photo, or null if none can be read. */
 export async function readQrFromPhoto(photo: { uri: string; width: number }): Promise<string | null> {
-  // A smaller picture reads faster; a bigger one helps a QR that fills little of it.
   for (const size of [900, 1600]) {
     const context = ImageManipulator.manipulate(photo.uri)
     if (photo.width > size) context.resize({ width: size })

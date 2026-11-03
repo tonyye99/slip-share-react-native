@@ -4,10 +4,6 @@ import { strings } from '../i18n/strings.ts'
 import { realName } from './names.ts'
 import { itemShares, peopleInOrder, picksFrom, splitByPicks } from './split.ts'
 
-// Where each bill on the home screen stands: still to split, waiting on
-// people to pay back, or settled. Pure, so it is unit tested.
-
-/** A bill as the home screen loads it: enough to work out who owes what. */
 export type Bill = Pick<
   Receipt,
   | 'id'
@@ -28,7 +24,6 @@ export type Bill = Pick<
 
 export type BillState = 'to-split' | 'waiting' | 'settled'
 
-/** Someone who still owes the payer, with their place on the bill (for their colour). */
 export interface Debt {
   personId: string
   name: string
@@ -39,11 +34,8 @@ export interface Debt {
 export interface BillStatus {
   state: BillState
   itemCount: number
-  /** Lines nobody has been given yet, or not all of. */
   unassignedItems: number
-  /** People who haven't paid you back yet, biggest first. Empty unless you paid. */
   owedToYou: Debt[]
-  /** What you still owe whoever paid, when that wasn't you. */
   youOwe: number
 }
 
@@ -74,7 +66,6 @@ export function billStatus(bill: Bill): BillStatus {
   return { state, itemCount: items.length, unassignedItems, owedToYou, youOwe }
 }
 
-/** What a bill's badge says, like "Not split yet" or "Ben owes ฿715.67". */
 export function badgeText(status: BillStatus, money: (amount: number) => string) {
   const t = strings().bills
   if (status.state === 'to-split') return t.notSplit
@@ -86,11 +77,9 @@ export function badgeText(status: BillStatus, money: (amount: number) => string)
   return t.waiting
 }
 
-/** The bill's name: its own name, the English one, or just "Receipt". */
 export const billName = (bill: Pick<Bill, 'merchant_name' | 'merchant_name_en'>) =>
   realName(bill.merchant_name) || realName(bill.merchant_name_en) || strings().common.receipt
 
-/** The biggest amount anyone still owes you, and on which bill. */
 export function biggestDebt(bills: { bill: Bill; status: BillStatus }[]) {
   let top: { bill: Bill; debt: Debt } | null = null
   for (const { bill, status } of bills) {
@@ -100,7 +89,6 @@ export function biggestDebt(bills: { bill: Bill; status: BillStatus }[]) {
   return top
 }
 
-/** This month's bills: how many and what they came to, in the currency of the latest one. */
 export function monthTotal(bills: Bill[], now: Date) {
   const thisMonth = bills.filter((bill) => {
     const date = new Date(bill.created_at)
@@ -111,7 +99,6 @@ export function monthTotal(bills: Bill[], now: Date) {
   return { currency, count: same.length, total: same.reduce((sum, bill) => sum + bill.total, 0) }
 }
 
-/** The message Remind shares, naming the amount and the bill. */
 export function reminderText(debt: Pick<Debt, 'name' | 'amount'>, bill: string, date: string, money: (amount: number) => string) {
   return strings().bills.reminder(debt.name, money(debt.amount), bill, date)
 }

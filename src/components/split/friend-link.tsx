@@ -6,7 +6,6 @@ import { Radius, Spacing } from '@/constants/theme'
 import { useTheme } from '@/hooks/use-theme'
 import { useT } from '@/i18n'
 
-/** The friend link card under the person cards: share it, or share it again once it's on. */
 export function FriendLinkCard({
   on,
   pickedNames,
@@ -14,7 +13,6 @@ export function FriendLinkCard({
   onShare,
 }: {
   on: boolean
-  /** People who picked their own items through the link. */
   pickedNames: string[]
   busy: boolean
   onShare: () => void
@@ -40,7 +38,6 @@ export function FriendLinkCard({
   )
 }
 
-/** The "Share a link" tile in "Who was there?". */
 export function ShareLinkTile({ busy, onPress }: { busy: boolean; onPress: () => void }) {
   const theme = useTheme()
   const t = useT().split

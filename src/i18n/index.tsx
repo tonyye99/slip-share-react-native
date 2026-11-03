@@ -9,7 +9,6 @@ export { dateLocale, strings, type Language, type Strings } from './strings'
 
 const STORAGE_KEY = 'slipshare.language'
 
-/** Thai when the phone or browser is set to Thai, otherwise English. */
 function deviceLanguage(): Language {
   try {
     const tag =
@@ -38,11 +37,6 @@ interface LanguageState {
 
 const LanguageContext = createContext<LanguageState>({ language: 'en', setLanguage: () => {} })
 
-/**
- * Holds the app's language: the one picked on sign-in or in Account, or the
- * phone's own if none was picked. Shows nothing until it's loaded, while the
- * splash screen is still up, so text doesn't flip from English to Thai.
- */
 export function LanguageProvider({ children }: { children: ReactNode }) {
   const [language, setState] = useState<Language | null>(null)
 
@@ -54,7 +48,6 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
     })
   }, [])
 
-  // Browsers pick Thai fonts and line breaks from the page's language.
   useEffect(() => {
     if (Platform.OS === 'web' && language && typeof document !== 'undefined') document.documentElement.lang = language
   }, [language])
@@ -72,7 +65,6 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
 
 export const useLanguage = () => useContext(LanguageContext)
 
-/** The app's words in the language the person picked. */
 export function useT(): Strings {
   return stringsFor(useLanguage().language)
 }

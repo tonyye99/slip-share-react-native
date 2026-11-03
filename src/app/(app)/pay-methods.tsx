@@ -13,7 +13,6 @@ import { useT } from '@/i18n'
 import { payTitle, paySubtitle, type PayMethodKind } from '@/lib/pay-lines'
 import { listPayMethods, MAX_PAY_METHODS, type PayMethod } from '@/lib/pay-methods'
 
-// Account > How to pay me: the ways friends can pay you back, and + Add.
 export default function PayMethodsScreen() {
   const theme = useTheme()
   const t = useT()

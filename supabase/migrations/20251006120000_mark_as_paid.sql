@@ -1,15 +1,7 @@
--- Mark as paid: the receipt owner records which friends have paid them back.
--- The amount is copied from the friend's saved selection when it is marked,
--- so the owner can tell if the friend changes their picks afterwards.
--- Friends already read their own receipt_participants row (participants_read),
--- so they see when their share was marked paid.
-
 alter table public.receipt_participants
   add column if not exists paid_at     timestamptz,
   add column if not exists paid_amount numeric(10,2);
 
--- There is no update policy on receipt_participants, so this is the only way
--- to change paid_at: owners only, and only for people who have picked items.
 create or replace function public.set_participant_paid(p_receipt_id uuid, p_user_id uuid, p_paid boolean)
 returns void
 language plpgsql security definer set search_path = ''

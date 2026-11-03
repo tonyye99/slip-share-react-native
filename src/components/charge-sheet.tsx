@@ -11,7 +11,6 @@ import { chargePercent, type ChargeInput } from '@/lib/item-edits'
 
 export type ChargeKind = 'service' | 'tax'
 
-/** "Service 10%  ฿100.00 ›" on the review screen. Tapping it opens the ChargeSheet. */
 export function ChargeRow({ label, value, off, onPress }: { label: string; value: string; off: boolean; onPress: () => void }) {
   const theme = useTheme()
   const t = useT()
@@ -21,7 +20,6 @@ export function ChargeRow({ label, value, off, onPress }: { label: string; value
       accessibilityRole="button"
       accessibilityLabel={`${label}, ${value}, ${t.common.edit}`}
       style={({ pressed }) => [styles.row, pressed && styles.pressed]}>
-      {/* The chevron sits by the label so the amounts stay lined up with Subtotal and Total. */}
       <View style={styles.labelGroup}>
         <AppText variant="muted" style={styles.shrink}>
           {label}
@@ -35,7 +33,6 @@ export function ChargeRow({ label, value, off, onPress }: { label: string; value
   )
 }
 
-/** Turn the service charge or tax on or off, and change its percent. */
 export function ChargeSheet({
   kind,
   visible,
@@ -50,11 +47,8 @@ export function ChargeSheet({
   kind: ChargeKind
   visible: boolean
   input: ChargeInput
-  /** What the charge comes to. */
   amount: number
-  /** What it's charged on: the items, plus the service charge for tax. */
   base: number
-  /** Tax is charged on a service charge too, when there is one. */
   withService: boolean
   money: (amount: number) => string
   onChange: (input: ChargeInput) => void

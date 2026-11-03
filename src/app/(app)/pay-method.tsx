@@ -30,20 +30,16 @@ import {
 import { readQrFromPhoto } from '@/lib/qr-read'
 import { formatMoney } from '@/lib/split'
 
-// The amount in the example QR. Scanning it with your own banking app shows
-// your name, so you know friends will be paying the right person.
 const EXAMPLE_AMOUNT = 117.7
 
 const kinds: PayMethodKind[] = ['promptpay', 'bank', 'note']
 
-/** The name you signed up with, to start the "Name friends see" box. */
 function nameFrom(user: User | undefined): string {
   const meta = user?.user_metadata ?? {}
   const name = [meta.display_name, meta.full_name, meta.name].find((value) => typeof value === 'string' && value.trim())
   return typeof name === 'string' ? name.trim() : ''
 }
 
-// Add or change one way to get paid: /pay-method?kind=promptpay, or ?id= to change one.
 export default function PayMethodScreen() {
   const params = useLocalSearchParams<{ kind?: string; id?: string }>()
   const id = params.id
@@ -59,7 +55,6 @@ export default function PayMethodScreen() {
   const [savedBank, setSavedBank] = useState<string | null>(null)
   const [name, setName] = useState(() => (id ? '' : nameFrom(session?.user)))
   const [saving, setSaving] = useState(false)
-  // PromptPay from the QR your banking app saved, instead of a typed number.
   const [qr, setQr] = useState<BankQr | null>(null)
   const [reading, setReading] = useState(false)
 

@@ -7,7 +7,6 @@ import { badgeText, billStatus, biggestDebt, monthTotal, reminderText, type Bill
 
 const money = (amount: number) => `฿${amount.toFixed(2)}`
 
-// People join in the order they're listed: Ye, then Anna, then Ben.
 const joined = ['me', 'anna', 'ben']
 const person = (id: string, name: string, extra: Partial<Bill['receipt_people'][number]> = {}) => ({
   id,

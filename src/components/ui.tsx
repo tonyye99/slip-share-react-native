@@ -54,7 +54,6 @@ export const textStyles = StyleSheet.create({
   error: { fontSize: 14, lineHeight: 20 },
 })
 
-/** White rounded panel on the grey page. `dashed` is for a preview of what comes next. */
 export function Card({ style, dashed, ...rest }: ViewProps & { dashed?: boolean }) {
   const theme = useTheme()
   return (
@@ -74,7 +73,6 @@ export function Card({ style, dashed, ...rest }: ViewProps & { dashed?: boolean 
 interface ButtonProps {
   title: string
   onPress: () => void
-  /** primary: the one main action. strong: near-black, like Sign in. secondary: outlined. danger: outlined, red text. */
   variant?: 'primary' | 'strong' | 'secondary' | 'danger'
   size?: 'default' | 'small' | 'large'
   icon?: ReactNode
@@ -138,7 +136,6 @@ export function Button({
   )
 }
 
-/** Tappable inline text, for links such as "Privacy policy". */
 export function TextLink({ title, onPress, color }: { title: string; onPress: () => void; color?: string }) {
   const theme = useTheme()
   return (
@@ -150,7 +147,6 @@ export function TextLink({ title, onPress, color }: { title: string; onPress: ()
   )
 }
 
-/** A text box without a label, for inline rows like "Friend's name  [Add]". */
 export const Input = forwardRef<TextInputInstance, TextInputProps>(function Input({ style, ...rest }, ref) {
   const theme = useTheme()
   return (
@@ -185,7 +181,6 @@ export function Row({ label, value, bold }: { label: string; value: string; bold
   )
 }
 
-/** A thin line, with optional words in the middle ("or", "Not on the list?"). */
 export function Divider({ label, style }: { label?: string; style?: StyleProp<ViewStyle> }) {
   const theme = useTheme()
   if (!label) return <View style={[styles.line, { backgroundColor: theme.hairline }, style]} />
@@ -198,7 +193,6 @@ export function Divider({ label, style }: { label?: string; style?: StyleProp<Vi
   )
 }
 
-/** A small grey or coloured label, like "Paid the bill". */
 export function Tag({ label, tone = 'neutral' }: { label: string; tone?: 'neutral' | 'primary' | 'success' | 'warning' }) {
   const theme = useTheme()
   const colors = {
@@ -226,7 +220,6 @@ export function ProgressBar({ value, color }: { value: number; color?: string })
   )
 }
 
-/** − 1 + for a small count, like how many of a 2 × item someone had. */
 export function Stepper({
   value,
   min = 1,
@@ -238,7 +231,6 @@ export function Stepper({
   min?: number
   max: number
   onChange: (value: number) => void
-  /** What is being counted, for screen readers ("Egg Kim Bab"). */
   label: string
 }) {
   const theme = useTheme()
@@ -273,7 +265,6 @@ export function Stepper({
   )
 }
 
-/** Two or three options side by side, like ไทย | EN. */
 export function Segmented<T extends string>({
   options,
   value,
@@ -285,7 +276,6 @@ export function Segmented<T extends string>({
   value: T
   onChange: (value: T) => void
   accessibilityLabel?: string
-  /** Fill the width, with taller options shared out evenly, like PromptPay | Bank. */
   stretch?: boolean
 }) {
   const theme = useTheme()
@@ -334,7 +324,6 @@ const styles = StyleSheet.create({
   buttonTextSmall: { fontSize: 14 },
   buttonTextLarge: { fontSize: 17, fontWeight: '700' },
   textLink: { alignSelf: 'flex-start' },
-  // minWidth 0 lets a browser shrink the box to make room for a button beside it.
   input: { borderWidth: 1, borderRadius: Radius.medium, paddingHorizontal: Spacing.three, minHeight: 50, fontSize: 16, minWidth: 0 },
   row: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline', gap: Spacing.two },
   rowLabel: { flexShrink: 1 },

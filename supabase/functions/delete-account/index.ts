@@ -1,12 +1,3 @@
-// Supabase Edge Function: deletes the signed-in user's account.
-// Deploy with: supabase functions deploy delete-account
-// Both app stores require in-app account deletion. Deleting the auth user
-// cascades to everything keyed on it (profile, receipts and their items,
-// participants and selections, scan usage). Storage files don't cascade, so
-// the transfer slips friends sent for the user's bills are removed first.
-// The admin API needs the service role key, which Supabase provides to Edge
-// Functions and which must never ship in the app.
-
 import { createClient } from 'npm:@supabase/supabase-js@2'
 
 const supabase = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_ANON_KEY')!)
@@ -26,10 +17,8 @@ function json(body: unknown, status = 200) {
   })
 }
 
-/** Removes every slip photo on the user's bills. False if some could not be removed. */
 async function removeSlips(userId: string): Promise<boolean> {
   const { data, error } = await admin.rpc('slip_files_for_user', { p_user_id: userId })
-  // Before the payment_slips migration there are no slips to remove.
   if (error?.code === 'PGRST202') return true
   if (error) {
     console.error('Listing slips failed:', error)
@@ -50,8 +39,6 @@ Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders })
   if (req.method !== 'POST') return json({ error: 'Method not allowed' }, 405)
 
-  // The gateway's JWT check also accepts the public anon key, so confirm a
-  // real user and only ever delete that user.
   const token = req.headers.get('Authorization')?.replace(/^Bearer /i, '')
   const { data: auth } = token ? await supabase.auth.getUser(token) : { data: { user: null } }
   if (!auth.user) return json({ error: 'Sign in to delete your account' }, 401)

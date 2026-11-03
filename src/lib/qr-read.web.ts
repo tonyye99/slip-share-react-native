@@ -1,7 +1,5 @@
 import jsQR from 'jsqr'
 
-// The website reads the QR code in a picture by drawing it on a canvas.
-
 function load(uri: string): Promise<HTMLImageElement> {
   return new Promise((resolve, reject) => {
     const image = new Image()
@@ -11,11 +9,9 @@ function load(uri: string): Promise<HTMLImageElement> {
   })
 }
 
-/** The text in the QR code in the photo, or null if none can be read. */
 export async function readQrFromPhoto(photo: { uri: string; width: number }): Promise<string | null> {
   const image = await load(photo.uri)
   const longest = Math.max(image.naturalWidth, image.naturalHeight)
-  // A smaller picture reads faster; full size helps a QR that fills little of it.
   for (const size of [1000, longest]) {
     const scale = Math.min(1, size / longest)
     const width = Math.max(1, Math.round(image.naturalWidth * scale))
