@@ -24,12 +24,14 @@ export function SendTotalsSheet({
   message,
   myMessage,
   qr,
+  onSentMine,
 }: {
   visible: boolean
   onClose: () => void
-  message: (maths: boolean) => string
+  message: ((maths: boolean) => string) | null
   myMessage: ((maths: boolean) => string) | null
   qr: { payload: string; id: string | null; name: string | null } | null
+  onSentMine: () => void
 }) {
   const theme = useTheme()
   const t = useT()
@@ -53,7 +55,7 @@ export function SendTotalsSheet({
   }
 
   const [who, setWho] = useState<'me' | 'everyone'>('me')
-  const write = myMessage && who === 'me' ? myMessage : message
+  const write = (myMessage && (who === 'me' || !message) ? myMessage : message) ?? (() => '')
   const text = visible ? write(maths) : ''
   const hasMaths = visible && write(true) !== write(false)
   const name = qr?.name ?? t.pay.promptpay
@@ -80,11 +82,13 @@ export function SendTotalsSheet({
         })
         if (!sent) return
         track('totals_qr_sent')
-      } else {
-        await shareText(text)
+      } else if (!(await shareText(text))) {
+        return
       }
-      track('totals_sent', { maths, just_me: write === myMessage })
+      const justMe = write === myMessage
+      track('totals_sent', { maths, just_me: justMe })
       onClose()
+      if (justMe) onSentMine()
     } catch (e) {
       console.error('Sharing the totals failed', e)
     } finally {
@@ -128,7 +132,7 @@ export function SendTotalsSheet({
           </View>
         </View>
       }>
-      {myMessage ? (
+      {myMessage && message ? (
         <View style={styles.who}>
           <Segmented
             stretch

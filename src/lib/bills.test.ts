@@ -121,6 +121,63 @@ test('when someone else paid, it waits on what you owe them', () => {
   assert.equal(badgeText(status, money), 'You owe ฿100.00')
 })
 
+test('when someone else paid and you paid them back, the bill is settled even if others still owe', () => {
+  const status = billStatus(
+    bill({
+      receipt_people: [
+        person('me', 'Ye', { is_me: true, paid_at: '2026-10-16T00:00:00Z' }),
+        person('anna', 'Anna', { is_payer: true }),
+        person('ben', 'Ben'),
+      ],
+    }),
+  )
+  assert.equal(status.state, 'settled')
+  assert.equal(status.youOwe, 0)
+})
+
+test('when someone else paid, only your share counts, not what others owe them', () => {
+  const status = billStatus(
+    bill({
+      receipts_items: [
+        { id: 'a', qty: 1, unit_price: 200, receipt_item_people: [{ person_id: 'ben', units: 1 }] },
+        { id: 'b', qty: 1, unit_price: 100, receipt_item_people: [{ person_id: 'anna', units: 1 }] },
+      ],
+      receipt_people: [
+        person('me', 'Ye', { is_me: true }),
+        person('anna', 'Anna', { is_payer: true }),
+        person('ben', 'Ben'),
+      ],
+    }),
+  )
+  assert.equal(status.state, 'settled')
+})
+
+const justMeAndAnna = (items: Bill['receipts_items'], paid: string | null = null) =>
+  bill({
+    total: 300,
+    receipts_items: items,
+    receipt_people: [person('me', 'Ye', { is_me: true, paid_at: paid }), person('anna', 'Anna', { is_payer: true })],
+  })
+const mineAndTheRest: Bill['receipts_items'] = [
+  { id: 'a', qty: 1, unit_price: 200, receipt_item_people: [{ person_id: 'me', units: 1 }] },
+  { id: 'b', qty: 1, unit_price: 100, receipt_item_people: [] },
+]
+
+test('just you and the friend who paid: the rest of the bill is not yours to split', () => {
+  const status = billStatus(justMeAndAnna(mineAndTheRest))
+  assert.equal(status.state, 'waiting')
+  assert.equal(badgeText(status, money), 'You owe ฿200.00')
+})
+
+test('just you and the friend who paid: paid back is settled', () => {
+  assert.equal(billStatus(justMeAndAnna(mineAndTheRest, '2026-10-16T00:00:00Z')).state, 'settled')
+})
+
+test('just you and the friend who paid, nothing ticked yet, is still to split', () => {
+  const nothing = mineAndTheRest.map((item) => ({ ...item, receipt_item_people: [] }))
+  assert.equal(billStatus(justMeAndAnna(nothing)).state, 'to-split')
+})
+
 test('the waiting card picks the biggest debt across bills', () => {
   const small = bill()
   const big = bill({
@@ -153,4 +210,95 @@ test('the reminder names the amount and the bill', () => {
     reminderText({ name: 'Ben', amount: 715.67 }, 'KIANI', 'Wed, Oct 15', money),
     'Hi Ben! A quick reminder: ฿715.67 for KIANI on Wed, Oct 15. Thank you!',
   )
+})
+
+const mineBill = (overrides: Partial<Bill> = {}): Bill =>
+  bill({
+    split_mode: 'mine',
+    receipts_items: [
+      { id: 'steak', qty: 1, unit_price: 600, receipt_item_people: [{ person_id: 'me', units: 1 }] },
+      { id: 'beer', qty: 3, unit_price: 60, receipt_item_people: [{ person_id: 'me', units: 1 }] },
+      { id: 'somtam', qty: 1, unit_price: 150, receipt_item_people: [{ person_id: 'me', units: 1, split_between: 5 }] },
+      { id: 'salad', qty: 1, unit_price: 200, receipt_item_people: [] },
+    ],
+    receipt_people: [person('me', 'Ye', { is_me: true }), person('ben', 'Ben', { is_payer: true })],
+    total: 1130,
+    subtotal: 1130,
+    ...overrides,
+  })
+
+test('just my share counts only what you had, with shared dishes divided', () => {
+  const status = billStatus(mineBill())
+  assert.equal(status.state, 'waiting')
+  assert.equal(status.mine?.share, 690)
+  assert.equal(status.youOwe, 690)
+  assert.equal(badgeText(status, money), 'You owe Ben')
+})
+
+test('just my share is settled once you paid back, whatever is left on the bill', () => {
+  const status = billStatus(
+    mineBill({ receipt_people: [person('me', 'Ye', { is_me: true, paid_at: '2026-11-04T00:00:00Z' }), person('ben', 'Ben', { is_payer: true })] }),
+  )
+  assert.equal(status.state, 'settled')
+  assert.equal(badgeText(status, money), 'Settled')
+})
+
+test('just my share asks for your items first, then who paid', () => {
+  const nothing = billStatus(
+    mineBill({ receipts_items: [{ id: 'salad', qty: 1, unit_price: 200, receipt_item_people: [] }] }),
+  )
+  assert.equal(badgeText(nothing, money), 'Pick what you had')
+  const noPayer = billStatus(mineBill({ receipt_people: [person('me', 'Ye', { is_me: true, is_payer: true })] }))
+  assert.equal(noPayer.state, 'to-split')
+  assert.equal(badgeText(noPayer, money), 'Add who paid')
+})
+
+test('just my share can be owed to two people who paid', () => {
+  const status = billStatus(
+    mineBill({
+      receipt_people: [
+        person('me', 'Ye', { is_me: true }),
+        person('ben', 'Ben', { is_payer: true, created_at: '2026-11-04T09:01:00Z' }),
+        person('kris', 'Kris', { is_payer: true, created_at: '2026-11-04T09:02:00Z' }),
+      ],
+    }),
+  )
+  assert.equal(status.state, 'waiting')
+  assert.equal(status.youOwe, 690)
+  assert.deepEqual(status.mine?.payers, ['Ben', 'Kris'])
+  assert.equal(badgeText(status, money), 'You owe Ben, Kris')
+  const three = billStatus(
+    mineBill({
+      receipt_people: [
+        person('me', 'Ye', { is_me: true }),
+        person('ben', 'Ben', { is_payer: true }),
+        person('kris', 'Kris', { is_payer: true }),
+        person('alek', 'Alek', { is_payer: true }),
+      ],
+    }),
+  )
+  assert.equal(badgeText(three, money), 'You owe 3 people')
+})
+
+test('just my share takes your part of a discount off, or all of it when you tick it', () => {
+  const items = [
+    { id: 'steak', qty: 1, unit_price: 600, receipt_item_people: [{ person_id: 'me', units: 1 }] },
+    { id: 'salad', qty: 1, unit_price: 400, receipt_item_people: [] },
+    { id: 'deal', qty: 1, unit_price: -100, receipt_item_people: [] },
+  ]
+  assert.equal(billStatus(mineBill({ receipts_items: items, subtotal: 900, total: 900 })).mine?.share, 540)
+  const ticked = items.map((item) =>
+    item.id === 'deal' ? { ...item, receipt_item_people: [{ person_id: 'me', units: 1 }] } : item,
+  )
+  assert.equal(billStatus(mineBill({ receipts_items: ticked, subtotal: 900, total: 900 })).mine?.share, 500)
+})
+
+test('the month total counts your share on just my share bills', () => {
+  const now = new Date('2026-10-20T00:00:00Z')
+  assert.equal(monthTotal([bill(), mineBill()], now).total, 300 + 690)
+})
+
+test('split between only counts on just my share bills', () => {
+  const everyone = billStatus(mineBill({ split_mode: 'everyone' }))
+  assert.equal(everyone.mine, undefined)
 })

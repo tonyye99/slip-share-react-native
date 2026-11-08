@@ -55,7 +55,7 @@
     "deploy:web": "npm run privacy:page && expo export --platform web && npx eas-cli@latest deploy --prod",
     "lint": "expo lint",
     "typecheck": "tsc --noEmit",
-    "test": "node --experimental-strip-types --test src/lib/*.test.ts"
+    "test": "node --experimental-strip-types --test src/lib/*.test.ts supabase/functions/*/*.test.ts"
   },
   "private": true
 }

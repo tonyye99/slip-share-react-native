@@ -3,7 +3,17 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
 
-import { billTotal, checkScan, formatMoney, dropIncludedCharges, receiptSubtotal, readSavedCharges, splitByPicks, type Counts } from './split.ts'
+import {
+  billTotal,
+  checkScan,
+  formatMoney,
+  dropIncludedCharges,
+  itemShares,
+  receiptSubtotal,
+  readSavedCharges,
+  splitByPicks,
+  type Counts,
+} from './split.ts'
 
 const items = [
   { id: 'a', qty: 1, unit_price: 289 },
@@ -131,10 +141,144 @@ test('prices are kept when dividing them does not match either', () => {
   assert.equal(checkScan(noMatch), noMatch)
 })
 
+const coffeeClub = {
+  tax_percent: 7,
+  service_percent: 10,
+  service_amount: 99,
+  rounding: 0,
+  total: 1058,
+  items: [
+    { qty: 1, unit_price: 270 },
+    { qty: 1, unit_price: 270 },
+    { qty: 1, unit_price: 59 },
+    { qty: 1, unit_price: 140 },
+    { qty: 1, unit_price: 220 },
+    { qty: 1, unit_price: 30 },
+    { qty: 1, unit_price: -30 },
+  ],
+}
+
+test('a printed service amount wins, and VAT included adds nothing', () => {
+  const checked = checkScan(coffeeClub)
+  assert.equal(checked.tax_percent, 0)
+  assert.equal(checked.service_percent, 10.3233)
+  const subtotal = receiptSubtotal(checked.items)
+  assert.equal(subtotal, 959)
+  assert.equal(Math.round(billTotal(checked, subtotal) * 100) / 100, 1058)
+})
+
+test('service worked out on full prices, before the free drink, still adds up', () => {
+  const checked = checkScan({ ...coffeeClub, service_amount: 98.9 })
+  assert.equal(checked.tax_percent, 0)
+  assert.equal(checked.service_percent, 10.3128)
+  assert.equal(Math.round(billTotal(checked, receiptSubtotal(checked.items)) * 100) / 100, 1057.9)
+})
+
+test('the printed service amount is ignored when the items still do not add up', () => {
+  const missingJuice = { ...coffeeClub, items: coffeeClub.items.filter((item) => item.unit_price !== 30) }
+  assert.equal(checkScan(missingJuice), missingJuice)
+})
+
+test('a service amount that already matches the percent changes nothing', () => {
+  const plain = { ...coffeeClub, service_amount: 95.9, total: 1054.9 }
+  assert.deepEqual(checkScan(plain), { ...plain, tax_percent: 0 })
+})
+
 test('money shows the currency symbol, as phones skip narrowSymbol', () => {
   assert.equal(formatMoney(1791.98, 'THB'), '฿1,791.98')
   assert.equal(formatMoney(-3, 'THB'), '-฿3.00')
   assert.equal(formatMoney(12, 'usd'), '$12.00')
   assert.equal(formatMoney(5, 'MYR'), 'RM5.00')
   assert.equal(formatMoney(5, 'XYZ'), 'XYZ 5.00')
+})
+
+const withPromo = [
+  { id: 'steak', qty: 1, unit_price: 600 },
+  { id: 'salad', qty: 1, unit_price: 200 },
+  { id: 'promo', qty: 1, unit_price: -80 },
+]
+const promoBill = { subtotal: 720, tax_percent: 7, service_percent: 10, rounding: 0 }
+
+test('a whole-bill promotion is shared by what each person had', () => {
+  const split = splitByPicks(promoBill, withPromo, ['me', 'friend'], { steak: { me: 1 }, salad: { friend: 1 } })
+  assert.equal(split.people.me.discount, -60)
+  assert.equal(split.people.friend.discount, -20)
+  assert.equal(split.people.me.subtotal, 540)
+  assert.equal(split.people.friend.subtotal, 180)
+  assert.ok(Math.abs(split.people.me.total + split.people.friend.total - billTotal(promoBill, 720)) < 0.001)
+  assert.equal(split.unassigned.total, 0)
+})
+
+test('a promotion picked for someone comes off only their share, even if they had nothing else', () => {
+  assert.deepEqual(itemShares(withPromo[2], []), { shares: {}, left: 0, unclaimed: 0 })
+  const split = splitByPicks(promoBill, withPromo, ['me', 'friend'], { steak: { me: 1 }, promo: { friend: 1 } })
+  assert.equal(split.people.me.discount, 0)
+  assert.equal(split.people.me.subtotal, 600)
+  assert.equal(split.people.friend.discount, -80)
+  assert.equal(split.people.friend.subtotal, -80)
+  assert.equal(split.unassigned.subtotal, 200)
+  assert.equal(split.unassigned.discount, 0)
+})
+
+test('a promotion with nothing picked waits with the rest of the bill', () => {
+  const split = splitByPicks(promoBill, withPromo, ['me'], {})
+  assert.equal(split.people.me.total, 0)
+  assert.equal(split.unassigned.subtotal, 720)
+})
+
+test('a share split between people goes back to the rest of the bill', () => {
+  const { shares, left, unclaimed } = itemShares({ id: 'a', qty: 1, unit_price: 150 }, ['me'], { me: 1 }, { me: 5 })
+  assert.equal(shares.me, 30)
+  assert.equal(left, 0)
+  assert.equal(unclaimed, 120)
+})
+
+test('split between keeps the bill adding up', () => {
+  const result = splitByPicks(
+    { subtotal: 300, tax_percent: 0, service_percent: 10, rounding: 0 },
+    [
+      { id: 'a', qty: 1, unit_price: 150 },
+      { id: 'b', qty: 1, unit_price: 150 },
+    ],
+    ['me'],
+    { a: { me: 1 } },
+    { a: { me: 3 } },
+  )
+  assert.equal(result.people.me.subtotal, 50)
+  assert.ok(Math.abs(result.people.me.total + result.unassigned.total - 330) < 1e-9)
+})
+
+test('a discount given to one person comes off only their share', () => {
+  const bill = { subtotal: 959, tax_percent: 0, service_percent: 10, rounding: 0 }
+  const items = [
+    { id: 'crab', qty: 1, unit_price: 959 },
+    { id: 'juice', qty: 1, unit_price: 30 },
+    { id: 'free', qty: 1, unit_price: -30 },
+  ]
+  const shared = splitByPicks(bill, items, ['ye', 'anna'], { crab: { ye: 1 }, juice: { anna: 1 } })
+  assert.ok(Math.abs(shared.people.anna.subtotal - (30 - (30 * 30) / 989)) < 1e-9)
+  const toAnna = splitByPicks(bill, items, ['ye', 'anna'], { crab: { ye: 1 }, juice: { anna: 1 }, free: { anna: 1 } })
+  assert.equal(toAnna.people.anna.subtotal, 0)
+  assert.equal(toAnna.people.anna.total, 0)
+  assert.equal(toAnna.people.ye.subtotal, 959)
+  assert.equal(toAnna.people.anna.discount, -30)
+  assert.ok(Math.abs(toAnna.people.ye.total + toAnna.people.anna.total - 959 * 1.1) < 1e-9)
+})
+
+test('a discount given to several people is split evenly between them', () => {
+  const bill = { subtotal: 80, tax_percent: 0, service_percent: 0, rounding: 0 }
+  const items = [
+    { id: 'a', qty: 1, unit_price: 50 },
+    { id: 'b', qty: 1, unit_price: 50 },
+    { id: 'deal', qty: 1, unit_price: -20 },
+  ]
+  const result = splitByPicks(bill, items, ['me', 'ben', 'kris'], {
+    a: { me: 1 },
+    b: { ben: 1 },
+    deal: { me: 1, kris: 1, gone: 1 },
+  })
+  assert.equal(result.people.me.total, 40)
+  assert.equal(result.people.ben.total, 50)
+  assert.equal(result.people.kris.total, -10)
+  assert.deepEqual(itemShares(items[2], ['me', 'kris']).shares, { me: -10, kris: -10 })
 })

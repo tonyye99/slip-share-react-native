@@ -7,6 +7,7 @@ import { AppText, Button } from '@/components/ui'
 import { MaxContentWidth, Radius, Spacing } from '@/constants/theme'
 import { useTheme } from '@/hooks/use-theme'
 import { useT } from '@/i18n'
+import { eachOf } from '@/lib/split'
 import type { Money } from '@/lib/split-view'
 
 const glassBlur = Platform.OS === 'web' ? ({ backdropFilter: 'blur(16px)' } as unknown as ViewStyle) : null
@@ -21,6 +22,7 @@ export function SplitFooter({
   leftItems,
   money,
   owe,
+  mine,
   onOpenBreakdown,
   onSend,
 }: {
@@ -32,11 +34,13 @@ export function SplitFooter({
   leftItems: number
   money: Money
   owe: { payer: string; amount: number; paid: boolean } | null
+  mine: { payers: string[]; paid: boolean; count: number } | null
   onOpenBreakdown: () => void
   onSend: () => void
 }) {
   const theme = useTheme()
-  const t = useT().split
+  const all = useT()
+  const t = all.split
   const insets = useSafeAreaInsets()
   const [pullUp] = useState(() =>
     PanResponder.create({
@@ -48,7 +52,29 @@ export function SplitFooter({
   )
 
   let summary
-  if (alone) {
+  if (mine) {
+    const counted = all.common.items(mine.count)
+    const owing =
+      mine.payers.length > 1
+        ? all.common.each(money(eachOf(myTotal, mine.payers.length)))
+        : `${mine.payers.length === 1 ? t.youOwe(mine.payers[0]) : all.mine.yourShare} · ${counted}`
+    summary = (
+      <>
+        <AppText
+          variant="heading"
+          style={[styles.amount, mine.paid && { color: theme.success }]}
+          numberOfLines={1}
+          adjustsFontSizeToFit>
+          {money(myTotal)}
+        </AppText>
+        <AppText variant="caption" numberOfLines={1}>
+          {mine.paid
+            ? all.mine.paidBack
+            : owing}
+        </AppText>
+      </>
+    )
+  } else if (alone) {
     summary = (
       <>
         <AppText variant="heading" style={styles.amount} numberOfLines={1}>
@@ -100,7 +126,28 @@ export function SplitFooter({
         <Pressable onPress={onOpenBreakdown} accessibilityRole="button" accessibilityLabel={t.seeBreakdown} style={styles.summary}>
           {summary}
         </Pressable>
-        <Button title={owe ? t.sendMyShare : t.sendTotals} onPress={onSend} icon={<SendIcon color={theme.onPrimary} />} style={styles.send} />
+        {mine ? (
+          <Button
+            title={
+              mine.paid
+                ? all.mine.sendAgain
+                : mine.payers.length > 0
+                  ? all.mine.sendTo(all.mine.payers(mine.payers))
+                  : all.mine.pickPayerFirst
+            }
+            variant={mine.paid || mine.payers.length === 0 ? 'secondary' : 'primary'}
+            onPress={onSend}
+            disabled={mine.payers.length > 0 && !mine.paid && myTotal < 0.005}
+            style={styles.send}
+          />
+        ) : (
+          <Button
+            title={owe ? t.sendMyShare : t.sendTotals}
+            onPress={onSend}
+            icon={<SendIcon color={theme.onPrimary} />}
+            style={styles.send}
+          />
+        )}
       </View>
     </View>
   )
@@ -123,5 +170,5 @@ const styles = StyleSheet.create({
     boxShadow: '0 8px 28px rgba(16, 24, 27, 0.14)',
   },
   summary: { flex: 1, minHeight: 44, justifyContent: 'center' },
-  send: { paddingHorizontal: Spacing.four + 2, borderRadius: Radius.pill },
+  send: { flexShrink: 1, maxWidth: '62%', paddingHorizontal: Spacing.four + 2, borderRadius: Radius.pill },
 })

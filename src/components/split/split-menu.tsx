@@ -33,6 +33,8 @@ export function SplitMenu({
   onClose,
   translation,
   onToggleEnglish,
+  mine,
+  onSwitchMode,
   onRename,
   onEditPeople,
   canChangePayer,
@@ -48,6 +50,8 @@ export function SplitMenu({
   onClose: () => void
   translation: { showEnglish: boolean; originalLanguage: string } | null
   onToggleEnglish: () => void
+  mine: boolean
+  onSwitchMode: () => void
   onRename: () => void
   onEditPeople: () => void
   canChangePayer: boolean
@@ -60,9 +64,23 @@ export function SplitMenu({
   onDelete: () => void
 }) {
   const theme = useTheme()
-  const t = useT().split
+  const all = useT()
+  const t = all.split
+  const switchMode = (
+    <SheetOption
+      label={mine ? all.mine.everyoneInstead : all.mine.mineInstead}
+      detail={mine ? all.mine.everyoneInsteadHint : all.mine.mineInsteadHint}
+      icon={
+        <MenuIcon>
+          {mine ? <PeopleIcon color={theme.text} size={18} /> : <PersonIcon color={theme.text} size={18} />}
+        </MenuIcon>
+      }
+      onPress={onSwitchMode}
+    />
+  )
   return (
     <Sheet visible={visible} onClose={onClose}>
+      {mine && switchMode}
       {translation && (
         <SheetOption
           label={
@@ -89,16 +107,18 @@ export function SplitMenu({
         }
         onPress={onRename}
       />
-      <SheetOption
-        label={t.editPeople}
-        icon={
-          <MenuIcon>
-            <PeopleIcon color={theme.text} size={18} />
-          </MenuIcon>
-        }
-        onPress={onEditPeople}
-      />
-      {canChangePayer && (
+      {!mine && (
+        <SheetOption
+          label={t.editPeople}
+          icon={
+            <MenuIcon>
+              <PeopleIcon color={theme.text} size={18} />
+            </MenuIcon>
+          }
+          onPress={onEditPeople}
+        />
+      )}
+      {canChangePayer && !mine && (
         <SheetOption
           label={t.changePayer}
           detail={payerName ? t.payerNow(payerName) : t.nobodyYet}
@@ -110,7 +130,9 @@ export function SplitMenu({
           onPress={onChangePayer}
         />
       )}
+      {!mine && switchMode}
       {link &&
+        !mine &&
         (link.on ? (
           <>
             <SheetOption

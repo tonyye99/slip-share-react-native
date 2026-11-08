@@ -8,6 +8,7 @@ import { CheckBoxIcon, ClockIcon } from '@/components/icons'
 import { PayCard } from '@/components/pay-card'
 import { ScreenHeader } from '@/components/screen-header'
 import { SlipCard } from '@/components/slip-card'
+import { PromotionRow } from '@/components/split/item-row'
 import { AppText, Button, Card, Divider, Input, Row, Segmented, Stepper } from '@/components/ui'
 import { MaxContentWidth, Radius, Spacing } from '@/constants/theme'
 import { useTheme } from '@/hooks/use-theme'
@@ -30,7 +31,8 @@ import {
 import { bothNames, cleanName, MAX_NAME_LENGTH, originalLabel } from '@/lib/names'
 import { pickPhoto } from '@/lib/photo'
 import { prepareSlip, sendSlip, SlipError } from '@/lib/slips'
-import { formatMoney, isCountable, itemShares, splitByPicks } from '@/lib/split'
+import { formatMoney, isCountable, isDiscount, itemShares, splitByPicks } from '@/lib/split'
+import { discountText } from '@/lib/split-view'
 
 export default function PickScreen() {
   const { token } = useLocalSearchParams<{ token: string }>()
@@ -233,7 +235,8 @@ export default function PickScreen() {
   const colorOf = (personId: string) => personColor(people.findIndex((person) => person.id === personId))
   const ownerName = owner?.name ?? t.pick.thePayer
   const payerName = payer ? (payer.id === me?.id ? t.common.youInSentence : payer.name) : null
-  const mineCount = me ? receipt.items.filter((item) => item.person_ids.includes(me.id)).length : 0
+  const mineCount = me ? receipt.items.filter((item) => !isDiscount(item) && item.person_ids.includes(me.id)).length : 0
+  const listedItems = [...receipt.items.filter((item) => !isDiscount(item)), ...receipt.items.filter(isDiscount)]
   const owes = !!payer && !!me && payer.id !== me.id
   const payMethods = payer?.is_owner ? (receipt.pay_methods ?? []) : []
 
@@ -375,7 +378,17 @@ export default function PickScreen() {
             </View>
 
             <Card style={styles.list}>
-              {receipt.items.map((item, index) => {
+              {listedItems.map((item, index) => {
+                if (isDiscount(item))
+                  return (
+                    <PromotionRow
+                      key={item.id}
+                      item={item}
+                      showEnglish={showEnglish}
+                      money={money}
+                      who={discountText(item.person_ids, nameOf, me.id)}
+                    />
+                  )
                 const had = item.person_ids.includes(me.id)
                 const countable = isCountable(item)
                 const units = item.counts[me.id] ?? 1
@@ -466,7 +479,8 @@ export default function PickScreen() {
           <View style={styles.footer}>
             {mine.subtotal !== 0 && (
               <>
-                <Row label={t.pick.yourItems(mineCount)} value={money(mine.subtotal)} />
+                <Row label={t.pick.yourItems(mineCount)} value={money(mine.subtotal - mine.discount)} />
+                {mine.discount < -0.001 && <Row label={t.common.promotion} value={money(mine.discount)} />}
                 {receipt.service_percent > 0 && (
                   <Row label={t.common.service(receipt.service_percent)} value={money(mine.service)} />
                 )}

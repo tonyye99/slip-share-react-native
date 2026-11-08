@@ -1,6 +1,8 @@
 import type { Strings } from './en.ts'
 
-const and = (parts: string[]) => parts.join(' และ ')
+const percent = (value: number) => `${Math.round(value * 100) / 100}%`
+const and = (parts: string[]) =>
+  parts.length > 2 ? `${parts.slice(0, -1).join(', ')} และ ${parts[parts.length - 1]}` : parts.join(' และ ')
 
 const THAI = /[\u0E00-\u0E7F]/
 const lead = (name: string) => (THAI.test(name.slice(-1)) ? name : `${name} `)
@@ -38,8 +40,10 @@ export const th: Strings = {
     total: 'ยอดรวม',
     subtotal: 'รวมรายการ',
     rounding: 'ปัดเศษ',
-    service: (percent) => `ค่าบริการ ${percent}%`,
-    vat: (percent) => `VAT ${percent}%`,
+    promotion: 'โปรโมชัน',
+    promotionShared: 'แบ่งตามที่แต่ละคนกิน',
+    service: (value) => `ค่าบริการ ${percent(value)}`,
+    vat: (value) => `VAT ${percent(value)}`,
     each: (amount) => `คนละ ${amount}`,
     items: (count) => `${count} รายการ`,
     bills: (count) => `${count} บิล`,
@@ -147,6 +151,7 @@ export const th: Strings = {
     firstTitle: 'หารบิลเสร็จในนาทีเดียว',
     firstSubtitle: 'ไม่ต้องนั่งกดเครื่องคิดเลขที่โต๊ะอีกต่อไป',
     billsShowHere: 'บิลของคุณจะแสดงที่นี่',
+    justMine: 'เฉพาะส่วนของฉัน',
   },
 
   bills: {
@@ -156,6 +161,9 @@ export const th: Strings = {
     owes: (name, amount) => `${name} ค้าง ${amount}`,
     peopleOwe: (count, amount) => `${count} คนค้าง ${amount}`,
     youOwe: (amount) => `คุณค้าง ${amount}`,
+    youOweName: (name) => `คุณค้าง${tail(name)}`,
+    pickYours: 'เลือกที่คุณกิน',
+    pickPayer: 'เพิ่มคนที่จ่าย',
     reminder: (name, amount, bill, date) =>
       `สวัสดี${tail(name)}! ขอเตือนนิดนึงนะ ยอด ${amount} ของ${tail(bill)} วันที่ ${date} ขอบคุณมาก!`,
     deleteTitle: 'ลบใบเสร็จนี้?',
@@ -253,7 +261,7 @@ export const th: Strings = {
     includes: (service, vat) => (service && vat ? 'รวมค่าบริการและ VAT แล้ว' : service ? 'รวมค่าบริการแล้ว' : 'รวม VAT แล้ว'),
     sharedCharges: (servicePercent, vatPercent) =>
       `ยอดของแต่ละคนรวม${and(
-        [servicePercent > 0 ? `ค่าบริการ ${servicePercent}%` : null, vatPercent > 0 ? `VAT ${vatPercent}%` : null].filter(
+        [servicePercent > 0 ? `ค่าบริการ ${percent(servicePercent)}` : null, vatPercent > 0 ? `VAT ${percent(vatPercent)}` : null].filter(
           (part) => part !== null,
         ),
       )} แล้ว แบ่งตามสัดส่วน`,
@@ -386,6 +394,12 @@ export const th: Strings = {
     splitBetween: (count) => `หาร ${count} คน`,
     countFor: (item, name) => `${item} ของ${tail(name)}`,
     hadItem: (name, item) => `${lead(name)}กิน${tail(item)}`,
+    whoGetsThis: 'ใครได้ส่วนลดนี้?',
+    getsIt: (name) => `${lead(name)}ได้ส่วนลด`,
+    youGetIt: 'คุณได้ส่วนลด',
+    getsItem: (name, item) => `${lead(name)}ได้${tail(item)}`,
+    youGetItem: (item) => `คุณได้${tail(item)}`,
+    chooseWhoGetsIt: 'เลือกว่าใครได้ส่วนลด',
 
     breakdown: 'รายละเอียด',
     nothingYet: 'ยังไม่มี',
@@ -396,11 +410,44 @@ export const th: Strings = {
     shareToGroup: 'แชร์ให้กลุ่ม',
   },
 
+  mine: {
+    question: 'จะทำอะไรกับบิลนี้?',
+    justMine: 'เฉพาะส่วนของฉัน',
+    justMineHint: 'เลือกสิ่งที่คุณกิน แล้วคืนเงินคนที่จ่าย ไม่ต้องเพิ่มคนอื่น',
+    everyone: 'หารกับทุกคน',
+    everyoneHint: 'เพิ่มคนที่มาด้วย แล้วดูว่าแต่ละคนต้องจ่ายเท่าไร',
+    changeLater: 'เปลี่ยนทีหลังได้จากเมนู ⋯',
+    whoPaid: 'ใครจ่าย?',
+    typeName: 'พิมพ์ชื่อ',
+    addPayer: '+ เพิ่ม',
+    removeName: (name) => `ลบ${tail(name)}`,
+    payers: (names) => (names.length > 2 ? `${names.length} คน` : names.join(', ')),
+    howMany: 'คุณกินกี่ชิ้น?',
+    ofQty: (qty) => `จาก ${qty}`,
+    sharedIt: 'กินร่วมกัน? หารเลย',
+    splitBetween: 'หารกัน',
+    people: 'คน',
+    sendTo: (name) => `ส่งให้${tail(name)}`,
+    alreadyPaid: (name) => `ฉันคืนเงิน${mid(name)}แล้ว`,
+    pickPayerFirst: 'เพิ่มคนที่จ่าย',
+    yourShare: 'ส่วนของคุณ',
+    paidOn: (amount, date) => `${amount} · ${date}`,
+    undo: 'ยกเลิก',
+    whatYouHad: 'สิ่งที่คุณกิน',
+    paidBack: 'คืนเงินแล้ว ✓',
+    sendAgain: 'ส่งอีกครั้ง',
+    everyoneInstead: 'หารกับทุกคนแทน',
+    everyoneInsteadHint: 'เพิ่มคนที่มาด้วย',
+    mineInstead: 'เฉพาะส่วนของฉันแทน',
+    mineInsteadHint: 'ดูแค่ยอดที่คุณต้องจ่าย',
+    modeFailed: 'เปลี่ยนบิลนี้ไม่ได้',
+  },
+
   totals: {
     me: 'ฉัน',
     paidByMe: 'ฉัน',
-    service: (percent) => `ค่าบริการ ${percent}%`,
-    tax: (percent) => `ภาษี ${percent}%`,
+    service: (value) => `ค่าบริการ ${percent(value)}`,
+    tax: (value) => `ภาษี ${percent(value)}`,
     paidBy: (name) => `${lead(name)}จ่ายบิลนี้`,
     paid: ' (คืนแล้ว)',
     notAssigned: (amount) => `ยังไม่แบ่ง: ${amount}`,
@@ -417,6 +464,7 @@ export const th: Strings = {
     whoToShow: 'ส่งยอดของใคร',
     myShare: (title, amount) => `${title} ส่วนของฉัน: ${amount}`,
     sentTo: (name) => `โอนให้${mid(name)}แล้ว ขอบคุณนะ!`,
+    eachTo: (amount, names) => `โอนให้${mid(and(names))}คนละ ${amount} แล้ว ขอบคุณนะ!`,
     withQrSubtitle: 'กลุ่มจะได้รับเป็นรูปเดียว พร้อมข้อความแบบตัวอักษรด้วย',
     copyText: 'คัดลอกข้อความ',
     send: 'ส่ง',

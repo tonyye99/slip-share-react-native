@@ -8,7 +8,7 @@ import { Radius, Spacing } from '@/constants/theme'
 import { useTheme } from '@/hooks/use-theme'
 import { useT } from '@/i18n'
 import { bothNames } from '@/lib/names'
-import { isCountable } from '@/lib/split'
+import { isCountable, isDiscount } from '@/lib/split'
 import type { Item, ItemStatus, Money, PersonView } from '@/lib/split-view'
 
 export function WhoHadSheet({
@@ -17,6 +17,7 @@ export function WhoHadSheet({
   item,
   showEnglish,
   people,
+  meId,
   counts,
   shares,
   status,
@@ -30,6 +31,7 @@ export function WhoHadSheet({
   item: Item | undefined
   showEnglish: boolean
   people: PersonView[]
+  meId?: string
   counts: Record<string, number>
   shares: Record<string, number>
   status: ItemStatus
@@ -42,6 +44,7 @@ export function WhoHadSheet({
   const t = useT()
   const names = item ? bothNames(item.name, item.name_en, showEnglish) : null
   const had = Object.keys(counts)
+  const discount = !!item && isDiscount(item)
   const everyoneOn = people.every((person) => had.includes(person.id))
   const summary =
     had.length > 1 && !status.warn
@@ -73,7 +76,7 @@ export function WhoHadSheet({
         <>
           <View style={styles.header}>
             <AppText variant="label" style={styles.flex}>
-              {t.split.whoHadThis}
+              {discount ? t.split.whoGetsThis : t.split.whoHadThis}
             </AppText>
             <Pressable
               onPress={onToggleEveryone}
@@ -130,7 +133,13 @@ export function WhoHadSheet({
                 onPress={() => onTogglePerson(person.id)}
                 accessibilityRole="checkbox"
                 accessibilityState={{ checked: on }}
-                accessibilityLabel={t.split.hadItem(person.name, names.main)}
+                accessibilityLabel={
+                  !discount
+                    ? t.split.hadItem(person.name, names.main)
+                    : person.id === meId
+                      ? t.split.youGetItem(names.main)
+                      : t.split.getsItem(person.name, names.main)
+                }
                 style={({ pressed }) => [rowStyle, { opacity: pressed ? 0.85 : 1 }]}>
                 {nameAndShare}
                 <View

@@ -55,6 +55,7 @@ export function BreakdownSheet({
         const { result } = person
         const lines = [
           ...person.items,
+          ...(result.discount < -0.001 ? [{ label: t.common.promotion, amount: result.discount }] : []),
           ...(result.service ? [{ label: t.common.service(servicePercent), amount: result.service }] : []),
           ...(result.tax ? [{ label: t.common.vat(taxPercent), amount: result.tax }] : []),
           ...(Math.abs(result.rounding) > 0.001 ? [{ label: t.common.rounding, amount: result.rounding }] : []),

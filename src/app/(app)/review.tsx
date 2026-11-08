@@ -116,7 +116,7 @@ export default function ReviewScreen() {
       const id = await createReceipt({ ...priced, items: parsedItems, total }, userId)
       track('split_created', { items: parsedItems.length, currency: draft.currency || null })
       receiptDraft.clear()
-      router.replace(`/receipts/${id}`)
+      router.replace({ pathname: '/receipts/[id]', params: { id, start: '1' } })
     } catch (e) {
       console.error('Save failed', e)
       setError(t.review.saveFailed)

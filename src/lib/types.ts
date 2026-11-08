@@ -15,9 +15,12 @@ export interface Receipt {
   user_type: UserType
   share_token: string
   link_enabled: boolean
+  split_mode: SplitMode | null
   created_at: string
   updated_at: string
 }
+
+export type SplitMode = 'mine' | 'everyone'
 
 export interface ReceiptItem {
   id: string
@@ -42,8 +45,14 @@ export interface ReceiptPerson {
   created_at: string
 }
 
+export interface ItemPick {
+  person_id: string
+  units: number
+  split_between: number
+}
+
 export interface ReceiptWithPeople extends Receipt {
-  receipts_items: (ReceiptItem & { receipt_item_people: { person_id: string; units: number }[] })[]
+  receipts_items: (ReceiptItem & { receipt_item_people: ItemPick[] })[]
   receipt_people: ReceiptPerson[]
 }
 
@@ -67,5 +76,7 @@ export interface ParsedReceipt {
   subtotal: number
   total: number
   rounding: number
+  service_amount?: number
+  reader?: string
   tax_on_items_only?: boolean
 }

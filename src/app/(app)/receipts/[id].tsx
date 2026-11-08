@@ -11,11 +11,13 @@ import { ScreenHeader } from '@/components/screen-header'
 import { SendTotalsSheet } from '@/components/send-totals-sheet'
 import { BillSummary } from '@/components/split/bill-summary'
 import { FriendLinkCard, ShareLinkTile } from '@/components/split/friend-link'
-import { ItemRow } from '@/components/split/item-row'
+import { ItemRow, PromotionRow } from '@/components/split/item-row'
+import { MyItemRow, PaidBanner, WhoPaidCard } from '@/components/split/my-share'
 import { PeopleRow, PeopleStep } from '@/components/split/people-step'
 import { PersonCards } from '@/components/split/person-cards'
 import { PersonDetail } from '@/components/split/person-detail'
 import { SplitFooter } from '@/components/split/split-footer'
+import { StartChoice } from '@/components/split/start-choice'
 import { MenuButton, PayerSheet, RenameSheet, SoloPayerSheet, SplitMenu } from '@/components/split/split-menu'
 import { WhoHadSheet } from '@/components/split/who-had-sheet'
 import { AppText, Button, Card, TextLink } from '@/components/ui'
@@ -38,31 +40,36 @@ import {
   removeItemPeople,
   removePerson,
   renameReceipt,
+  resetItemSplits,
+  setPaidTheBill,
   setPayer,
   setPersonPaid,
   setReceiptLink,
+  setSplitMode,
 } from '@/lib/receipts'
 import { shareText } from '@/lib/share-text'
 import {
   evenCount,
   formatMoney,
+  isDiscount,
   itemShares,
   myShareMessage,
   picksFrom,
   splitByPicks,
+  splitsFrom,
   totalsMessage,
   type Counts,
   type SplitResult,
 } from '@/lib/split'
-import { afterSheet, itemStatus, nameOf, partOf, type Item } from '@/lib/split-view'
-import type { ReceiptPerson, ReceiptWithPeople } from '@/lib/types'
+import { afterSheet, discountText, itemStatus, nameOf, partOf, type Item } from '@/lib/split-view'
+import type { ReceiptPerson, ReceiptWithPeople, SplitMode } from '@/lib/types'
 
 const MAX_SUGGESTIONS = 6
-const NOTHING: SplitResult = { subtotal: 0, tax: 0, service: 0, rounding: 0, total: 0, proportion: 0 }
+const NOTHING: SplitResult = { subtotal: 0, discount: 0, tax: 0, service: 0, rounding: 0, total: 0, proportion: 0 }
 const NO_STATUS = { text: '', warn: false }
 
 export default function SplitScreen() {
-  const { id } = useLocalSearchParams<{ id: string }>()
+  const { id, start } = useLocalSearchParams<{ id: string; start?: string }>()
   const theme = useTheme()
   const t = useT()
   const personColor = usePersonColor()
@@ -70,6 +77,7 @@ export default function SplitScreen() {
   const [receipt, setReceipt] = useState<ReceiptWithPeople | null>(null)
   const [people, setPeople] = useState<ReceiptPerson[]>([])
   const [picks, setPicks] = useState<Counts>({})
+  const [splits, setSplits] = useState<Counts>({})
   const [recentNames, setRecentNames] = useState<string[]>([])
   const [payMethods, setPayMethods] = useState<PayMethod[]>([])
   const [adding, setAdding] = useState(false)
@@ -96,6 +104,7 @@ export default function SplitScreen() {
     setReceipt(receipt)
     setPeople(receipt.receipt_people)
     setPicks(picksFrom(receipt.receipts_items))
+    setSplits(splitsFrom(receipt.receipts_items))
   }, [])
 
   const notFound = t.split.notFound
@@ -114,11 +123,17 @@ export default function SplitScreen() {
       .catch((e) => console.error('Could not load ways to get paid', e))
   }, [id, show, notFound])
 
-  const split = useMemo(
-    () =>
-      receipt ? splitByPicks(receipt, receipt.receipts_items, people.map((person) => person.id), picks) : null,
-    [receipt, people, picks],
-  )
+  const split = useMemo(() => {
+    if (!receipt) return null
+    const mine = receipt.split_mode === 'mine'
+    return splitByPicks(
+      receipt,
+      receipt.receipts_items,
+      people.map((person) => person.id),
+      picks,
+      mine ? splits : {},
+    )
+  }, [receipt, people, picks, splits])
 
   if (error || !receipt || !split) {
     return (
@@ -130,11 +145,14 @@ export default function SplitScreen() {
   }
 
   const money = (amount: number) => formatMoney(amount, receipt.currency)
+  const mine = receipt.split_mode === 'mine'
+  const asking = receipt.split_mode === null && start === '1'
   const totalOf = (person: ReceiptPerson) =>
     wholeBillMine && person.is_me ? receipt.total : (split.people[person.id]?.total ?? 0)
   const colorOf = (person: ReceiptPerson) => personColor(people.indexOf(person))
   const views = people.map((person) => ({ id: person.id, name: nameOf(person), color: colorOf(person) }))
   const payer = people.find((person) => person.is_payer) ?? null
+  const me = people.find((person) => person.is_me)
   const payerName = payer?.is_me ? t.common.youInSentence : payer?.name
   const title = bothNames(receipt.merchant_name, receipt.merchant_name_en, showEnglish).main || t.common.receipt
   const date = new Date(receipt.created_at).toLocaleDateString(dateLocale(), { month: 'short', day: 'numeric' })
@@ -151,13 +169,22 @@ export default function SplitScreen() {
       ? others[0]
       : null
   const alone = others.length === 0 || friendPayer !== null
-  const sharesOf = (item: Item) => itemShares(item, peopleOn(item.id), picks[item.id])
+  const minePayers = others.filter((person) => person.is_payer)
+  const minePayerNames = minePayers.map((person) => person.name)
+  const sharesOf = (item: Item) => itemShares(item, peopleOn(item.id), picks[item.id], mine ? splits[item.id] : {})
   const statusOf = (item: Item) => itemStatus(item, peopleOn(item.id), sharesOf(item), people, money)
+  const whoGets = (item: Item) =>
+    discountText(
+      peopleOn(item.id),
+      (personId) => people.find((person) => person.id === personId)?.name ?? t.common.someone,
+      me?.id,
+    )
   const unassignedCount = items.filter((item) => sharesOf(item).left > 0).length
   const priced = items.filter((item) => item.qty * item.unit_price > 0)
-  const free = items.filter((item) => item.qty * item.unit_price <= 0)
+  const free = items.filter((item) => item.qty * item.unit_price === 0)
+  const promotions = items.filter(isDiscount)
   const mineCount = alone ? priced.filter((item) => peopleOn(item.id).length > 0).length : 0
-  const wholeBillMine = alone && mineCount === 0
+  const wholeBillMine = !mine && alone && mineCount === 0
   const assignedTotal = people.reduce((sum, person) => sum + totalOf(person), 0)
 
   const owesSomething = (person: ReceiptPerson) => !person.is_payer && totalOf(person) >= 0.005
@@ -276,8 +303,8 @@ export default function SplitScreen() {
 
   const splitEvenly = () => {
     const run = () => {
-      const even = Object.fromEntries(items.map((item) => [item.id, evenly(item)]))
-      setPicks(even)
+      const even = Object.fromEntries(items.filter((item) => !isDiscount(item)).map((item) => [item.id, evenly(item)]))
+      setPicks((prev) => ({ ...prev, ...even }))
       save(() => addItemPeople(Object.entries(even).flatMap(([itemId, had]) => rowsFor(itemId, had))))
     }
     if (!Object.values(picks).some((had) => Object.keys(had).length > 0)) return run()
@@ -358,7 +385,7 @@ export default function SplitScreen() {
     setPeople(next)
     save(() => setPersonPaid(person.id, paid))
     if (paid) track('marked_paid')
-    if (paid && next.filter(owesSomething).every((other) => other.paid_at)) {
+    if (paid && !alone && !mine && next.filter(owesSomething).every((other) => other.paid_at)) {
       track('all_settled', { people: next.length })
       setSettledOpen(true)
     }
@@ -392,15 +419,117 @@ export default function SplitScreen() {
     })
   const groupMessage = (maths: boolean) => (payer?.is_me ? withPayMe(totalsText(maths), payMethods) : totalsText(maths))
   const totalsQr = payer?.is_me ? groupPayQr(payMethods, receipt.currency) : null
-  const me = people.find((person) => person.is_me)
   const owe =
     payer && !payer.is_me && me && totalOf(me) >= 0.005
       ? { payer: payer.name, amount: totalOf(me), paid: !!me.paid_at, line: totalsLine(me) }
       : null
+  const owedTo = mine ? minePayerNames : owe ? [owe.payer] : []
   const myMessage = owe
-    ? (maths: boolean) => myShareMessage({ title, currency: receipt.currency, me: owe.line, payer: owe.payer, maths })
+    ? (maths: boolean) => myShareMessage({ title, currency: receipt.currency, me: owe.line, payers: owedTo, maths })
     : null
-  const sendTotals = () => setSendOpen(true)
+  const sendTotals = () => {
+    if (mine && minePayers.length === 0) scroll.current?.scrollTo({ y: 0, animated: true })
+    else setSendOpen(true)
+  }
+  const sendLabel = mine
+    ? me?.paid_at && minePayers.length > 0
+      ? t.mine.sendAgain
+      : minePayers.length > 0
+        ? t.mine.sendTo(t.mine.payers(minePayerNames))
+        : t.mine.pickPayerFirst
+    : owe
+      ? t.split.sendMyShare
+      : t.split.sendTotals
+
+  const myUnits = (item: Item) => (me && me.id in (picks[item.id] ?? {}) ? (picks[item.id][me.id] ?? 1) : null)
+  const myCount = priced.filter((item) => myUnits(item) !== null).length
+  const paidBackMine = !!me?.paid_at && minePayers.length > 0
+
+  const toggleMyItem = (item: Item) => {
+    if (!me) return
+    if (myUnits(item) !== null) setSplits((prev) => ({ ...prev, [item.id]: {} }))
+    togglePerson(item.id, me.id)
+  }
+
+  const setMySplit = (item: Item, between: number) => {
+    if (!me) return
+    const units = myUnits(item) ?? 1
+    setSplits((prev) => ({ ...prev, [item.id]: between > 1 ? { [me.id]: between } : {} }))
+    save(() => addItemPeople([{ item_id: item.id, person_id: me.id, units, split_between: between }]))
+  }
+
+  const markMinePaid = () => {
+    if (!me || me.paid_at) return
+    togglePaid(me)
+    setTimeout(() => scroll.current?.scrollTo({ y: 0, animated: true }), 0)
+  }
+
+  const changeMode = (mode: SplitMode) => {
+    const splitItems = Object.keys(splits).filter((itemId) => Object.keys(splits[itemId]).length > 0)
+    setReceipt((prev) => prev && { ...prev, split_mode: mode })
+    const onePayer = minePayers.length === 0 ? me : minePayers.length > 1 ? minePayers[0] : null
+    if (mode === 'everyone') setSplits({})
+    if (mode === 'everyone' && onePayer) {
+      setPeople((prev) =>
+        prev.map((other) => ({
+          ...other,
+          is_payer: other.id === onePayer.id,
+          paid_at: other.id === onePayer.id ? null : other.paid_at,
+        })),
+      )
+    }
+    setDetailFor(null)
+    setEditingPeople(false)
+    track('split_mode_chosen', { mode })
+    save(async () => {
+      await setSplitMode(receipt.id, mode)
+      if (mode === 'everyone' && me) await resetItemSplits(splitItems, me.id)
+      if (mode === 'everyone' && onePayer) await setPayer(receipt.id, onePayer.id)
+    })
+  }
+
+  const addMinePayer = async (typed: string) => {
+    const name = cleanName(typed)
+    if (!name || adding || !me) return
+    const key = name.toLowerCase()
+    if (key === 'you' || key === 'me' || key === t.common.you.toLowerCase()) {
+      showAlert(t.split.alreadyOnBill, t.split.youreOnEveryBill)
+      return
+    }
+    const existing = others.find((person) => person.name.toLowerCase() === key)
+    if (existing?.is_payer) return
+    const first = minePayers.length === 0
+    setAdding(true)
+    try {
+      const person = existing ?? (await addPerson(receipt.id, name))
+      setPeople((prev) =>
+        (existing ? prev : [...prev, person]).map((other) =>
+          other.id === person.id
+            ? { ...other, is_payer: true, paid_at: null }
+            : first && other.is_payer
+              ? { ...other, is_payer: false }
+              : other,
+        ),
+      )
+      save(() => (first ? setPayer(receipt.id, person.id) : setPaidTheBill(person.id, true)))
+    } catch (e) {
+      console.error('Add person failed', e)
+      showAlert(t.split.couldNotAdd(name), t.common.checkConnection)
+    } finally {
+      setAdding(false)
+    }
+  }
+
+  const removeMinePayer = (personId: string) => {
+    const hasPicks = Object.values(picks).some((had) => personId in had)
+    if (hasPicks) {
+      setPeople((prev) => prev.map((other) => (other.id === personId ? { ...other, is_payer: false } : other)))
+      save(() => setPaidTheBill(personId, false))
+      return
+    }
+    setPeople((prev) => prev.filter((other) => other.id !== personId))
+    save(() => removePerson(receipt.id, personId))
+  }
 
   const refresh = async () => {
     setRefreshing(true)
@@ -478,17 +607,29 @@ export default function SplitScreen() {
   }
 
   const showPeopleStep = editingPeople
-  const detailPerson = alone ? undefined : people.find((person) => person.id === detailFor)
+  const detailPerson = alone ? (owe ? me : undefined) : people.find((person) => person.id === detailFor)
   const pickItem = items.find((item) => item.id === pickFor)
   const hasTranslation = !!receipt.merchant_name_en || items.some((item) => item.name_en)
   const left = split.unassigned.total
+  const itemCount = items.length - promotions.length
+
+  if (asking) {
+    return (
+      <View style={[styles.flex, { backgroundColor: theme.background }]}>
+        <ScreenHeader plain title={title} subtitle={`${date} · ${money(receipt.total)} · ${t.common.items(itemCount)}`} />
+        <ScrollView style={styles.flex} contentContainerStyle={{ paddingBottom: insets.bottom + Spacing.four }}>
+          <StartChoice onChoose={changeMode} />
+        </ScrollView>
+      </View>
+    )
+  }
 
   return (
     <View style={[styles.flex, { backgroundColor: theme.background }]}>
       <ScreenHeader
         plain
         title={title}
-        subtitle={`${date} · ${t.common.items(items.length)}`}
+        subtitle={mine ? `${date} · ${money(receipt.total)}` : `${date} · ${t.common.items(itemCount)}`}
         onTitlePress={() => setRenameOpen(true)}
         titleHint={t.split.tapToRename}
         right={<MenuButton onPress={() => setMenuOpen(true)} />}
@@ -501,128 +642,207 @@ export default function SplitScreen() {
         keyboardShouldPersistTaps="handled"
         automaticallyAdjustKeyboardInsets
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refresh} />}>
-        <BillSummary
-          total={receipt.total}
-          caption={summaryCaption}
-          payer={{
-            label: payer && payerName ? t.split.paidBy(payerName) : t.split.choosePayer,
-            person: payer ? views[people.indexOf(payer)] : null,
-          }}
-          onChoosePayer={() => setPayerOpen(true)}
-          progress={
-            alone
-              ? null
-              : {
-                  assignedItems: items.length - unassignedCount,
-                  itemCount: items.length,
-                  left,
-                  share: assignedTotal / (assignedTotal + left || 1),
-                }
-          }
-          settled={settled}
-          paidBack={paidBack}
-          owedBack={owedBack}
-          money={money}
-          onShowSettled={() => setSettledOpen(true)}
-        />
-
-        {!alone && (
-          <PersonCards
-            people={people.map((person, index) => ({
-              ...views[index],
-              total: totalOf(person),
-              paidBack: !person.is_payer && !!person.paid_at,
-              slipSent: !!person.slip_path,
-            }))}
-            openId={detailFor}
-            billTotal={receipt.total}
-            money={money}
-            onToggle={(personId) => setDetailFor(detailFor === personId ? null : personId)}
-            onAdd={() => {
-              setDetailFor(null)
-              setEditingPeople(true)
-            }}
+        {mine && paidBackMine && me?.paid_at && (
+          <PaidBanner
+            payer={t.mine.payers(minePayerNames)}
+            amount={money(totalOf(me))}
+            date={new Date(me.paid_at).toLocaleDateString(dateLocale(), { month: 'short', day: 'numeric' })}
+            onUndo={() => togglePaid(me)}
           />
         )}
 
-        {detailPerson && (
-          <PersonDetail
-            person={detailPerson}
-            payer={payer}
-            color={colorOf(detailPerson)}
-            total={totalOf(detailPerson)}
-            itemCount={itemsOf(detailPerson).length}
-            money={money}
-            onChoosePayer={() => setPayerOpen(true)}
-            onTogglePaid={() => togglePaid(detailPerson)}
-            onRemove={() => confirmRemove(detailPerson)}
+        {mine && !paidBackMine && (
+          <WhoPaidCard
+            payers={minePayers.map((person) => ({ id: person.id, name: person.name, color: colorOf(person) }))}
+            busy={adding}
+            onAdd={addMinePayer}
+            onRemove={removeMinePayer}
           />
         )}
 
-        {alone && !showPeopleStep && <PeopleRow people={people} colorOf={colorOf} onAdd={() => setEditingPeople(true)} />}
-
-        {friendLinksAvailable && !alone && !showPeopleStep && (
-          <FriendLinkCard on={receipt.link_enabled} pickedNames={pickedByLink} busy={linkBusy} onShare={shareLink} />
-        )}
-
-        {showPeopleStep && (
-          <PeopleStep
-            people={people}
-            alone={alone}
-            colorOf={colorOf}
-            suggestions={suggestions}
-            adding={adding}
-            linkTile={friendLinksAvailable && !receipt.link_enabled ? <ShareLinkTile busy={linkBusy} onPress={shareLink} /> : null}
-            onAdd={add}
-            onRemove={confirmRemove}
-            onDone={() => setEditingPeople(false)}
-          />
-        )}
-
-        <Card style={styles.list}>
-          <View style={styles.listHeader}>
-            <View style={styles.flex}>
-              <AppText variant="title" style={styles.sectionTitle}>
-                {alone ? t.split.whatDidYouHave : t.split.whoHadWhat}
-              </AppText>
-              <AppText variant="caption">{alone ? t.split.tickIfYouHadItAll : t.common.items(priced.length)}</AppText>
+        {mine && me && (
+          <Card style={styles.list}>
+            <View style={styles.listHeader}>
+              <View style={styles.flex}>
+                <AppText variant="title" style={styles.sectionTitle}>
+                  {paidBackMine ? t.mine.whatYouHad : t.split.whatDidYouHave}
+                </AppText>
+                <AppText variant="caption">
+                  {paidBackMine ? t.split.paidBy(t.mine.payers(minePayerNames)) : t.split.tickIfYouHadItAll}
+                </AppText>
+              </View>
             </View>
-            {!alone && <TextLink title={t.split.splitAllEvenly} onPress={splitEvenly} />}
-          </View>
-          {[...priced, ...(showFree ? free : [])].map((item) => (
-            <ItemRow
-              key={item.id}
-              item={item}
-              showEnglish={showEnglish}
-              had={peopleOn(item.id)}
-              status={statusOf(item)}
-              alone={alone}
-              divider
+            {priced.map((item) => (
+              <MyItemRow
+                key={item.id}
+                item={item}
+                showEnglish={showEnglish}
+                units={myUnits(item)}
+                splitBetween={splits[item.id]?.[me.id] ?? 1}
+                share={sharesOf(item).shares[me.id] ?? 0}
+                money={money}
+                onToggle={() => toggleMyItem(item)}
+                onUnits={(units) => setCount(item, me.id, units)}
+                onSplit={(between) => setMySplit(item, between)}
+              />
+            ))}
+            {promotions.map((item) => (
+              <PromotionRow
+                key={item.id}
+                item={item}
+                showEnglish={showEnglish}
+                money={money}
+                who={whoGets(item)}
+                checked={peopleOn(item.id).includes(me.id)}
+                onPress={() => togglePerson(item.id, me.id)}
+              />
+            ))}
+          </Card>
+        )}
+
+        {!mine && (
+          <>
+            <BillSummary
+              total={receipt.total}
+              caption={summaryCaption}
+              payer={{
+                label: payer && payerName ? t.split.paidBy(payerName) : t.split.choosePayer,
+                person: payer ? views[people.indexOf(payer)] : null,
+              }}
+              onChoosePayer={() => setPayerOpen(true)}
+              progress={
+                alone
+                  ? null
+                  : {
+                      assignedItems: items.length - promotions.length - unassignedCount,
+                      itemCount: items.length - promotions.length,
+                      left,
+                      share: assignedTotal / (assignedTotal + left || 1),
+                    }
+              }
+              settled={settled}
+              paidBack={paidBack}
+              owedBack={owedBack}
               money={money}
-              onOpen={() => (alone ? toggleMine(item) : openItem(item.id))}
+              onShowSettled={() => setSettledOpen(true)}
             />
-          ))}
-          {free.length > 0 && (
-            <Pressable
-              onPress={() => setShowFree(!showFree)}
-              accessibilityRole="button"
-              accessibilityState={{ expanded: showFree }}
-              style={({ pressed }) => [
-                styles.freeRow,
-                { borderTopColor: theme.hairline, backgroundColor: pressed ? theme.backgroundElement : theme.surface },
-              ]}>
-              <AppText variant="caption" style={styles.flex}>
-                {showFree ? t.split.hideFree : t.split.freeItems(free.length)}
-              </AppText>
-              <ChevronDownIcon color={theme.textSecondary} up={showFree} />
-            </Pressable>
-          )}
-        </Card>
+
+            {!alone && (
+              <PersonCards
+                people={people.map((person, index) => ({
+                  ...views[index],
+                  total: totalOf(person),
+                  paidBack: !person.is_payer && !!person.paid_at,
+                  slipSent: !!person.slip_path,
+                }))}
+                openId={detailFor}
+                billTotal={receipt.total}
+                money={money}
+                onToggle={(personId) => setDetailFor(detailFor === personId ? null : personId)}
+                onAdd={() => {
+                  setDetailFor(null)
+                  setEditingPeople(true)
+                }}
+              />
+            )}
+
+            {detailPerson && (
+              <PersonDetail
+                person={detailPerson}
+                payer={payer}
+                color={colorOf(detailPerson)}
+                total={totalOf(detailPerson)}
+                itemCount={wholeBillMine ? priced.length : itemsOf(detailPerson).length}
+                money={money}
+                onChoosePayer={() => setPayerOpen(true)}
+                onTogglePaid={() => togglePaid(detailPerson)}
+                onRemove={() => confirmRemove(detailPerson)}
+              />
+            )}
+
+            {alone && !showPeopleStep && <PeopleRow people={people} colorOf={colorOf} onAdd={() => setEditingPeople(true)} />}
+
+            {friendLinksAvailable && !alone && !showPeopleStep && (
+              <FriendLinkCard on={receipt.link_enabled} pickedNames={pickedByLink} busy={linkBusy} onShare={shareLink} />
+            )}
+
+            {showPeopleStep && (
+              <PeopleStep
+                people={people}
+                alone={alone}
+                colorOf={colorOf}
+                suggestions={suggestions}
+                adding={adding}
+                linkTile={friendLinksAvailable && !receipt.link_enabled ? <ShareLinkTile busy={linkBusy} onPress={shareLink} /> : null}
+                onAdd={add}
+                onRemove={confirmRemove}
+                onDone={() => setEditingPeople(false)}
+              />
+            )}
+
+            <Card style={styles.list}>
+              <View style={styles.listHeader}>
+                <View style={styles.flex}>
+                  <AppText variant="title" style={styles.sectionTitle}>
+                    {alone ? t.split.whatDidYouHave : t.split.whoHadWhat}
+                  </AppText>
+                  <AppText variant="caption">{alone ? t.split.tickIfYouHadItAll : t.common.items(priced.length)}</AppText>
+                </View>
+                {!alone && <TextLink title={t.split.splitAllEvenly} onPress={splitEvenly} />}
+              </View>
+              {[...priced, ...(showFree ? free : [])].map((item) => (
+                <ItemRow
+                  key={item.id}
+                  item={item}
+                  showEnglish={showEnglish}
+                  had={peopleOn(item.id)}
+                  status={statusOf(item)}
+                  alone={alone}
+                  divider
+                  money={money}
+                  onOpen={() => (alone ? toggleMine(item) : openItem(item.id))}
+                />
+              ))}
+              {promotions.map((item) => (
+                <PromotionRow
+                  key={item.id}
+                  item={item}
+                  showEnglish={showEnglish}
+                  money={money}
+                  who={whoGets(item)}
+                  checked={alone && me ? peopleOn(item.id).includes(me.id) : undefined}
+                  onPress={() => (alone ? toggleMine(item) : openItem(item.id))}
+                />
+              ))}
+              {free.length > 0 && (
+                <Pressable
+                  onPress={() => setShowFree(!showFree)}
+                  accessibilityRole="button"
+                  accessibilityState={{ expanded: showFree }}
+                  style={({ pressed }) => [
+                    styles.freeRow,
+                    { borderTopColor: theme.hairline, backgroundColor: pressed ? theme.backgroundElement : theme.surface },
+                  ]}>
+                  <AppText variant="caption" style={styles.flex}>
+                    {showFree ? t.split.hideFree : t.split.freeItems(free.length)}
+                  </AppText>
+                  <ChevronDownIcon color={theme.textSecondary} up={showFree} />
+                </Pressable>
+              )}
+            </Card>
+          </>
+        )}
 
         {hasCharges && (
           <AppText variant="caption" style={styles.footnote}>
             {t.split.sharedCharges(receipt.service_percent, receipt.tax_percent)}
           </AppText>
+        )}
+
+        {mine && owe && !owe.paid && (
+          <View style={styles.alreadyPaid}>
+            <TextLink title={t.mine.alreadyPaid(t.mine.payers(owedTo))} onPress={markMinePaid} />
+          </View>
         )}
       </ScrollView>
 
@@ -635,6 +855,7 @@ export default function SplitScreen() {
         leftItems={unassignedCount}
         money={money}
         owe={owe}
+        mine={mine ? { payers: minePayerNames, paid: paidBackMine, count: myCount } : null}
         onOpenBreakdown={() => setBreakdownOpen(true)}
         onSend={sendTotals}
       />
@@ -643,18 +864,20 @@ export default function SplitScreen() {
         visible={breakdownOpen}
         onClose={() => setBreakdownOpen(false)}
         total={receipt.total}
-        people={people.map((person, index) => ({
-          ...views[index],
-          result: split.people[person.id] ?? NOTHING,
-          items: itemsOf(person),
-        }))}
-        unassigned={{ items: unassignedCount, amount: left }}
+        people={people
+          .map((person, index) => ({
+            ...views[index],
+            result: split.people[person.id] ?? NOTHING,
+            items: itemsOf(person),
+          }))
+          .filter((person) => !mine || person.id === me?.id)}
+        unassigned={mine ? { items: 0, amount: 0 } : { items: unassignedCount, amount: left }}
         servicePercent={receipt.service_percent}
         taxPercent={receipt.tax_percent}
         money={money}
         footer={
           <Button
-            title={owe ? t.split.sendMyShare : t.split.sendTotals}
+            title={sendLabel}
             icon={<SendIcon color={theme.onPrimary} />}
             onPress={() => {
               setBreakdownOpen(false)
@@ -667,9 +890,13 @@ export default function SplitScreen() {
       <SendTotalsSheet
         visible={sendOpen}
         onClose={() => setSendOpen(false)}
-        message={groupMessage}
+        message={mine ? null : groupMessage}
         myMessage={myMessage}
         qr={totalsQr}
+        onSentMine={() => {
+          if (mine) markMinePaid()
+          else if (me && !me.paid_at) togglePaid(me)
+        }}
       />
 
       <WhoHadSheet
@@ -678,6 +905,7 @@ export default function SplitScreen() {
         item={pickItem}
         showEnglish={showEnglish}
         people={views}
+        meId={me?.id}
         counts={pickItem ? (picks[pickItem.id] ?? {}) : {}}
         shares={pickItem ? sharesOf(pickItem).shares : {}}
         status={pickItem ? statusOf(pickItem) : NO_STATUS}
@@ -728,6 +956,8 @@ export default function SplitScreen() {
           setShowEnglish(!showEnglish)
           setMenuOpen(false)
         }}
+        mine={mine}
+        onSwitchMode={() => fromMenu(() => changeMode(mine ? 'everyone' : 'mine'))}
         onRename={() => fromMenu(() => setRenameOpen(true))}
         onEditPeople={() =>
           fromMenu(() => {
@@ -787,6 +1017,7 @@ const styles = StyleSheet.create({
     paddingBottom: Spacing.three - 4,
   },
   footnote: { textAlign: 'center', marginTop: Spacing.one },
+  alreadyPaid: { alignSelf: 'center', marginTop: Spacing.one },
   freeRow: {
     flexDirection: 'row',
     alignItems: 'center',

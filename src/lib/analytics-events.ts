@@ -12,6 +12,7 @@ export type AnalyticsEvent =
   | 'pay_qr_uploaded'
   | 'totals_qr_sent'
   | 'totals_copied'
+  | 'split_mode_chosen'
 
 export type AnalyticsProps = Record<string, string | number | boolean | null>
 

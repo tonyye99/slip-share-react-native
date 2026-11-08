@@ -245,8 +245,8 @@ export default function HomeScreen() {
           return (
             <BillRow
               name={billName(bill)}
-              caption={`${dayLabel(new Date(bill.created_at), now, t.home)} · ${t.common.items(status.itemCount)}`}
-              amount={money(bill.total)}
+              caption={`${dayLabel(new Date(bill.created_at), now, t.home)} · ${status.mine ? t.home.justMine : t.common.items(status.itemCount)}`}
+              amount={money(status.mine ? status.mine.share : bill.total)}
               state={status.state}
               badge={badgeText(status, money)}
               first={index === 0}

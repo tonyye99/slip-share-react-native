@@ -111,7 +111,80 @@ export function ItemRow({
   )
 }
 
+export function PromotionRow({
+  item,
+  showEnglish,
+  money,
+  who,
+  checked,
+  onPress,
+}: {
+  item: Pick<Item, 'name' | 'name_en' | 'qty' | 'unit_price'>
+  showEnglish: boolean
+  money: Money
+  who: string
+  checked?: boolean
+  onPress?: () => void
+}) {
+  const theme = useTheme()
+  const t = useT()
+  const names = bothNames(item.name, item.name_en, showEnglish)
+  const amount = money(item.qty * item.unit_price)
+  const tickable = checked !== undefined
+  const content = (
+    <>
+      {tickable && (
+        <View
+          style={[
+            styles.check,
+            checked ? { backgroundColor: theme.primary, borderColor: theme.primary } : { borderColor: theme.border },
+          ]}>
+          {checked && <AppText style={[styles.checkMark, { color: theme.onPrimary }]}>✓</AppText>}
+        </View>
+      )}
+      <View style={styles.left}>
+        <AppText variant="heading" numberOfLines={2}>
+          {names.main}
+        </AppText>
+        <AppText variant="muted" style={[styles.whoText, { color: theme.success }]}>
+          {who}
+        </AppText>
+      </View>
+      <AppText variant="heading" style={[styles.amount, styles.promotionAmount, { color: theme.success }]}>
+        {amount}
+      </AppText>
+      {onPress && !tickable && <ChevronRight color={theme.textSecondary} />}
+    </>
+  )
+  const rowStyle = [
+    styles.row,
+    { borderTopColor: theme.hairline, borderTopWidth: StyleSheet.hairlineWidth },
+  ] as const
+  if (!onPress) {
+    return (
+      <View accessible accessibilityLabel={`${names.main}, ${amount}, ${who}`} style={[rowStyle, { backgroundColor: theme.surface }]}>
+        {content}
+      </View>
+    )
+  }
+  return (
+    <Pressable
+      onPress={onPress}
+      accessibilityRole={tickable ? 'checkbox' : 'button'}
+      accessibilityState={tickable ? { checked } : undefined}
+      accessibilityLabel={`${names.main}, ${amount}, ${who}`}
+      accessibilityHint={tickable ? t.split.tickIfYouHadIt : t.split.chooseWhoGetsIt}
+      style={({ pressed }) => [
+        rowStyle,
+        { backgroundColor: pressed ? theme.backgroundElement : tickable && checked ? theme.primaryTint : theme.surface },
+      ]}>
+      {content}
+    </Pressable>
+  )
+}
+
 const styles = StyleSheet.create({
+  promotionAmount: { marginRight: Spacing.one + 1 },
   row: {
     flexDirection: 'row',
     alignItems: 'center',

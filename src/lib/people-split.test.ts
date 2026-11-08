@@ -205,18 +205,30 @@ test('peopleInOrder puts you first, then everyone in the order they were added',
 test('just my share, for whoever paid', () => {
   const me = dinner.people[0]
   assert.equal(
-    myShareMessage({ title: 'Kalamansi', currency: 'THB', me, payer: 'Ben' }),
+    myShareMessage({ title: 'Kalamansi', currency: 'THB', me, payers: ['Ben'] }),
     ['Kalamansi, my share: ฿394.30', 'Pad thai, Som tam ½', 'Sent to Ben, thanks!'].join('\n'),
   )
   assert.equal(
-    myShareMessage({ title: 'Kalamansi', currency: 'THB', me, payer: 'Ben', maths: true }),
+    myShareMessage({ title: 'Kalamansi', currency: 'THB', me, payers: ['Ben'], maths: true }),
     ['Kalamansi, my share: ฿394.30', 'Pad thai, Som tam ½ (335 × 1.177)', 'Sent to Ben, thanks!'].join('\n'),
   )
 })
 
+test('just my share split between two payers', () => {
+  const me = dinner.people[0]
+  assert.equal(
+    myShareMessage({ title: 'Kalamansi', currency: 'THB', me, payers: ['Ben', 'Kris'] }).split('\n')[2],
+    'Sent ฿197.15 each to Ben and Kris, thanks!',
+  )
+  applyLanguage('th')
+  const thai = myShareMessage({ title: 'Kalamansi', currency: 'THB', me, payers: ['Ben', 'Kris'] })
+  applyLanguage('en')
+  assert.equal(thai.split('\n')[2], 'โอนให้ Ben และ Kris คนละ ฿197.15 แล้ว ขอบคุณนะ!')
+})
+
 test('just my share in Thai', () => {
   applyLanguage('th')
-  const message = myShareMessage({ title: 'Kalamansi', currency: 'THB', me: dinner.people[0], payer: 'Ben' })
+  const message = myShareMessage({ title: 'Kalamansi', currency: 'THB', me: dinner.people[0], payers: ['Ben'] })
   applyLanguage('en')
   assert.equal(message.split('\n')[2], 'โอนให้ Ben แล้ว ขอบคุณนะ!')
   assert.equal(message.split('\n')[0], 'Kalamansi ส่วนของฉัน: ฿394.30')

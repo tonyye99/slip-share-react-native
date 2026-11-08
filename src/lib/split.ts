@@ -16,6 +16,7 @@ export interface SplitReceipt {
 
 export interface SplitResult {
   subtotal: number
+  discount: number
   tax: number
   service: number
   rounding: number
@@ -31,13 +32,14 @@ export function chargesFor(receipt: Charges, items: number): { service: number; 
   return { service, tax }
 }
 
-function chargesOn(receipt: SplitReceipt, subtotal: number): SplitResult {
+function chargesOn(receipt: SplitReceipt, subtotal: number, discount = 0): SplitResult {
   const proportion = receipt.subtotal > 0 ? subtotal / receipt.subtotal : 0
   const { service, tax } = chargesFor(receipt, subtotal)
   const rounding = receipt.rounding * proportion
 
   return {
     subtotal,
+    discount,
     tax,
     service,
     rounding,
@@ -52,6 +54,8 @@ export type Counts = Record<string, Record<string, number>>
 
 export const isCountable = (item: Pick<SplitItem, 'qty'>) => Number.isInteger(item.qty) && item.qty >= 2
 
+export const isDiscount = (item: Pick<SplitItem, 'qty' | 'unit_price'>) => item.qty * item.unit_price < 0
+
 export const evenCount = (item: Pick<SplitItem, 'qty'>, people: number) =>
   isCountable(item) && people > 0 ? Math.ceil(item.qty / people) : 1
 
@@ -59,18 +63,23 @@ export function itemShares(
   item: SplitItem,
   personIds: string[],
   counts: Record<string, number> = {},
-): { shares: Record<string, number>; left: number } {
+  splits: Record<string, number> = {},
+): { shares: Record<string, number>; left: number; unclaimed: number } {
+  if (isDiscount(item)) {
+    const each = (item.qty * item.unit_price) / Math.max(personIds.length, 1)
+    return { shares: Object.fromEntries(personIds.map((personId) => [personId, each])), left: 0, unclaimed: 0 }
+  }
   const countOf = (personId: string) => (isCountable(item) ? (counts[personId] ?? 1) : 1)
+  const splitOf = (personId: string) => Math.max(1, splits[personId] ?? 1)
   const claimed = personIds.reduce((sum, personId) => sum + countOf(personId), 0)
   const lineTotal = item.qty * item.unit_price
   const left = isCountable(item) ? Math.max(0, item.qty - claimed) : personIds.length > 0 ? 0 : item.qty
   const paidFor = item.qty - left
-  return {
-    shares: Object.fromEntries(
-      personIds.map((personId) => [personId, claimed > 0 ? (lineTotal * (paidFor / item.qty) * countOf(personId)) / claimed : 0]),
-    ),
-    left,
-  }
+  const fullShare = (personId: string) =>
+    claimed > 0 ? (lineTotal * (paidFor / item.qty) * countOf(personId)) / claimed : 0
+  const shares = Object.fromEntries(personIds.map((personId) => [personId, fullShare(personId) / splitOf(personId)]))
+  const unclaimed = personIds.reduce((sum, personId) => sum + fullShare(personId) - shares[personId], 0)
+  return { shares, left, unclaimed }
 }
 
 export interface PeopleSplit {
@@ -84,31 +93,71 @@ export function splitByPerson(
   personIds: string[],
   assignments: Assignments,
   counts: Counts = {},
+  splits: Counts = {},
 ): PeopleSplit {
   const subtotals: Record<string, number> = Object.fromEntries(personIds.map((personId) => [personId, 0]))
+  const given: Record<string, number> = Object.fromEntries(personIds.map((personId) => [personId, 0]))
   let unassigned = 0
+  let discounts = 0
   for (const item of items) {
-    const { shares, left } = itemShares(item, assignments[item.id] ?? [], counts[item.id])
+    if (isDiscount(item)) {
+      const to = (assignments[item.id] ?? []).filter((personId) => personId in given)
+      const { shares } = itemShares(item, to)
+      if (to.length === 0) discounts += item.qty * item.unit_price
+      for (const personId of to) given[personId] += shares[personId]
+      continue
+    }
+    const { shares, left, unclaimed } = itemShares(item, assignments[item.id] ?? [], counts[item.id], splits[item.id])
     for (const [personId, share] of Object.entries(shares)) {
       if (personId in subtotals) subtotals[personId] += share
     }
-    unassigned += left * item.unit_price
+    unassigned += left * item.unit_price + unclaimed
   }
 
+  const spent = Object.values(subtotals).reduce((sum, amount) => sum + amount, 0) + unassigned
+  const discountOn = (amount: number) => (spent > 0 ? (discounts * amount) / spent || 0 : 0)
+  const afterDiscount = (amount: number, discount: number) => chargesOn(receipt, amount + discount, discount)
+  const unassignedDiscount = spent > 0 ? discountOn(unassigned) : discounts
+
   return {
-    people: Object.fromEntries(personIds.map((personId) => [personId, chargesOn(receipt, subtotals[personId])])),
-    unassigned: chargesOn(receipt, unassigned),
+    people: Object.fromEntries(
+      personIds.map((personId) => [
+        personId,
+        afterDiscount(subtotals[personId], discountOn(subtotals[personId]) + given[personId]),
+      ]),
+    ),
+    unassigned: afterDiscount(unassigned, unassignedDiscount),
   }
 }
 
-export const picksFrom = (items: { id: string; receipt_item_people: { person_id: string; units: number }[] }[]): Counts =>
+type PickedItem = { id: string; receipt_item_people: { person_id: string; units: number; split_between?: number }[] }
+
+export const picksFrom = (items: PickedItem[]): Counts =>
   Object.fromEntries(
     items.map((item) => [item.id, Object.fromEntries(item.receipt_item_people.map((row) => [row.person_id, row.units]))]),
   )
 
-export function splitByPicks(receipt: SplitReceipt, items: SplitItem[], personIds: string[], picks: Counts): PeopleSplit {
+export const splitsFrom = (items: PickedItem[]): Counts =>
+  Object.fromEntries(
+    items.map((item) => [
+      item.id,
+      Object.fromEntries(
+        item.receipt_item_people
+          .filter((row) => (row.split_between ?? 1) > 1)
+          .map((row) => [row.person_id, row.split_between ?? 1]),
+      ),
+    ]),
+  )
+
+export function splitByPicks(
+  receipt: SplitReceipt,
+  items: SplitItem[],
+  personIds: string[],
+  picks: Counts,
+  splits: Counts = {},
+): PeopleSplit {
   const assignments = Object.fromEntries(Object.entries(picks).map(([itemId, had]) => [itemId, Object.keys(had)]))
-  return splitByPerson(receipt, items, personIds, assignments, picks)
+  return splitByPerson(receipt, items, personIds, assignments, picks, splits)
 }
 
 export const peopleInOrder = <T extends { is_me: boolean; created_at: string }>(people: T[]): T[] =>
@@ -158,14 +207,34 @@ export function dropIncludedCharges<T extends Omit<SplitReceipt, 'subtotal'> & {
   return alternatives.find((r) => r !== receipt && matchesTotal(r)) ?? receipt
 }
 
-type ScannedReceipt = Omit<SplitReceipt, 'subtotal'> & { total: number; items: Omit<SplitItem, 'id'>[] }
+type ScannedReceipt = Omit<SplitReceipt, 'subtotal'> & {
+  total: number
+  service_amount?: number
+  items: Omit<SplitItem, 'id'>[]
+}
+
+const PERCENT_STEPS = 10_000
+
+function withPrintedService<T extends ScannedReceipt>(receipt: T, subtotal: number): T {
+  const amount = receipt.service_amount ?? 0
+  if (amount <= 0 || subtotal <= 0 || receipt.service_percent <= 0) return receipt
+  const percent = Math.round((amount / subtotal) * 100 * PERCENT_STEPS) / PERCENT_STEPS
+  return percent === receipt.service_percent ? receipt : { ...receipt, service_percent: percent }
+}
+
+function settleCharges<T extends ScannedReceipt>(receipt: T): T {
+  const subtotal = receiptSubtotal(receipt.items)
+  const asPrinted = dropIncludedCharges(receipt, subtotal)
+  if (addsUpTo(asPrinted, subtotal, receipt.total)) return asPrinted
+  const withService = dropIncludedCharges(withPrintedService(receipt, subtotal), subtotal)
+  return addsUpTo(withService, subtotal, receipt.total) ? withService : asPrinted
+}
 
 export function checkScan<T extends ScannedReceipt>(receipt: T): T {
-  const settle = (r: T) => dropIncludedCharges(r, receiptSubtotal(r.items))
   const matchesTotal = (r: T) => addsUpTo(r, receiptSubtotal(r.items), r.total)
-  const asRead = settle(receipt)
+  const asRead = settleCharges(receipt)
   if (receipt.total <= 0 || matchesTotal(asRead) || !receipt.items.some((item) => item.qty > 1)) return asRead
-  const asLineTotals = settle({
+  const asLineTotals = settleCharges({
     ...receipt,
     items: receipt.items.map((item) =>
       item.qty > 1 ? { ...item, unit_price: Math.round((item.unit_price / item.qty) * 100) / 100 } : item,
@@ -250,7 +319,7 @@ export function myShareMessage(bill: {
   title: string
   currency: string
   me: TotalsLine
-  payer: string
+  payers: string[]
   maths?: boolean
 }): string {
   const t = strings().totals
@@ -258,6 +327,12 @@ export function myShareMessage(bill: {
   const maths = bill.maths ? mathsOf(bill.me) : ''
   const lines = [t.myShare(bill.title, formatMoney(bill.me.total, bill.currency))]
   if (items || maths) lines.push([items, maths ? `(${maths})` : ''].filter(Boolean).join(' '))
-  lines.push(t.sentTo(bill.payer))
+  lines.push(
+    bill.payers.length > 1
+      ? t.eachTo(formatMoney(eachOf(bill.me.total, bill.payers.length), bill.currency), bill.payers)
+      : t.sentTo(bill.payers[0] ?? ''),
+  )
   return lines.join('\n')
 }
+
+export const eachOf = (share: number, payers: number) => Math.round((share / Math.max(payers, 1)) * 100) / 100

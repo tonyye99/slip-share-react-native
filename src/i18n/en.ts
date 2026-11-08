@@ -1,5 +1,7 @@
 const plural = (count: number, one: string, many: string) => `${count} ${count === 1 ? one : many}`
-const and = (parts: string[]) => parts.join(' and ')
+const percent = (value: number) => `${Math.round(value * 100) / 100}%`
+const and = (parts: string[]) =>
+  parts.length > 2 ? `${parts.slice(0, -1).join(', ')} and ${parts[parts.length - 1]}` : parts.join(' and ')
 
 export const en = {
   common: {
@@ -20,8 +22,10 @@ export const en = {
     total: 'Total',
     subtotal: 'Subtotal',
     rounding: 'Rounding',
-    service: (percent: number) => `Service ${percent}%`,
-    vat: (percent: number) => `VAT ${percent}%`,
+    promotion: 'Promotion',
+    promotionShared: 'Shared by what each person had',
+    service: (value: number) => `Service ${percent(value)}`,
+    vat: (value: number) => `VAT ${percent(value)}`,
     each: (amount: string) => `${amount} each`,
     items: (count: number) => plural(count, 'item', 'items'),
     bills: (count: number) => plural(count, 'bill', 'bills'),
@@ -129,6 +133,7 @@ export const en = {
     firstTitle: 'Split a bill in a minute',
     firstSubtitle: 'No more calculators at the table.',
     billsShowHere: 'Your bills will show up here.',
+    justMine: 'Just my share',
   },
 
   bills: {
@@ -138,6 +143,9 @@ export const en = {
     owes: (name: string, amount: string) => `${name} owes ${amount}`,
     peopleOwe: (count: number, amount: string) => `${count} people owe ${amount}`,
     youOwe: (amount: string) => `You owe ${amount}`,
+    youOweName: (name: string) => `You owe ${name}`,
+    pickYours: 'Pick what you had',
+    pickPayer: 'Add who paid',
     reminder: (name: string, amount: string, bill: string, date: string) =>
       `Hi ${name}! A quick reminder: ${amount} for ${bill} on ${date}. Thank you!`,
     deleteTitle: 'Delete this receipt?',
@@ -238,7 +246,7 @@ export const en = {
       `incl. ${and([service ? 'service' : null, vat ? 'VAT' : null].filter((part) => part !== null))}`,
     sharedCharges: (servicePercent: number, vatPercent: number) =>
       `Totals include ${and(
-        [servicePercent > 0 ? `${servicePercent}% service` : null, vatPercent > 0 ? `${vatPercent}% VAT` : null].filter(
+        [servicePercent > 0 ? `${percent(servicePercent)} service` : null, vatPercent > 0 ? `${percent(vatPercent)} VAT` : null].filter(
           (part) => part !== null,
         ),
       )}, shared in proportion.`,
@@ -371,6 +379,12 @@ export const en = {
     splitBetween: (count: number) => `Split between ${count}`,
     countFor: (item: string, name: string) => `${item} for ${name}`,
     hadItem: (name: string, item: string) => `${name} had ${item}`,
+    whoGetsThis: 'Who gets this discount?',
+    getsIt: (name: string) => `${name} gets it`,
+    youGetIt: 'You get it',
+    getsItem: (name: string, item: string) => `${name} gets ${item}`,
+    youGetItem: (item: string) => `You get ${item}`,
+    chooseWhoGetsIt: 'Choose who gets it',
 
     breakdown: 'Breakdown',
     nothingYet: 'Nothing yet',
@@ -381,11 +395,44 @@ export const en = {
     shareToGroup: 'Share to the group',
   },
 
+  mine: {
+    question: 'What do you want to do with this bill?',
+    justMine: 'Just my share',
+    justMineHint: 'Tick what you had and pay back whoever paid. No one else to add.',
+    everyone: 'Split with everyone',
+    everyoneHint: 'Add the people at the table and work out what each person owes.',
+    changeLater: 'You can change this later from the ⋯ menu.',
+    whoPaid: 'Who paid?',
+    typeName: 'Type a name',
+    addPayer: '+ Add',
+    removeName: (name: string) => `Remove ${name}`,
+    payers: (names: string[]) => (names.length > 2 ? `${names.length} people` : names.join(', ')),
+    howMany: 'How many did you have?',
+    ofQty: (qty: number) => `of ${qty}`,
+    sharedIt: 'Shared it? Split it',
+    splitBetween: 'Split between',
+    people: 'people',
+    sendTo: (name: string) => `Send to ${name}`,
+    alreadyPaid: (name: string) => `I already paid ${name}`,
+    pickPayerFirst: 'Add who paid',
+    yourShare: 'Your share',
+    paidOn: (amount: string, date: string) => `${amount} · ${date}`,
+    undo: 'Undo',
+    whatYouHad: 'What you had',
+    paidBack: 'Paid back ✓',
+    sendAgain: 'Send again',
+    everyoneInstead: 'Split with everyone instead',
+    everyoneInsteadHint: 'Add the people at the table',
+    mineInstead: 'Just my share instead',
+    mineInsteadHint: 'Only track what you owe',
+    modeFailed: 'Could not change this bill',
+  },
+
   totals: {
     me: 'Me',
     paidByMe: 'me',
-    service: (percent: number) => `${percent}% service`,
-    tax: (percent: number) => `${percent}% tax`,
+    service: (value: number) => `${percent(value)} service`,
+    tax: (value: number) => `${percent(value)} tax`,
     paidBy: (name: string) => `Paid by ${name}.`,
     paid: ' (paid)',
     notAssigned: (amount: string) => `Not assigned yet: ${amount}`,
@@ -402,6 +449,7 @@ export const en = {
     whoToShow: 'Whose totals to send',
     myShare: (title: string, amount: string) => `${title}, my share: ${amount}`,
     sentTo: (name: string) => `Sent to ${name}, thanks!`,
+    eachTo: (amount: string, names: string[]) => `Sent ${amount} each to ${and(names)}, thanks!`,
     withQrSubtitle: 'Your group gets this as one picture, with the message as text too.',
     copyText: 'Copy text',
     send: 'Send',

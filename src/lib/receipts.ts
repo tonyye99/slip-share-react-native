@@ -5,14 +5,15 @@ import { realName } from '@/lib/names'
 import { removeSlipFiles } from '@/lib/slips'
 import { billTotal, peopleInOrder, receiptSubtotal, readSavedCharges } from '@/lib/split'
 import { supabase } from '@/lib/supabase'
-import type { ParsedReceipt, ReceiptPerson, ReceiptWithPeople } from '@/lib/types'
+import type { ParsedReceipt, ReceiptPerson, ReceiptWithPeople, SplitMode } from '@/lib/types'
 
 export async function listBills(offset: number, limit: number) {
   const { data, error, count } = await supabase
     .from('receipts')
     .select(
-      'id, merchant_name, merchant_name_en, currency, total, subtotal, tax_percent, service_percent, rounding, user_type, created_at, ' +
-        'receipts_items(id, qty, unit_price, receipt_item_people(person_id, units)), ' +
+      'id, merchant_name, merchant_name_en, currency, total, subtotal, tax_percent, service_percent, rounding, user_type, ' +
+        'split_mode, created_at, ' +
+        'receipts_items(id, qty, unit_price, receipt_item_people(person_id, units, split_between)), ' +
         'receipt_people(id, name, is_me, is_payer, paid_at, created_at)',
       { count: 'exact' },
     )
@@ -25,7 +26,7 @@ export async function listBills(offset: number, limit: number) {
 export async function getReceipt(id: string): Promise<ReceiptWithPeople> {
   const { data, error } = await supabase
     .from('receipts')
-    .select('*, receipts_items(*, receipt_item_people(person_id, units)), receipt_people(*)')
+    .select('*, receipts_items(*, receipt_item_people(person_id, units, split_between)), receipt_people(*)')
     .eq('id', id)
     .single()
   if (error) throw error
@@ -55,7 +56,7 @@ export async function createReceipt(parsed: ParsedReceipt, userId: string) {
       subtotal,
       total,
       raw_json: parsed,
-      parser_version: 'gpt-4.1-mini',
+      parser_version: parsed.reader ?? 'gpt-4.1-mini',
       issued_at: new Date().toISOString(),
       user_type: 'payer',
     })
@@ -91,13 +92,23 @@ export async function renameReceipt(receiptId: string, name: string) {
   if (error) throw error
 }
 
+export async function setPaidTheBill(personId: string, paidTheBill: boolean) {
+  const { error } = await supabase
+    .from('receipt_people')
+    .update(paidTheBill ? { is_payer: true, paid_at: null } : { is_payer: false })
+    .eq('id', personId)
+  if (error) throw error
+}
+
 export async function removePerson(receiptId: string, personId: string) {
   await removeSlipFiles(receiptId, personId)
   const { error } = await supabase.from('receipt_people').delete().eq('id', personId)
   if (error) throw error
 }
 
-export async function addItemPeople(rows: { item_id: string; person_id: string; units: number }[]) {
+export async function addItemPeople(
+  rows: { item_id: string; person_id: string; units: number; split_between?: number }[],
+) {
   if (rows.length === 0) return
   const { error } = await supabase.from('receipt_item_people').upsert(rows, { onConflict: 'item_id,person_id' })
   if (error) throw error
@@ -106,6 +117,21 @@ export async function addItemPeople(rows: { item_id: string; person_id: string; 
 export async function removeItemPeople(itemId: string, personIds: string[]) {
   if (personIds.length === 0) return
   const { error } = await supabase.from('receipt_item_people').delete().eq('item_id', itemId).in('person_id', personIds)
+  if (error) throw error
+}
+
+export async function setSplitMode(receiptId: string, mode: SplitMode) {
+  const { error } = await supabase.from('receipts').update({ split_mode: mode }).eq('id', receiptId)
+  if (error) throw error
+}
+
+export async function resetItemSplits(itemIds: string[], personId: string) {
+  if (itemIds.length === 0) return
+  const { error } = await supabase
+    .from('receipt_item_people')
+    .update({ split_between: 1 })
+    .eq('person_id', personId)
+    .in('item_id', itemIds)
   if (error) throw error
 }
 
